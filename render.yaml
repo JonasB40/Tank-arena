@@ -1,0 +1,20 @@
+# Blueprint voor Render (https://render.com/docs/blueprint-spec)
+#
+# Hiermee hoef je in de Render-website niets meer in te vullen: kies
+# "New → Blueprint", wijs deze repository aan, en Render leest alle
+# instellingen hieruit. Bij elke "git push" naar main zet hij automatisch
+# de nieuwe versie online.
+services:
+  - type: web
+    name: stemazing-tank-arena
+    runtime: node
+    plan: free
+    region: frankfurt          # dichtst bij België: minste vertraging in de klas
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    autoDeployTrigger: commit  # nieuwe versie online zodra je pusht
+    envVars:
+      # Node 18 of hoger is nodig (zie "engines" in package.json)
+      - key: NODE_VERSION
+        value: "20"

@@ -20,14 +20,15 @@ De `.gitignore` houdt `node_modules` en `projecten.json` buiten de repository. D
 
 ## Stap 2 — Maak de Render-service
 
-1. Account op [render.com](https://render.com) (inloggen met GitHub is het makkelijkst).
-2. **New → Web Service** → kies je repository.
-3. Instellingen:
-   - **Runtime:** Node
-   - **Build command:** `npm install`
-   - **Start command:** `node server.js`
-   - **Instance type:** Free
-4. Klik **Deploy**. Na een paar minuten krijg je je vaste URL.
+In de map staat een **`render.yaml`**: daarin staan alle instellingen al (Node, gratis plan, regio Frankfurt, `npm install`, `node server.js`). Je hoeft in Render dus niets meer in te typen.
+
+1. Account op [render.com](https://render.com) — inloggen met GitHub is het makkelijkst.
+2. **New → Blueprint** (niet "Web Service").
+3. Kies de repository **Tank-arena**. De eerste keer vraagt Render toestemming om je GitHub-repositories te zien; geef die alleen aan Render zelf.
+4. Render toont wat hij gaat maken: één web service, `stemazing-tank-arena`, gratis plan. Klik **Apply**.
+5. Na een paar minuten staat je URL klaar, bijvoorbeeld `https://stemazing-tank-arena.onrender.com`.
+
+> Liever handmatig? Dan kies je **New → Web Service** en vul je zelf in: runtime **Node**, build command `npm install`, start command `node server.js`, instance type **Free**.
 
 ## Stap 3 — Testen
 
@@ -39,7 +40,7 @@ De `.gitignore` houdt `node_modules` en `projecten.json` buiten de repository. D
 - **Slaapstand:** na ±15 min zonder bezoekers valt de server in slaap; de eerste bezoeker wacht dan ±30–60 sec. Voor een workshopdag: open de URL 's ochtends even.
 - **Projectcodes zijn daar niet blijvend:** de schijf van het gratis plan wordt gewist bij elke redeploy of herstart. Voor de workshop zelf draai je sowieso lokaal (start.bat) — daar blijven codes wél bewaard in `projecten.json`.
 - **Workshop = lokaal:** de online versie is voor thuis/demo. In de klas blijft jouw laptop de server: sneller, geen internet nodig, projectcodes blijven werken tussen les 1 en les 2.
-- **Updaten:** nieuwe versie online zetten = gewoon `git add . && git commit -m "update" && git push` — Render deployt automatisch.
+- **Updaten:** nieuwe versie online zetten = gewoon `git add . && git commit -m "update" && git push`. Render pikt elke push naar `main` automatisch op (`autoDeployTrigger: commit` in `render.yaml`).
 
 ---
 
