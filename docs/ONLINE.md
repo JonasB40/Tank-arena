@@ -4,17 +4,19 @@ Zo krijg je een vaste URL (bv. `https://stemazing-tanks.onrender.com`) om colleg
 
 ## Stap 1 — Zet de map op GitHub
 
-1. Maak op [github.com](https://github.com) een nieuwe repository, bv. `stemazing-tank-arena` (privé mag).
+**De repository staat al klaar** met een eerste commit op de branch `main`. Je hoeft hem alleen nog te koppelen aan GitHub:
+
+1. Maak op [github.com](https://github.com) een nieuwe repository, bv. `stemazing-tank-arena` (privé mag). **Vink "Add a README" uit** — die hebben we al.
 2. In een terminal in de map `tank-arena`:
    ```
-   git init
-   git add .
-   git commit -m "Tank Arena"
-   git branch -M main
    git remote add origin https://github.com/JOUWNAAM/stemazing-tank-arena.git
    git push -u origin main
    ```
-   De `.gitignore` zorgt dat `node_modules` en de projectcodes-opslag niet meegaan.
+
+De `.gitignore` houdt `node_modules` en `projecten.json` buiten de repository. Dat laatste is bewust: daar staan de namen en de blokkencode van je leerlingen in.
+
+> Commits worden gemaakt op naam van *Jonas <jonasbaes@dekrekel.net>*, alleen in deze map ingesteld. Wil je dat anders, dan pas je het aan met
+> `git config user.name "..."` en `git config user.email "..."`.
 
 ## Stap 2 — Maak de Render-service
 
