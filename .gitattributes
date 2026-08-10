@@ -1,0 +1,7 @@
+# Regeleindes normaliseren: in de repository altijd LF, op je eigen Windows-
+# machine gewoon CRLF. Zonder dit lijkt bij elke commit het hele bestand
+# gewijzigd zodra iemand op een ander systeem werkt.
+* text=auto eol=lf
+
+# Batchbestanden moeten CRLF houden, anders werken ze niet op Windows.
+*.bat text eol=crlf

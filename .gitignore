@@ -1,0 +1,15 @@
+# Afhankelijkheden: worden op de server opnieuw geïnstalleerd met "npm install"
+node_modules/
+
+# Projecten van leerlingen (namen + hun blokkencode). Hoort niet in een
+# repository thuis: het is werk van kinderen en het verandert continu.
+projecten.json
+
+# Rommel van het besturingssysteem
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

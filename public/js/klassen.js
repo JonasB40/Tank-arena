@@ -1,0 +1,184 @@
+/*
+ * Tankklassen volgens de diep.io klassenboom (https://diepio.fandom.com/wiki/Tiers).
+ * Drie soorten munitie, net als in het echte spel:
+ *   kogel — vult zijn loop        (https://diepio.fandom.com/wiki/Bullets)
+ *   drone — zoekt zelf vijanden   (https://diepio.fandom.com/wiki/Drones)
+ *   trap  — blijft liggen         (https://diepio.fandom.com/wiki/Traps)
+ * Smasher-tak = rammen, Stalker = onzichtbaar bij stilstaan.
+ * Wordt gedeeld door de server (schieten) en de browser (tekenen).
+ *
+ * Per klasse:
+ *   lopen: [{hoek, zij, len, w, schade?, r?}]  — kanonnen t.o.v. de richthoek
+ *   cannon: vorm van het kanon (normaal/sniper/destroyer/machinegeweer/gunner/trapezium)
+ *   herlaad/schade/kogelSnelheid: vermenigvuldigers; kogelR: kogelgrootte
+ *   spreiding: willekeurige afwijking (machinegeweer-tak)
+ *   ram/ramSchade: lichaamsschade i.p.v. schieten; sluip: onzichtbaar bij stilstaan
+ *   snelheidBonus: extra beweegsnelheid (achterwaartse "stuwlopen", Smasher-tak)
+ */
+(function (root) {
+  const PI = Math.PI;
+  /*
+   * In diep.io zijn de lopen fors: ongeveer half zo breed als de romp. Onze
+   * eerste versie was veel magerder, waardoor de tanks er pover uitzagen.
+   * Deze factor verbreedt alle lopen in één keer — en omdat een kogel zijn
+   * loop vult, groeien de kogels netjes mee.
+   */
+  const LOOP_BREEDTE = 1.5;
+  const LOOP_LENGTE = 1.22;  // ze staken ook te weinig voorbij de romp uit
+  const L = (hoek, zij, len, w, extra) =>
+    Object.assign({ hoek, zij, len: len * LOOP_LENGTE, w: w * LOOP_BREEDTE }, extra || {});
+
+  const KLASSEN = {
+    /* ---- Tier 1 ---- */
+    basis: { naam: 'Basis', tier: 1, cannon: 'normaal', lopen: [L(0, 0, 34, 12)], herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+
+    /* ---- Tier 2 (level 15) ---- */
+    /* Twin vuurt om de beurt uit de linker- en rechterloop (afwisselend), niet
+       twee kogels tegelijk — zie https://diepio.fandom.com/wiki/Twin. Daardoor
+       moet hij ook sneller herladen: per schot komt er nu één kogel uit, en
+       samen geven die twee lopen ongeveer het dubbele tempo van een basistank
+       met wat minder schade per kogel. */
+    twin: { naam: 'Twin', tier: 2, cannon: 'normaal', lopen: [L(0, -9, 32, 10), L(0, 9, 32, 10)], afwisselend: true, herlaad: 0.55, schade: 0.7, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    sluipschutter: { naam: 'Sluipschutter', tier: 2, cannon: 'sniper', lopen: [L(0, 0, 50, 10)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0 },
+    machinegeweer: { naam: 'Machinegeweer', tier: 2, cannon: 'machinegeweer', lopen: [L(0, 0, 34, 18)], herlaad: 0.45, schade: 0.5, kogelSnelheid: 1, kogelR: 7, spreiding: 0.28 },
+    flankwacht: { naam: 'Flankwacht', tier: 2, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI, 0, 28, 11)], herlaad: 1, schade: 0.85, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+
+    /* ---- Tier 3 (level 30) ---- */
+    /* De drie lopen stonden bijna tegen elkaar (±20°) en vormden op het scherm
+       één brede klomp. In diep.io waaieren ze duidelijk uit, met de middelste
+       het langst — daaraan herken je een Triple Shot van een afstand. */
+    driedubbel: { naam: 'Driedubbel', tier: 3, cannon: 'normaal', lopen: [L(-0.62, 0, 30, 10), L(0, 0, 36, 11), L(0.62, 0, 30, 10)], herlaad: 1.2, schade: 0.65, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    viertank: { naam: 'Viertank', tier: 3, cannon: 'normaal', lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 32, 11)), herlaad: 1.15, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    /* Dubbelflank = een Twin die ook naar achter kijkt, dus hij vuurt net als de
+       Twin AFWISSELEND: eerst de linkerkant (voor én achter samen), dan de
+       rechterkant. Let op de zijkant achteraan: een loop op hoek PI staat
+       gespiegeld, dus -9 vooraan hoort visueel bij +9 achteraan — vandaar de
+       expliciete groepsnummers in plaats van rekenen met het teken. */
+    dubbelflank: {
+      naam: 'Dubbelflank', tier: 3, cannon: 'normaal', afwisselend: true,
+      lopen: [
+        L(0, -9, 32, 10, { groep: 0 }), L(PI, 9, 28, 10, { groep: 0 }),
+        L(0, 9, 32, 10, { groep: 1 }), L(PI, -9, 28, 10, { groep: 1 }),
+      ],
+      herlaad: 0.6, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+    },
+    /* Jager (Hunter): een breed onderstuk met een smallere, lángere loop erop.
+       Het stond omgekeerd — de lange loop was de brede — waardoor je die trap
+       niet zag en hij op een gewone sluipschutter leek. */
+    jager: {
+      naam: 'Jager', tier: 3, cannon: 'sniper',
+      /* De twee lopen lagen volledig over elkaar en dat gaf een rommelige naad
+         in het midden. Nu staan ze áchter elkaar: een breed onderstuk tegen de
+         romp, met daarvoor een smallere loop — de herkenbare trap van Hunter. */
+      lopen: [
+        L(0, 0, 30, 17, { schade: 0.9 }),
+        Object.assign(L(0, 0, 26, 10, { schade: 0.6, r: 4 }), { start: 34 }),
+      ],
+      herlaad: 1.5, schade: 1.2, kogelSnelheid: 1.5, kogelR: 7, spreiding: 0,
+    },
+    /* Drone- en trap-klassen: schieten geen kogels maar sturen "helpertjes"
+       (https://diepio.fandom.com/wiki/Drones) of leggen mijnen die blijven
+       liggen (https://diepio.fandom.com/wiki/Traps). */
+    opzichter: {
+      naam: 'Opzichter (Overseer)', tier: 3, cannon: 'spawner', munitie: 'drone', droneMax: 8,
+      lopen: [L(-PI / 2, 0, 26, 16), L(PI / 2, 0, 26, 16)],
+      herlaad: 2.4, schade: 1, kogelSnelheid: 1, kogelR: 7, spreiding: 0,
+    },
+    trapper: {
+      naam: 'Valstrikker (Trapper)', tier: 3, cannon: 'launcher', munitie: 'trap',
+      // iets langer, anders zit de trechter bijna tegen de romp geplakt
+      lopen: [L(0, 0, 36, 12)],
+      herlaad: 1.4, schade: 1.3, kogelSnelheid: 0.9, kogelR: 8, spreiding: 0,
+    },
+    assassin: { naam: 'Assassin', tier: 3, cannon: 'trapezium', lopen: [L(0, 0, 62, 10)], herlaad: 1.9, schade: 1.7, kogelSnelheid: 1.85, kogelR: 6, spreiding: 0 },
+    vernietiger: { naam: 'Vernietiger', tier: 3, cannon: 'destroyer', lopen: [L(0, 0, 38, 22)], herlaad: 2.8, schade: 2.5, kogelSnelheid: 0.65, kogelR: 14, spreiding: 0 },
+    /*
+     * Gunner: vier evenwijdige lopen, het binnenste paar langer. Ze overlapten
+     * elkaar (de randen liepen door elkaar heen) en staken maar tien pixels
+     * buiten de romp uit — samen zag dat eruit als één grijze klomp op je tank.
+     * Nu liggen ze los van elkaar met een duidelijke tussenruimte en steken ze
+     * ver genoeg uit om als vier kanonnen te lezen.
+     */
+    gunner: {
+      naam: 'Gunner', tier: 3, cannon: 'gunner',
+      lopen: [L(0, -14, 33, 5.6), L(0, -4.6, 40, 5.6), L(0, 4.6, 40, 5.6), L(0, 14, 33, 5.6)],
+      herlaad: 0.5, schade: 0.35, kogelSnelheid: 1.1, kogelR: 4, spreiding: 0.05,
+    },
+    /* Driehoekstank (Tri-Angle): één gewone loop vooruit, en achter twee
+       stuwpijpen die naar achter toe wijder worden. Met dezelfde rechthoek als
+       de hoofdloop leken het drie gewone kanonnen. */
+    driehoekstank: {
+      naam: 'Driehoekstank', tier: 3, cannon: 'normaal',
+      lopen: [
+        L(0, 0, 34, 12),
+        L(PI - 0.62, 0, 27, 10, { schade: 0.25, r: 4, vorm: 'stuw' }),
+        L(PI + 0.62, 0, 27, 10, { schade: 0.25, r: 4, vorm: 'stuw' }),
+      ],
+      herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 35,
+    },
+    rammer: { naam: 'Rammer (Smasher)', tier: 3, cannon: 'normaal', lopen: [], herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0, ram: true, ramSchade: 2.5, snelheidBonus: 30 },
+
+    /* ---- Tier 4 (level 45) ---- */
+    triplet: { naam: 'Triplet', tier: 4, cannon: 'normaal', lopen: [L(0, -10, 30, 9), L(0, 0, 36, 9), L(0, 10, 30, 9)], herlaad: 0.75, schade: 0.55, kogelSnelheid: 1, kogelR: 5, spreiding: 0 },
+    vijfschot: { naam: 'Vijfschot (Penta)', tier: 4, cannon: 'normaal', lopen: [-0.6, -0.3, 0, 0.3, 0.6].map((h) => L(h, 0, h === 0 ? 36 : 30, 10)), herlaad: 1.3, schade: 0.55, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    waaierschot: { naam: 'Waaierschot (Spread)', tier: 4, cannon: 'gunner', lopen: [-1.2, -0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9, 1.2].map((h) => L(h, 0, h === 0 ? 36 : 26, h === 0 ? 11 : 7, h === 0 ? {} : { schade: 0.5, r: 4 })), herlaad: 1.6, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    octotank: { naam: 'Octotank', tier: 4, cannon: 'normaal', lopen: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => L((i * PI) / 4, 0, 30, 10)), herlaad: 1.35, schade: 0.5, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    drietwin: { naam: 'Drietwin (Triple Twin)', tier: 4, cannon: 'normaal', lopen: [0, (2 * PI) / 3, (4 * PI) / 3].flatMap((h) => [L(h, -8, 30, 9), L(h, 8, 30, 9)]), herlaad: 1.25, schade: 0.55, kogelSnelheid: 1, kogelR: 5, spreiding: 0 },
+    ranger: { naam: 'Ranger', tier: 4, cannon: 'trapezium', lopen: [L(0, 0, 58, 11)], herlaad: 2, schade: 1.8, kogelSnelheid: 1.9, kogelR: 6, spreiding: 0 },
+    sluiper: { naam: 'Sluiper (Stalker)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 52, 11)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0, sluip: true },
+    predator: { naam: 'Predator (Roofdier)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 58, 13, { schade: 0.8 }), L(0, 0, 50, 10, { schade: 0.6 }), L(0, 0, 42, 7, { schade: 0.5, r: 5 })], herlaad: 1.8, schade: 1.9, kogelSnelheid: 1.7, kogelR: 7, spreiding: 0 },
+    annihilator: { naam: 'Annihilator', tier: 4, cannon: 'destroyer', lopen: [L(0, 0, 40, 27)], herlaad: 3.2, schade: 3.2, kogelSnelheid: 0.6, kogelR: 18, spreiding: 0 },
+    sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.4, schade: 0.5, kogelSnelheid: 1, kogelR: 7, spreiding: 0.2 },
+    streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 52, 9), L(0, 0, 46, 9), L(0, 0, 40, 9), L(0, 0, 34, 9), L(0, 0, 28, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03 },
+    booster: { naam: 'Booster', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI - 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI + 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI - 0.25, 0, 28, 8, { schade: 0.2, r: 4 }), L(PI + 0.25, 0, 28, 8, { schade: 0.2, r: 4 })], herlaad: 1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 65 },
+    vechter: { naam: 'Vechter (Fighter)', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(-PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI - 0.6, 0, 26, 8, { schade: 0.2, r: 4 }), L(PI + 0.6, 0, 26, 8, { schade: 0.2, r: 4 })], herlaad: 1.1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 45 },
+    overheer: {
+      naam: 'Overheer (Overlord)', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 12,
+      lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 26, 16)),
+      herlaad: 2.1, schade: 1.15, kogelSnelheid: 1.1, kogelR: 7, spreiding: 0,
+    },
+    dritrapper: {
+      naam: 'Drievoudige valstrikker', tier: 4, cannon: 'launcher', munitie: 'trap',
+      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 28, 12)),
+      herlaad: 1.6, schade: 1, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0, trapLeven: 10000,
+    },
+    megatrapper: {
+      naam: 'Megavalstrikker', tier: 4, cannon: 'launcher', munitie: 'trap',
+      lopen: [L(0, 0, 32, 20)],
+      herlaad: 2.6, schade: 2.6, kogelSnelheid: 0.8, kogelR: 13, spreiding: 0,
+    },
+    stekelbol: { naam: 'Stekelbol (Spike)', tier: 4, cannon: 'normaal', lopen: [], herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0, ram: true, ramSchade: 3.5, snelheidBonus: 20, stekels: true },
+  };
+  /*
+   * De upgradeboom (zoals de class tree in diep.io): welke klassen je op
+   * level 15/30/45 kan kiezen, afhankelijk van je huidige klasse.
+   */
+  const UPGRADE_BOOM = {
+    basis: { 15: ['twin', 'sluipschutter', 'machinegeweer', 'flankwacht'], 30: ['rammer'] },
+    twin: { 30: ['driedubbel', 'viertank', 'dubbelflank'] },
+    sluipschutter: { 30: ['jager', 'assassin', 'opzichter', 'trapper'] },
+    opzichter: { 45: ['overheer'] },
+    trapper: { 45: ['dritrapper', 'megatrapper'] },
+    machinegeweer: { 30: ['vernietiger', 'gunner'], 45: ['sprayer'] },
+    flankwacht: { 30: ['driehoekstank', 'viertank', 'dubbelflank'] },
+    driedubbel: { 45: ['triplet', 'vijfschot', 'waaierschot'] },
+    viertank: { 45: ['octotank'] },
+    dubbelflank: { 45: ['drietwin'] },
+    jager: { 45: ['ranger', 'sluiper', 'streamliner', 'predator'] },
+    assassin: { 45: ['ranger', 'sluiper', 'predator'] },
+    vernietiger: { 45: ['annihilator'] },
+    gunner: { 45: ['streamliner'] },
+    driehoekstank: { 45: ['booster', 'vechter'] },
+    rammer: { 45: ['stekelbol'] },
+  };
+
+  /* Vanaf welk level een tier beschikbaar is. */
+  const TIER_LEVEL = { 1: 1, 2: 15, 3: 30, 4: 45 };
+
+  root.KLASSEN = KLASSEN;
+  root.UPGRADE_BOOM = UPGRADE_BOOM;
+  root.TIER_LEVEL = TIER_LEVEL;
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { KLASSEN, UPGRADE_BOOM, TIER_LEVEL };
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

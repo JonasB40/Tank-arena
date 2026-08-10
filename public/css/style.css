@@ -1,0 +1,916 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #e5f0ff;
+  color: #575e75;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.verborgen { display: none !important; }
+
+/* ---------- drie schermgroottes, zoals in Scratch ---------- */
+#grootte-knoppen { display: flex; gap: 3px; margin-left: auto; }
+.gr-knop {
+  border: none;
+  border-radius: 7px;
+  background: #e3d7f5;
+  color: #5b4a86;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+.gr-knop.actief { background: #855cd6; color: #fff; }
+body.speelmodus #editor-kolom { display: none; }
+body.speelmodus #podium { border-left: none; }
+body.speelmodus #sprite-paneel { display: none; }
+
+/* ---------- upgrade-overzicht: klein tabje linksonder ---------- */
+#stat-hoek {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 6px;
+  z-index: 12;
+}
+#stat-tab {
+  background: rgba(20, 23, 35, .82);
+  border: 1px solid #343a52;
+  border-radius: 9px;
+  padding: 4px 9px;
+  font-size: .95rem;
+  cursor: pointer;
+  user-select: none;
+}
+#stat-hoek.heeft-punten #stat-tab {
+  background: #ffd54f;
+  border-color: #ffd54f;
+  animation: pulse 1.2s infinite;
+}
+#stat-overzicht {
+  background: rgba(20, 23, 35, .88);
+  border: 1px solid #343a52;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: .8rem;
+  color: #eef0f6;
+  pointer-events: none;
+  min-width: 172px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .14s, transform .14s;
+}
+/* Verschijnt bij hover, of als je op het ⚡-tabje klikt. Vroeger bleef hij
+   openstaan zolang je punten over had — dan kon je hem niet wegklikken en
+   bedekte hij het halve speelveld. */
+#stat-hoek:hover #stat-overzicht,
+#stat-hoek.open #stat-overzicht { opacity: 1; transform: none; }
+#stat-hoek.open #stat-overzicht { pointer-events: auto; }
+#stat-overzicht:empty { display: none; }
+
+/* eigen variabelen als Scratch-tellertjes (rechtsboven op het speelveld) */
+#var-watchers {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+/* Compacter dan eerst: met vier of vijf tellertjes bedekten ze een flinke hap
+   van het speelveld, en op een 11-inch Chromebook is dat kostbare ruimte. */
+#var-watchers .watcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: .72rem;
+  color: #575e75;
+}
+#var-watchers .watcher b {
+  background: #FF8C1A;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0 6px;
+  min-width: 20px;
+  text-align: center;
+}
+.ov-titel { font-size: .78rem; margin-bottom: 4px; color: #ffd54f; }
+.ov-titel b { color: #fff; }
+.ov-rij { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; align-items: center; }
+.ov-balk { font-family: monospace; letter-spacing: -1px; color: #4fc3f7; }
+.ov-rij.ov-vol .ov-balk { color: #2ecc71; }
+.ov-toets, .stat-toets {
+  display: inline-block;
+  min-width: 15px;
+  text-align: center;
+  background: #343a52;
+  color: #cfd6e4;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 0 3px;
+}
+.stat-toets { background: #855cd6; color: #fff; margin-right: 4px; }
+.ov-rij.ov-kan .ov-toets { background: #ffd54f; color: #5b4400; } /* toets die nu iets doet */
+
+/* ---------- bovenbalk (Scratch-paars) ---------- */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #855cd6;
+  color: #fff;
+}
+.logo { font-size: 1.1rem; }
+.logo strong { color: #ffd54f; }
+
+#naam-weergave { font-weight: 700; font-size: 1rem; }
+
+#modus-badge { font-size: .95rem; opacity: .95; }
+
+#geluid-knop {
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  font-size: 1.05rem;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+#menu-knop {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  font-size: .95rem;
+  cursor: pointer;
+}
+#menu-knop:hover { background: rgba(255,255,255,.32); }
+
+/* ---------- hoofdindeling: blokken links, podium rechts ---------- */
+#hoofd { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+#editor-kolom {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;   /* voor de zwevende blok-uitleg */
+  overflow: hidden;
+}
+/*
+ * Categoriekolom zoals in Scratch: smal, met een gekleurde bol boven een klein
+ * label. Dat is veel compacter dan brede tekstrijen en de kleur springt er
+ * beter uit — leerlingen zoeken op kleur, niet op woord.
+ */
+.blocklyToolboxDiv { width: 68px !important; padding: 4px 0 0 !important; overflow-x: hidden; }
+/* Blockly geeft elke rij een vaste hoogte van 22px; die moet los, anders
+   wordt het bolletje platgedrukt en lopen de labels over elkaar heen. */
+.blocklyToolboxCategory { height: auto !important; }
+.blocklyTreeRow {
+  border-left: none !important;
+  height: auto !important;
+  padding: 6px 2px 5px !important;
+  margin: 0 !important;
+  background-color: transparent !important;  /* Blockly kleurt de hele cel; wij niet */
+}
+/* het icoonbolletje krijgt de categoriekleur, het label komt eronder */
+/* volle breedte, anders is de container smaller dan de kolom en breken
+   woorden als "Variabelen" af met de laatste letter op een eigen regel */
+.blocklyTreeRowContentContainer {
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%;
+}
+.blocklyTreeIcon {
+  visibility: visible !important;   /* Blockly verbergt het icoon standaard */
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--cat-kleur, #9aa0b4);
+  margin: 0 0 3px !important;
+}
+.blocklyTreeLabel {
+  display: block;
+  font-size: .6rem !important;
+  text-align: center;
+  white-space: normal !important;
+  overflow-wrap: normal;   /* nooit middenin een woord afbreken */
+  line-height: 1.15;
+  width: 100%;
+}
+/* Duidelijke scheiding tussen de blokkenlade en het werkveld: witte lade met
+   een randje en een zachte schaduw, zodat hij visueel "boven" het werkveld
+   ligt in plaats van erin over te lopen. */
+.blocklyFlyoutBackground { fill: #ffffff !important; }
+.blocklyFlyout { filter: drop-shadow(3px 0 4px rgba(61, 45, 99, .13)); }
+.blocklyToolboxDiv { border-right: 1px solid #e3e0ee; }
+
+/* Hulpknopjes rechtsboven op het werkblad: opruimen en inklappen. */
+#werk-knoppen {
+  position: absolute;
+  top: 8px; right: 10px;
+  display: flex; gap: 6px;
+  z-index: 12;
+}
+/* Volledig ondoorzichtig: deze knopjes zweven boven de blokken, en met een
+   doorschijnende achtergrond las je de knop én het blok eronder half. */
+#werk-knoppen button {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid #c9b9ec;
+  background: #fff;
+  color: #3d2d63;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(61, 45, 99, .22);
+}
+#werk-knoppen button svg { width: 13px; height: 13px; flex: none; }
+/* pijl omhoog = inklappen; staat alles al ingeklapt, dan wijst hij omlaag */
+#werk-knoppen button.toont-uitklappen .pijl { transform: rotate(180deg); }
+#werk-knoppen button:hover { background: #ece5fa; }
+body.les-nog-niet-gestart #werk-knoppen { display: none; }
+
+/* "Maak een variabele" is een KNOP, geen blok. Blockly tekent hem vlak en
+   grijzig, waardoor kinderen hem aanzagen voor een blok dat je moet slepen.
+   Nu een echte paarse knop met een randje en een handje als cursor. */
+/* Let op: rx/ry zijn CSS-lengtes en hebben dus een eenheid nodig. Zonder "px"
+   wordt de regel genegeerd en bleef de knop hoekig — dat was hij ook. */
+.blocklyFlyoutButton { cursor: pointer; }
+.blocklyFlyoutButton .blocklyFlyoutButtonBackground {
+  fill: #855cd6 !important;
+  stroke: #6f4bc0 !important;
+  stroke-width: 1px;
+  rx: 20px; ry: 20px;
+}
+/* Blockly's eigen "schaduw" is een grijze rechthoek 1 px ernaast; die stak
+   onderaan uit als een vuil randje. We maken er een zachte slagschaduw van. */
+.blocklyFlyoutButton .blocklyFlyoutButtonShadow {
+  fill: #4a3287 !important;
+  opacity: .28;
+  rx: 20px; ry: 20px;
+  transform: translateY(1.5px);
+}
+.blocklyFlyoutButton:hover .blocklyFlyoutButtonBackground { fill: #6f4bc0 !important; }
+.blocklyFlyoutButton:active .blocklyFlyoutButtonBackground { fill: #5f3fa8 !important; }
+.blocklyFlyoutButton .blocklyText {
+  fill: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  letter-spacing: .2px;
+}
+
+/* categoriekop bovenaan de blokkenlade, zoals in Scratch */
+.blocklyFlyoutLabelText { font: 700 15px 'Segoe UI', sans-serif !important; fill: #575e75 !important; }
+.blocklyTreeSelected { background-color: #ece5fa !important; border-radius: 8px; }
+.blocklyTreeSelected .blocklyTreeLabel { color: #3d2d63 !important; font-weight: 700; }
+/* Houder rond het werkblad: hieraan hangen de zwevende hulpknopjes, zodat ze
+   binnen het werkblad blijven en nooit over de lestekst erboven vallen. */
+#werkveld-houder { position: relative; flex: 1 1 auto; min-height: 180px; display: flex; }
+#blocklyDiv { flex: 1 1 auto; min-height: 180px; }
+
+/* sprite-paneel rechtsonder (zoals in Scratch) */
+#sprite-paneel {
+  background: #f4effc;
+  border-top: 2px solid #e3d7f5;
+  padding: 8px 10px 10px;
+  flex: 0 0 auto;
+}
+.sp-kop { font-size: .74rem; color: #8a94ad; text-transform: uppercase; letter-spacing: .4px; }
+.sprite-kaart {
+  margin-top: 6px;
+  width: 84px;
+  padding: 6px 4px 7px;
+  border-radius: 10px;
+  background: #fff;
+  border: 2px solid #e3d7f5;
+  text-align: center;
+}
+.sprite-kaart.geselecteerd { border-color: #855cd6; box-shadow: 0 2px 6px rgba(133, 92, 214, .3); }
+#sprite-canvas { background: #10131c; border-radius: 8px; }
+#sprite-naam { display: block; color: #3d2d63; font-size: .82rem; margin-top: 3px; }
+#sprite-info { display: block; font-size: .68rem; opacity: .7; line-height: 1.25; white-space: pre-line; }
+#project-code {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #3d2d63;
+  background: #ffe082;
+  padding: 4px 9px;
+  border-radius: 8px;
+}
+#project-code:empty { display: none; }
+
+/* Starter/Expert-schakelaar in de bovenbalk */
+#modus-schakelaar {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, .35);
+  margin-left: auto;
+}
+.modus {
+  padding: 5px 10px;
+  border: none;
+  background: rgba(255, 255, 255, .12);
+  color: #e9e0fb;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.modus.actief { background: #fff; color: #5b4a86; font-weight: 700; }
+#opnieuw-knop {
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .2);
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+#opnieuw-knop:hover { background: rgba(255, 255, 255, .32); }
+
+/* lesgeversknop: voorbeeldoplossing */
+#voorbeeld-knop {
+  margin-top: 10px;
+  width: auto !important;
+  padding: 9px 16px !important;
+  font-size: .9rem !important;
+  background: #2d3436 !important;
+  color: #ffd54f !important;
+  border: 1px solid #ffd54f !important;
+}
+
+/* projectcode ophalen in het startmenu */
+#project-ophalen { display: flex; gap: 8px; margin-top: 18px; }
+#project-code-invoer {
+  width: 130px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-size: 1rem;
+  text-transform: uppercase;
+  text-align: center;
+}
+#project-laad-knop {
+  width: auto !important;
+  padding: 10px 14px !important;
+  font-size: .95rem !important;
+  background: #ffd54f !important;
+  color: #5b4400 !important;
+}
+
+/* ---------- "Nieuwe variabele"-venster (zoals in Scratch) ---------- */
+#var-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center;
+}
+#var-overlay.verborgen { display: none; }
+#var-venster {
+  width: min(440px, 92vw);
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+}
+#var-kop {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  background: #855cd6; color: #fff;
+  font-weight: 700; padding: 12px;
+}
+#var-kruis {
+  position: absolute; right: 10px;
+  border: none; background: rgba(0, 0, 0, .22); color: #fff;
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+}
+#var-body { padding: 18px 20px 16px; }
+#var-body label { color: #3d2d63; }
+#var-naam {
+  width: 100%; margin: 8px 0 14px;
+  padding: 9px 12px; font-size: 1rem;
+  border: 1px solid #d6c9ef; border-radius: 6px;
+}
+#var-naam:focus { outline: 2px solid #855cd6; border-color: #855cd6; }
+#var-bereik { display: flex; gap: 22px; flex-wrap: wrap; }
+#var-bereik label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+#var-uitleg { font-size: .78rem; color: #8a94ad; margin-top: 10px; line-height: 1.4; }
+#var-knoppen { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+#var-knoppen button { padding: 8px 18px; border-radius: 999px; cursor: pointer; border: 1px solid #d6c9ef; background: #fff; }
+#var-knoppen .hoofdknop { background: #855cd6; color: #fff; border-color: #855cd6; font-weight: 700; }
+
+/* ---------- de les: stappenpaneel ---------- */
+#stap-paneel {
+  background: #fffdf5;
+  border-bottom: 2px solid #ffe082;
+  font-size: .88rem;
+  flex: 0 1 auto;
+  max-height: 34vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Alleen de tekst scrollt; kop en knoppen blijven staan. Zo valt er nooit
+   een regel weg achter de knoppenbalk. */
+#stap-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+/*
+ * Het paneel is heel breed maar de regels zijn kort, dus we zetten het
+ * probleem links en het doel + de vinkjes rechts. Zo is het paneel ongeveer
+ * half zo hoog en houden de leerlingen veel meer werkruimte over.
+ */
+@media (min-width: 860px) {
+  #stap-body {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    column-gap: 22px;
+    align-items: start;
+  }
+  #stap-breek, #stap-hint-tekst { grid-column: 1 / -1; }
+}
+#stap-links p:last-child, #stap-rechts > :last-child { margin-bottom: 0; }
+#stap-kop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #ffe082;
+  color: #5b4400;
+  position: sticky;
+  top: 0;
+}
+#stap-nr { font-weight: 800; background: #5b4400; color: #ffe082; border-radius: 6px; padding: 2px 8px; font-size: .8rem; }
+#stap-titel { font-size: 1rem; }
+#stap-concept { font-size: .78rem; opacity: .8; margin-left: auto; }
+#stap-inklap { border: none; background: rgba(0,0,0,.12); color: #5b4400; border-radius: 6px; cursor: pointer; padding: 2px 8px; }
+#stap-body { padding: 10px 14px 10px; }
+#stap-body p { margin-bottom: 7px; line-height: 1.45; }
+#stap-probleem { font-weight: 700; color: #b34700; }
+#stap-ontdekking { color: #575e75; font-style: italic; }
+#stap-doel { background: #fff; border-left: 4px solid #855cd6; padding: 7px 10px; border-radius: 0 6px 6px 0; }
+/* genummerde bouwstapjes: één handeling per regel */
+.doel-stapjes { margin: 4px 0 0; padding-left: 20px; }
+.doel-stapjes li { margin-bottom: 3px; line-height: 1.5; }
+.doel-stapjes li::marker { color: #855cd6; font-weight: 700; }
+#stap-hint-tekst { background: #e3f2fd; border-left: 4px solid #4fc3f7; padding: 7px 10px; border-radius: 0 6px 6px 0; }
+#stap-breek {
+  background: #f3e5f5;
+  border-left: 4px solid #9c27b0;
+  padding: 7px 10px;
+  border-radius: 0 6px 6px 0;
+}
+#stap-breek::before { content: '🔬 Probeer eens: '; font-weight: 700; }
+
+/* blokverwijzing in de kleur van zijn categorie — zo vind je het blok terug */
+#stap-body .blok {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: .93em;
+  line-height: 1.5;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .2);
+}
+
+#stap-checks { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; }
+.check { font-size: .85rem; color: #8a94ad; }
+.check.gelukt { color: #2e7d32; font-weight: 600; }
+
+/* De knoppen staan onder het scrollende tekstvak, niet erin. Zo dekken ze
+   nooit een regel af (de "🔬 Probeer eens"-tekst viel er anders half achter
+   weg) en blijven ze toch altijd zichtbaar. */
+#stap-knoppen {
+  display: flex; gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 14px 8px;
+  background: #fffdf5;
+  border-top: 1px solid #f0e6c8;
+}
+#stap-knoppen button {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: .87rem;
+  cursor: pointer;
+  background: #ede7f6;
+  color: #4527a0;
+}
+#stap-volgende { background: #2ecc71 !important; color: #fff !important; font-weight: 700; margin-left: auto; }
+#stap-volgende:disabled { background: #cfd6e4 !important; color: #8a94ad !important; cursor: default; }
+body.stap-ingeklapt #stap-body, body.stap-ingeklapt #stap-knoppen { display: none; }
+/* vóór de start: geen doel/checks/knoppen tonen — eerst naam + modus kiezen */
+body.les-nog-niet-gestart #stap-doel,
+body.les-nog-niet-gestart #stap-checks,
+body.les-nog-niet-gestart #stap-knoppen { display: none; }
+body.les-nog-niet-gestart #stap-kop { background: #d9c7f5; color: #3d2d63; }
+body.les-nog-niet-gestart #stap-nr { background: #3d2d63; color: #fff; }
+
+/* Uitleg bij een blok: zweeft alleen als je erop klikt, en verdwijnt vanzelf.
+   Zo staat er niet permanent extra tekst op het scherm. */
+#blok-uitleg {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  max-width: 420px;
+  padding: 12px 16px;
+  background: #fffbea;
+  border: 3px solid #ffc400;
+  border-radius: 14px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .3);
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #4a3600;
+  cursor: pointer;
+  z-index: 40;
+  animation: uitlegOp .18s ease-out;
+}
+@keyframes uitlegOp { from { opacity: 0; transform: translateY(6px); } }
+
+/* niveaukeuze in het startmenu */
+#niveau-keuze { display: flex; gap: 8px; }
+.niveau-knop {
+  padding: 10px 14px !important;
+  width: auto !important;
+  font-size: .95rem !important;
+  background: #47506b !important;
+  color: #dfe6f5 !important;
+}
+.niveau-knop.actief { background: #ffd54f !important; color: #5b4400 !important; }
+
+/* Les 1 of les 2 — zelfde vorm als de niveaukeuze, zodat het herkenbaar is
+   als "kies er één" en niet als "start nu". */
+#les-keuze { display: flex; gap: 8px; flex-wrap: wrap; }
+.les-knop {
+  padding: 10px 14px !important;
+  width: auto !important;
+  font-size: .95rem !important;
+  background: #47506b !important;
+  color: #dfe6f5 !important;
+}
+.les-knop.actief { background: #ffd54f !important; color: #5b4400 !important; }
+
+/* Podium rechts: vaste breedte zodat er véél plaats blijft om te programmeren.
+   Klein / normaal / groot via de knopjes in de podiumbalk. */
+#podium {
+  flex: 0 0 480px;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid #d9c7f5;
+  background: #fff;
+  position: relative;   /* het pauze-label hangt hieraan */
+}
+body.podium-klein #podium { flex-basis: 320px; }
+body.speelmodus #podium { flex: 1 1 auto; }
+
+#podium-balk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #f4effc;
+  border-bottom: 2px solid #e3d7f5;
+}
+
+#vlag, #stop {
+  font-size: 1.4rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 8px;
+  filter: grayscale(60%);
+}
+#vlag.actief, #stop.actief { filter: none; background: #fff; box-shadow: 0 0 0 2px #d9c7f5; }
+#vlag:hover, #stop:hover { filter: none; }
+
+.hud-item { font-weight: 700; font-size: .98rem; }
+
+#xp-balk {
+  flex: 1;
+  height: 12px;
+  background: #e3d7f5;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 60px;
+}
+#xp-balk-vul {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4fc3f7, #2ecc71);
+  transition: width .3s;
+}
+
+#hud-statpunten {
+  border: none;
+  background: #ffd54f;
+  color: #5b4400;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse { 50% { transform: scale(1.07); } }
+
+#podium-canvas { flex: 1; position: relative; min-height: 0; background: #10131c; }
+#canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+/* ---------- startmenu ---------- */
+/*
+ * Het startmenu vult het HELE scherm, niet alleen het podium rechts. Als klein
+ * paneeltje naast een leeg werkblad zag je niet dat je eerst je naam moest
+ * typen — kinderen begonnen links te klikken. Nu is er maar één ding te doen.
+ */
+#startmenu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  overflow-y: auto;   /* op een lage Chromebook past het niet altijd in één keer */
+  background: radial-gradient(circle at 50% 32%, #2b2350 0%, #14161f 65%);
+  color: #fff;
+}
+/* wat groter nu er ruimte is: dit is het eerste wat een kind ziet */
+#startmenu h1 { font-size: 2.4rem; margin-bottom: 2px; }
+#startmenu p { opacity: .85; font-size: .92rem; margin-top: 6px; }
+#startmenu label { font-size: 1.05rem; }
+#startmenu #naam {
+  width: 260px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 3px solid #4fc3f7;
+  font-size: 1.15rem;
+  text-align: center;
+}
+#startmenu #naam:focus { outline: none; border-color: #ffd54f; }
+
+/* één duidelijke hoofdknop */
+#startmenu .hoofdknop {
+  background: #2ecc71 !important;
+  color: #06321a !important;
+  font-size: 1.25rem !important;
+  padding: 16px !important;
+  box-shadow: 0 4px 0 #22a35a;
+}
+#startmenu .hoofdknop:hover { background: #40e087 !important; }
+
+/* alles wat níét nodig is om te starten, staat ingeklapt */
+#meer-opties-knop {
+  width: auto !important;
+  background: none !important;
+  color: #9aa3bd !important;
+  font-size: .9rem !important;
+  padding: 6px 10px !important;
+  text-decoration: underline;
+}
+#meer-opties {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.06);
+  border-radius: 12px;
+  padding: 14px 18px;
+  max-height: 52vh;
+  overflow-y: auto;
+  width: min(420px, 92vw);
+}
+#meer-opties button { width: 240px; font-size: .95rem; padding: 10px; }
+#startmenu button {
+  width: 260px;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #4fc3f7;
+  color: #06283d;
+}
+#startmenu button:hover { background: #81d4fa; }
+#startmenu button.uitgeschakeld { background: #47506b; color: #aeb6cc; }
+#startmenu button.uitgeschakeld small { font-weight: 400; }
+
+/* ---------- popups ---------- */
+.popup {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.45);
+  min-width: 320px;
+  max-width: 92%;
+  text-align: center;
+}
+.popup h2 { font-size: 1.15rem; margin-bottom: 12px; color: #3d2d63; }
+.popup .sluit {
+  margin-top: 12px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #e3d7f5;
+  cursor: pointer;
+  font-size: .95rem;
+}
+
+#klasse-lijst { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.klasse-kaart {
+  border: 2px solid #e3d7f5;
+  border-radius: 12px;
+  background: #10131c;
+  color: #fff;
+  padding: 8px;
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.klasse-kaart:hover { border-color: #855cd6; transform: scale(1.05); }
+
+#stat-lijst { display: flex; flex-direction: column; gap: 6px; min-width: 300px; }
+.stat-rij {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  font-size: .95rem;
+}
+.stat-naam { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.stat-balk { font-family: monospace; letter-spacing: -1px; color: #855cd6; font-size: .85rem; }
+.stat-rij button {
+  width: 34px;
+  height: 34px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 8px;
+  background: #2ecc71;
+  color: #fff;
+  cursor: pointer;
+}
+.stat-rij button:disabled { background: #cfd6e4; cursor: default; }
+
+/* Op pauze (rode stopknop): het speelveld dimt licht, zodat je meteen ziet
+   dat er niets meer beweegt. Bewust subtiel — je moet je tank nog wél zien
+   staan terwijl je aan je blokken werkt. */
+body.gepauzeerd #podium-canvas { filter: saturate(.55) brightness(.82); }
+body.gepauzeerd #podium::after {
+  content: '⏸ pauze';
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(30, 34, 48, .82); color: #fff;
+  font-size: .8rem; font-weight: 700; padding: 3px 12px; border-radius: 999px;
+  pointer-events: none; z-index: 15;
+}
+
+/* ---------- meldingen ---------- */
+#bevroren-melding {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(30, 34, 48, .88);
+  z-index: 20;
+}
+
+#dood-melding {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ff8a80;
+  background: rgba(16, 19, 28, .55);
+  text-shadow: 0 2px 12px #000;
+  pointer-events: none;
+}
+
+#toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3d2d63;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: .95rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,.4);
+  max-width: 90%;
+  text-align: center;
+}
+
+/* Smalle schermen: onder elkaar, maar dan moet de pagina wél kunnen scrollen
+   (anders "zit het scherm vast" en kan je niet bij de onderste blokken). */
+@media (max-width: 900px) {
+  body { height: auto; min-height: 100vh; overflow-y: auto; }
+  #hoofd { flex-direction: column; overflow: visible; }
+  #editor-kolom { overflow: visible; }
+  #werkveld-houder { height: 60vh; flex: none; }
+  #blocklyDiv { height: 100%; flex: none; }
+  #podium { flex: none; height: 70vh; min-width: 0; border-left: none; border-top: 3px solid #d9c7f5; }
+  #grootte-knoppen { display: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Chromebook met touchscreen (11 inch)                                */
+/* ------------------------------------------------------------------ */
+/*
+ * Vingers zijn geen muiswijzers. Op een toestel zónder fijne aanwijzer maken
+ * we élk tikdoel minstens 40-44 px hoog — dat is de maat waarbij kinderen niet
+ * meer naast de knop tikken. Op een laptop met muis verandert er niets.
+ */
+@media (pointer: coarse) {
+  button, .gr-knop, .niveau-knop, .les-knop, #stat-tab { touch-action: manipulation; }
+
+  #stap-knoppen button { min-height: 44px; padding: 8px 16px; font-size: .95rem; }
+  #werk-knoppen button { min-height: 40px; padding: 8px 14px; font-size: .84rem; }
+  #werk-knoppen button svg { width: 15px; height: 15px; }
+  .modus { min-height: 40px; padding: 6px 14px; font-size: .85rem; }
+  #topbar button { min-height: 40px; min-width: 40px; font-size: 1rem; }
+  #stap-inklap { min-height: 40px; min-width: 44px; font-size: 1.05rem; }
+  #vlag, #stop { min-height: 46px; min-width: 46px; }
+  .gr-knop { min-height: 42px; min-width: 42px; font-size: 1.05rem; }
+  #stat-tab { min-height: 44px; min-width: 44px; }
+
+  /* startmenu: één keer tikken moet meteen raak zijn */
+  #naam { min-height: 50px; font-size: 1.05rem; }
+  #startmenu button { min-height: 48px; }
+  .niveau-knop { min-height: 44px; }
+
+  /* De blokkenlade is een tiklijst: rijen mogen niet tegen elkaar plakken. */
+  .blocklyToolboxCategory { padding-top: 4px; padding-bottom: 4px; }
+
+  /* Op een touchscreen bestaat "hoveren" niet, dus die kleurwissels ook niet. */
+  #werk-knoppen button:hover { background: #fff; }
+}
+
+/*
+ * Een 11-inch Chromebook is 1366x768: na de browserbalk blijft er ongeveer
+ * 660 px over. Met grotere tikdoelen erbij wordt het stappenpaneel dan te
+ * gulzig, en houdt het werkblad te weinig over. Op zulke lage schermen geven
+ * we het paneel minder ruimte en maken we de tekst iets compacter.
+ */
+@media (max-height: 820px) {
+  #stap-paneel { max-height: 30vh; font-size: .84rem; }
+  #stap-body { padding: 8px 12px; }
+  #stap-kop { padding: 6px 12px; }
+  #stap-body p { margin-bottom: 5px; }
+}
+
+/* Kopjes in "meer opties": de keuzes stonden als één lange lijst onder elkaar,
+   waardoor niet duidelijk was wat bij wat hoorde. */
+#meer-opties .opt-kop {
+  margin: 14px 0 6px;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #9aa3bb;
+  border-top: 1px solid rgba(255,255,255,.12);
+  padding-top: 10px;
+}
+#meer-opties .opt-kop:first-child { border-top: none; padding-top: 0; margin-top: 4px; }
+/* Uitleg waarom "samen spelen" er nog niet is */
+#meer-opties .opt-slot {
+  margin: 0 0 4px;
+  font-size: .82rem;
+  color: #9aa3bb;
+  line-height: 1.4;
+}
+
+/* Vóór de start is het startmenu het enige wat telt. De blokkenlade van
+   Blockly tekent zichzelf mét een eigen z-index en kwam daardoor als witte
+   balk over het schermvullende startmenu heen. We verbergen de hele
+   editorkolom; visibility (niet display) zodat Blockly zijn maten houdt. */
+body.les-nog-niet-gestart #editor-kolom { visibility: hidden; }
+/* Eén uitzondering moest terug: de categoriebolletjes staan hierboven op
+   "visibility: visible !important" (Blockly verbergt ze standaard), en dat
+   wint van een verborgen ouder. Ze bleven dus als gekleurde stippen op het
+   startscherm staan. Hier zetten we ze expliciet weer uit. */
+body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }

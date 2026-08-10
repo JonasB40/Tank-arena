@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tank Arena — Lesgever</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1d27; color: #eef0f6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: #855cd6; }
+    header h1 { font-size: 1.15rem; }
+    header .rek { margin-left: auto; }
+    button { border: none; border-radius: 8px; padding: 8px 14px; font-size: .92rem; cursor: pointer; font-weight: 600; }
+    .knop-bevries { background: #ffd54f; color: #5b4400; }
+    .knop-bevries.aan { background: #e74c3c; color: #fff; }
+    #stapbalk { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: #232736; border-bottom: 2px solid #343a52; }
+    #stapbalk b { font-size: 1.05rem; }
+    .knop-stap { background: #4fc3f7; color: #06283d; }
+    main { flex: 1; display: flex; min-height: 0; }
+    #klas { flex: 1; overflow-y: auto; padding: 14px 18px; }
+    #klas h2 { font-size: .95rem; color: #9aa3bd; margin-bottom: 10px; }
+    .rij { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; background: #232736; margin-bottom: 6px; }
+    .rij .naam { font-weight: 700; min-width: 140px; }
+    .rij .stap { background: #343a52; border-radius: 6px; padding: 2px 9px; font-size: .82rem; }
+    .rij .status { font-size: .85rem; margin-left: auto; }
+    .rij.klaar { border-left: 5px solid #2ecc71; }
+    .rij.bezig { border-left: 5px solid #ffd54f; }
+    .rij.vast { border-left: 5px solid #e74c3c; background: #3a2430; }
+    .knop-toon { background: #47506b; color: #eef0f6; font-size: .8rem; padding: 5px 10px; }
+    #samenvatting { padding: 10px 18px; background: #232736; border-top: 2px solid #343a52; font-size: .92rem; }
+    #code-paneel { width: 40%; min-width: 320px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
+    #code-kop { padding: 10px 14px; background: #232736; font-weight: 700; }
+    #code-weergave { flex: 1; background: #f9f9f9; overflow: auto; }
+    #code-weergave pre { padding: 16px; font-size: 1.05rem; line-height: 1.55; color: #2d3436; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .leeg { color: #6b7490; padding: 20px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>👩‍🏫 Tank Arena — lesgever</h1>
+    <span id="joinurl"></span>
+    <span class="rek"></span>
+    <button id="bevries" class="knop-bevries">⏸ Ogen op mij</button>
+  </header>
+
+  <div id="stapbalk">
+    <span>De klas zit op</span>
+    <b id="klasstap">stap 1</b>
+    <button id="vorige" class="knop-stap">◀ vorige</button>
+    <button id="volgende" class="knop-stap">volgende ▶</button>
+    <span style="opacity:.7;font-size:.85rem;">(leerlingen springen mee)</span>
+  </div>
+
+  <main>
+    <div id="klas">
+      <h2>Klasoverzicht</h2>
+      <div id="lijst"><div class="leeg">Nog geen leerlingen verbonden…</div></div>
+    </div>
+    <div id="code-paneel">
+      <div id="code-kop">🔍 Blokken van een leerling</div>
+      <div id="code-weergave"><div class="leeg">Klik op "toon" bij een leerling om zijn blokken hier te projecteren.</div></div>
+    </div>
+  </main>
+
+  <div id="samenvatting">—</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/stappen.js"></script>
+  <script>
+    const socket = io();
+    // bij elke (her)verbinding opnieuw aanmelden, anders werkt het dashboard
+    // niet meer nadat de server opnieuw is opgestart
+    socket.on('connect', () => socket.emit('lesgever'));
+
+    fetch('/info').then(r => r.json()).then(d => {
+      const ip = d.ips[0];
+      document.getElementById('joinurl').textContent = ip ? `Leerlingen: http://${ip}:${d.port}` : '';
+    });
+
+    let klasStap = 1;
+    const maxStap = (window.STAPPEN || []).length || 7;
+
+    function toonKlasStap() {
+      const s = (window.STAPPEN || []).find(x => x.nr === klasStap);
+      document.getElementById('klasstap').textContent = `stap ${klasStap}${s ? ' — ' + s.titel : ''}`;
+    }
+    toonKlasStap();
+
+    function stuurStap(n) {
+      klasStap = Math.max(1, Math.min(maxStap, n));
+      toonKlasStap();
+      socket.emit('lesCommando', { type: 'stap', stap: klasStap });
+    }
+    document.getElementById('vorige').addEventListener('click', () => stuurStap(klasStap - 1));
+    document.getElementById('volgende').addEventListener('click', () => stuurStap(klasStap + 1));
+
+    let bevroren = false;
+    document.getElementById('bevries').addEventListener('click', () => {
+      bevroren = !bevroren;
+      socket.emit('lesCommando', { type: 'bevries', aan: bevroren });
+      const k = document.getElementById('bevries');
+      k.classList.toggle('aan', bevroren);
+      k.textContent = bevroren ? '▶ Ga verder' : '⏸ Ogen op mij';
+    });
+
+    socket.on('klasoverzicht', (d) => {
+      const lijst = document.getElementById('lijst');
+      if (!d.leerlingen.length) { lijst.innerHTML = '<div class="leeg">Nog geen leerlingen verbonden…</div>'; return; }
+      lijst.innerHTML = d.leerlingen.map(l => {
+        const tekst = l.status === 'klaar' ? '✓ klaar'
+          : l.status === 'vast' ? `⚠ zit vast (${l.minuten} min)`
+            : `⏳ bezig (${l.minuten} min)`;
+        return `<div class="rij ${l.status}">
+          <span class="naam">${esc(l.naam)}</span>
+          <span class="stap">stap ${l.stap}</span>
+          <span class="status">${tekst}</span>
+          <button class="knop-toon" data-id="${l.id}">toon blokken</button>
+        </div>`;
+      }).join('');
+      for (const k of lijst.querySelectorAll('.knop-toon')) {
+        k.addEventListener('click', () => socket.emit('lesCommando', { type: 'toonCode', id: k.dataset.id }));
+      }
+      const klaar = d.leerlingen.filter(l => l.status === 'klaar').length;
+      const vast = d.leerlingen.filter(l => l.status === 'vast').length;
+      document.getElementById('samenvatting').textContent =
+        `${klaar}/${d.leerlingen.length} klaar met hun stap · ${vast} zitten vast` +
+        (klaar === d.leerlingen.length && d.leerlingen.length ? ' — iedereen mee, je kan door! 🎉' : '');
+    });
+
+    /* Code van een leerling projecteren — als grote leesbare tekst. */
+    socket.on('leerlingCode', (d) => {
+      document.getElementById('code-kop').textContent = `🔍 Blokken van ${d.naam}`;
+      document.getElementById('code-weergave').innerHTML =
+        `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
+    });
+
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  </script>
+</body>
+</html>

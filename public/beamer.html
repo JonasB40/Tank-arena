@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Tank Arena — Beamer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #10131c; color: #eef0f6; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; overflow: hidden; }
+    #links { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    header { padding: 10px 20px; display: flex; align-items: baseline; gap: 20px; background: #232736; }
+    header h1 { font-size: 1.4rem; }
+    header h1 strong { color: #4fc3f7; }
+    #joinurl { font-size: 1.3rem; font-weight: 800; color: #2ecc71; margin-left: auto; }
+    #canvasWrap { flex: 1; position: relative; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+    aside { width: 280px; background: #232736; border-left: 2px solid #343a52; padding: 16px; overflow-y: auto; }
+    aside h2 { color: #f1c40f; margin-bottom: 10px; font-size: 1.2rem; }
+    .rij { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 6px; font-size: 1.05rem; }
+    .rij:nth-child(odd) { background: rgba(255,255,255,0.04); }
+    .goud { color: #f1c40f; font-weight: 800; }
+    /* teamstand: groter dan de spelerslijst, met de teamkleur als balkje */
+    .kop { margin: 12px 0 4px; font-size: .8rem; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
+    .kop:first-child { margin-top: 0; }
+    .rij.team { font-size: 1.5rem; font-weight: 800; border-left: 8px solid #888; padding: 9px 10px; margin-bottom: 3px; }
+    .rij.team.leidt { background: rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body>
+  <div id="links">
+    <header>
+      <h1>🛡️ <strong>STEMazing</strong> Tank Arena</h1>
+      <div id="teamknoppen" style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:.9rem;opacity:.8;">Teams:</span>
+        <button class="teamknop actief" data-n="0">uit</button>
+        <button class="teamknop" data-n="2">2</button>
+        <button class="teamknop" data-n="4">4</button>
+      </div>
+      <div id="joinurl">Speel mee: ...</div>
+    </header>
+    <style>
+      .teamknop { border:none; border-radius:6px; padding:5px 12px; cursor:pointer; background:#343a52; color:#eef0f6; font-weight:700; }
+      .teamknop.actief { background:#4fc3f7; color:#10131c; }
+    </style>
+    <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+  </div>
+  <aside>
+    <h2>🏆 Scorebord</h2>
+    <div id="scores"></div>
+  </aside>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/klassen.js"></script>
+  <script src="js/tekenen.js"></script>
+  <script>
+    const socket = io();
+    // Bij ELKE verbinding opnieuw aanmelden. Anders is de beamer na een
+    // herverbinding (herstart van de server, wifi-hikje, laptop uit slaap)
+    // stilletjes zijn plek in de arena én zijn lesgeversrechten kwijt:
+    // het scherm blijft dan leeg en de teamknoppen doen niets meer.
+    socket.on('connect', () => socket.emit('beamer'));
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let staat = null;
+    let arena = { w: 1600, h: 1000 };
+
+    fetch('/info').then(r => r.json()).then(d => {
+      const ip = d.ips[0];
+      document.getElementById('joinurl').textContent = ip ? `Speel mee: http://${ip}:${d.port}` : '';
+    });
+
+    socket.on('state', s => { staat = s; arena = s.arena; });
+
+    // teamknoppen (admin = lesgever)
+    document.querySelectorAll('.teamknop').forEach(k => k.addEventListener('click', () => {
+      socket.emit('zetTeams', Number(k.dataset.n));
+      document.querySelectorAll('.teamknop').forEach(x => x.classList.remove('actief'));
+      k.classList.add('actief');
+    }));
+
+    function teken() {
+      requestAnimationFrame(teken);
+      const wrap = document.getElementById('canvasWrap');
+      canvas.width = wrap.clientWidth;
+      canvas.height = wrap.clientHeight;
+      ctx.fillStyle = '#10131c';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!staat) return;
+
+      // hele arena passend schalen
+      const s = Math.min(canvas.width / arena.w, canvas.height / arena.h) * 0.97;
+      const ox = (canvas.width - arena.w * s) / 2;
+      const oy = (canvas.height - arena.h * s) / 2;
+      ctx.save();
+      ctx.translate(ox, oy);
+      ctx.scale(s, s);
+
+      drawArena(ctx, arena, 1 / s);
+      drawZones(ctx, staat.zones);
+
+      for (const v of staat.vormen || []) drawVormObj(ctx, v);
+
+      // zelfde tekening als in het spel: kogels rond, drones driehoekig,
+      // traps als driepuntige ster
+      for (const b of staat.bullets) drawMunitie(ctx, b, 1);
+      for (const t of staat.tanks) {
+        if (t.dood) continue;
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        drawTank(ctx, t, false);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      /*
+       * Alleen echte spelers in de stand: de robots stonden er ook tussen,
+       * en tijdens een toernooi wil je zien hoe de KLAS ervoor staat.
+       * Spelen ze in teams, dan komt de teamstand er groot boven — dat is
+       * waar het dan om draait; de losse spelers blijven eronder staan.
+       */
+      const spelers = staat.tanks.filter((t) => !t.ai);
+      const top = [...spelers].sort((a, b) => b.score - a.score);
+      let html = '';
+      if (staat.teamModus) {
+        const totalen = new Map();
+        for (const t of spelers) {
+          if (t.team === null || t.team === undefined) continue;
+          totalen.set(t.team, (totalen.get(t.team) || 0) + t.score);
+        }
+        for (let i = 0; i < staat.teamModus; i++) if (!totalen.has(i)) totalen.set(i, 0);
+        const teams = [...totalen.entries()].sort((a, b) => b[1] - a[1]);
+        html += '<div class="kop">Teams</div>';
+        html += teams.map(([team, punten], i) =>
+          `<div class="rij team ${i === 0 ? 'leidt' : ''}" style="border-left-color:${TEAM_KLEUREN[team]}">`
+          + `<span>${i === 0 ? '👑 ' : ''}${TEAM_NAAM[team]}</span><span>${punten}</span></div>`
+        ).join('');
+        html += '<div class="kop">Spelers</div>';
+      }
+      html += top.map((t, i) =>
+        `<div class="rij ${i === 0 ? 'goud' : ''}"><span>${i === 0 ? '👑 ' : ''}${esc(t.naam)}</span><span>${t.score}</span></div>`
+      ).join('') || '<div class="rij">Nog geen spelers...</div>';
+      document.getElementById('scores').innerHTML = html;
+    }
+    const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
+    const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    requestAnimationFrame(teken);
+  </script>
+</body>
+</html>

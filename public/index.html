@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STEMazing Tank Arena</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Bovenbalk (Scratch-paars) -->
+  <header id="topbar">
+    <div class="logo">🛡️ <strong>STEMazing</strong> Tank Arena</div>
+    <span id="naam-weergave"></span>
+    <span id="modus-badge"></span>
+    <div id="modus-schakelaar" title="Expert toont extra blokken">
+      <button id="modus-starter" class="modus actief" title="Alleen de blokken die je in de les al gezien hebt — overzichtelijk">⭐ Starter</button>
+      <button id="modus-expert" class="modus" title="Alle blokken ineens, ook de blokken van later in de les">🚀 Expert</button>
+    </div>
+    <span id="project-code" title="Met deze code haal je je project op een ander toestel terug op"></span>
+    <button id="opnieuw-knop" title="Alles wissen en opnieuw beginnen">🗑</button>
+    <button id="geluid-knop" title="Geluid aan/uit">🔊</button>
+    <button id="menu-knop" title="Terug naar het startmenu">🏠 Menu</button>
+  </header>
+
+  <main id="hoofd">
+    <!-- Blokken links, zoals in Scratch -->
+    <div id="editor-kolom">
+      <!-- De les: elke stap begint met een probleem -->
+      <div id="stap-paneel">
+        <div id="stap-kop">
+          <span id="stap-nr">Stap 1/15</span>
+          <strong id="stap-titel"></strong>
+          <span id="stap-concept"></span>
+          <button id="stap-inklap" title="Paneel kleiner/groter maken">▾</button>
+        </div>
+        <div id="stap-body">
+          <div id="stap-links">
+            <p id="stap-probleem"></p>
+            <p id="stap-ontdekking"></p>
+          </div>
+          <div id="stap-rechts">
+            <p id="stap-doel"></p>
+            <div id="stap-checks">
+              <div class="check" id="check-structuur"></div>
+              <div class="check" id="check-gedrag"></div>
+            </div>
+          </div>
+          <p id="stap-breek" class="verborgen"></p>
+          <p id="stap-hint-tekst" class="verborgen"></p>
+        </div>
+        <!-- De knoppen staan BUITEN het scrollende gedeelte. Stonden ze erin
+             (als sticky balk), dan dekten ze de onderste regels af — de
+             "🔬 Probeer eens"-tekst viel er half achter weg. -->
+        <div id="stap-knoppen">
+          <button id="stap-hint">💡 Ik zit vast</button>
+          <button id="stap-vorige">◀ terug</button>
+          <button id="stap-volgende" disabled>volgende ▶</button>
+        </div>
+      </div>
+      <!-- De hulpknopjes zitten in dezelfde houder als het werkblad. Hingen ze
+           aan de hele kolom, dan zweefden ze bovenaan — over de lestekst. -->
+      <div id="werkveld-houder">
+      <div id="blocklyDiv"></div>
+      <!-- hulpjes om ruimte te maken op je werkblad -->
+      <!-- Icoontjes als SVG, niet als emoji: 🗂 en 🗕 bestaan niet in het
+           Windows-lettertype en werden op de Chromebooks lege blokjes. -->
+      <div id="werk-knoppen">
+        <button id="knop-opruimen" title="Zet al je stapeltjes netjes onder elkaar">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 3.5h12M2 8h8M2 12.5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg><span>Opruimen</span>
+        </button>
+        <button id="knop-inklappen" title="Maak afgewerkte stapeltjes klein zodat je ruimte hebt">
+          <svg viewBox="0 0 16 16" aria-hidden="true" class="pijl">
+            <path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg><span id="label-inklappen">Inklappen</span>
+        </button>
+      </div>
+      </div>
+      <!-- uitleg verschijnt alleen zwevend als je op een blok klikt -->
+      <div id="blok-uitleg" class="verborgen" title="Klik om te sluiten"></div>
+    </div>
+
+    <!-- Podium rechts: hier draait je programma live -->
+    <section id="podium">
+      <div id="podium-balk">
+        <button id="vlag" title="Start je programma"><svg viewBox="0 0 20 20" width="20" height="20" aria-label="groene vlag"><path d="M4 2v16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/><path d="M5.2 3.1c3.2-1.8 6.4 1.8 9.6 0v7c-3.2 1.8-6.4-1.8-9.6 0z" fill="#4CBF56" stroke="#2e7d32" stroke-width="1"/></svg></button>
+        <button id="stop" class="actief" title="Stop je programma">🛑</button>
+        <div class="hud-item">🏆 <span id="hud-score">0</span></div>
+        <div class="hud-item">⬆️ lvl <span id="hud-level">1</span></div>
+        <div id="xp-balk"><div id="xp-balk-vul"></div></div>
+        <button id="hud-statpunten" class="verborgen">⬆️</button>
+        <div id="grootte-knoppen" title="Grootte van het speelveld">
+          <button class="gr-knop" data-grootte="klein" title="Klein speelveld — veel plaats om te programmeren">▫</button>
+          <button class="gr-knop actief" data-grootte="normaal" title="Normaal">◻</button>
+          <button class="gr-knop" data-grootte="groot" title="Volledig scherm spelen">⛶</button>
+        </div>
+      </div>
+
+      <div id="podium-canvas">
+        <canvas id="canvas"></canvas>
+
+        <!-- Upgrades: klein tabje linksonder; het paneel verschijnt als je
+             er met de muis komt, of vanzelf als je iets te besteden hebt -->
+        <div id="stat-hoek" class="verborgen">
+          <div id="stat-overzicht"></div>
+          <div id="stat-tab" title="Jouw upgrades">⚡</div>
+        </div>
+
+        <!-- Eigen variabelen als tellertjes, zoals in Scratch -->
+        <div id="var-watchers"></div>
+
+        <!-- Startmenu -->
+        <div id="startmenu">
+          <h1>🛡️ Tank Arena</h1>
+          <label for="naam">Hoe heet je?</label>
+          <input id="naam" type="text" maxlength="16" placeholder="typ je naam…" autocomplete="off" autofocus>
+          <button id="kies-computer" class="hoofdknop">▶ Start de les</button>
+
+          <button id="meer-opties-knop">meer opties ▾</button>
+          <!--
+            Opbouw van boven naar beneden zoals je het nodig hebt: eerst verder
+            werken aan wat je hebt, dan hoe zwaar de robots zijn, dan pas de
+            arena. Samen spelen verschijnt bewust pas als je tank kan rijden —
+            anders sta je daar stil met een tank die nog niets kan.
+          -->
+          <div id="meer-opties" class="verborgen">
+            <p class="opt-kop">Verder werken aan je project</p>
+            <div id="project-ophalen">
+              <input id="project-code-invoer" type="text" maxlength="9" placeholder="TANK-XXXX" autocomplete="off">
+              <button id="project-laad-knop">📂 Ophalen</button>
+            </div>
+
+            <p class="opt-kop">Hoe sterk mogen de robots zijn?</p>
+            <div id="niveau-keuze">
+              <button class="niveau-knop actief" data-niveau="makkelijk">😊 makkelijk</button>
+              <button class="niveau-knop" data-niveau="gemiddeld">😐 gemiddeld</button>
+              <button class="niveau-knop" data-niveau="moeilijk">😈 moeilijk</button>
+            </div>
+
+            <p class="opt-kop">Samen spelen met de klas</p>
+            <p id="samen-slot" class="opt-slot">🔒 Bouw eerst je besturing (stap 1 tot 4). Zodra je tank rijdt, mag je de arena in.</p>
+            <button id="kies-klasgenoten" class="verborgen">🧑‍🤝‍🧑 Tegen klasgenoten <small>(vrij spel, geen teams)</small></button>
+
+            <p class="opt-kop">Volgende les</p>
+            <!-- De teamopstellingen zitten meteen in de startknop: zo is er
+                 maar één plek waar je "samen spelen" kiest, en kan je niet in
+                 een arena belanden zonder te weten welke opstelling het is. -->
+            <button id="kies-les2">🏆 Les 2 — samen spelen <small>(zonder teams)</small></button>
+            <button id="kies-teams2">🔵🔴 Les 2 — 2 teams <small>(links tegen rechts)</small></button>
+            <button id="kies-teams4">🔵🔴🟢🟣 Les 2 — 4 teams <small>(vier hoeken)</small></button>
+
+            <p class="opt-kop">Voor de lesgever</p>
+            <button id="voorbeeld-knop" title="Laadt de volledige blokkencode — het einddoel dat je met de kinderen opbouwt">👩‍🏫 Voorbeeldoplossing</button>
+          </div>
+        </div>
+
+        <!-- Klassekeuze-popup -->
+        <div id="popup-klasse" class="popup verborgen">
+          <h2>⬆️ Kies je nieuwe tankklasse!</h2>
+          <div id="klasse-lijst"></div>
+          <button id="klasse-sluit" class="sluit">Later kiezen</button>
+        </div>
+
+        <!-- Statpunten-popup -->
+        <div id="popup-stat" class="popup verborgen">
+          <h2>⚡ Verdeel je statpunten (<span id="stat-punten-over">0</span> over)</h2>
+          <div id="stat-lijst"></div>
+          <button id="stat-sluit" class="sluit">Klaar</button>
+        </div>
+
+        <div id="bevroren-melding" class="verborgen">⏸ Ogen op de lesgever!</div>
+        <div id="dood-melding" class="verborgen"></div>
+        <div id="toast" class="verborgen"></div>
+      </div>
+
+      <!-- Sprite-paneel rechtsonder, zoals in Scratch -->
+      <div id="sprite-paneel">
+        <span class="sp-kop">Je programmeert</span>
+        <div class="sprite-kaart geselecteerd">
+          <canvas id="sprite-canvas" width="52" height="52"></canvas>
+          <strong id="sprite-naam">jouw tank</strong>
+          <span id="sprite-info"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Nieuwe variabele: zelfde venster als in Scratch, zodat leerlingen het
+       later in het echte Scratch meteen herkennen -->
+  <div id="var-overlay" class="verborgen">
+    <div id="var-venster">
+      <div id="var-kop">
+        <span>Nieuwe variabele</span>
+        <button id="var-kruis" title="Annuleren">✕</button>
+      </div>
+      <div id="var-body">
+        <label for="var-naam">Nieuwe variabelenaam:</label>
+        <input id="var-naam" type="text" autocomplete="off" spellcheck="false">
+        <div id="var-bereik">
+          <label><input type="radio" name="var-bereik" value="alle" checked> Voor alle sprites</label>
+          <label><input type="radio" name="var-bereik" value="deze"> Alleen voor deze sprite</label>
+        </div>
+        <p id="var-uitleg">Je hebt nu één sprite (jouw tank), dus beide keuzes doen hetzelfde. Zodra je meerdere sprites hebt, bepaalt dit wie de variabele mag gebruiken.</p>
+        <div id="var-knoppen">
+          <button id="var-annuleer">Annuleren</button>
+          <button id="var-ok" class="hoofdknop">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/klassen.js"></script>
+  <script src="js/tekenen.js"></script>
+  <script src="js/geluid.js"></script>
+  <script src="js/stappen.js"></script>
+  <script src="js/codetekst.js"></script>
+  <script src="/blockly/blockly_compressed.js"></script>
+  <script src="/blockly/blocks_compressed.js"></script>
+  <script src="/blockly/msg/nl.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/runtime.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
