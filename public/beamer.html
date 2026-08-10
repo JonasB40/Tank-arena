@@ -63,10 +63,24 @@
     let staat = null;
     let arena = { w: 1600, h: 1000 };
 
-    fetch('/info').then(r => r.json()).then(d => {
-      const ip = d.ips[0];
-      document.getElementById('joinurl').textContent = ip ? `Speel mee: http://${ip}:${d.port}` : '';
-    });
+    /*
+     * Het speeladres dat groot op de beamer komt. Open je de beamer op de
+     * laptop zelf (localhost), dan hebben leerlingen daar niets aan en halen
+     * we het adres van het lokale netwerk op bij de server. In alle andere
+     * gevallen — een LAN-adres of een echte website — staat het juiste adres
+     * gewoon in de adresbalk. Online toonde hij anders het interne adres van
+     * de hostingprovider, en daar komt geen enkele leerling binnen.
+     */
+    const opDezeLaptop = /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname);
+    const toonAdres = (tekst) => { document.getElementById('joinurl').textContent = tekst; };
+    if (opDezeLaptop) {
+      fetch('/info').then(r => r.json()).then(d => {
+        const ip = d.ips[0];
+        toonAdres(ip ? `Speel mee: http://${ip}:${d.port}` : '');
+      }).catch(() => toonAdres(''));
+    } else {
+      toonAdres(`Speel mee: ${location.origin}`);
+    }
 
     socket.on('state', s => { staat = s; arena = s.arena; });
 
