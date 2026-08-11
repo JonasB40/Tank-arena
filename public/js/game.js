@@ -256,10 +256,26 @@ document.querySelectorAll('.niveau-knop').forEach((k) => k.addEventListener('cli
   k.classList.add('actief');
 }));
 // Les 2 speelt per definitie samen; de startknop volgt dus de leskeuze.
-document.getElementById('kies-computer').addEventListener('click', () => kiesModus(welkeLes === 2 ? 'samen' : 'solo'));
+/*
+ * De hoofdknop start ALTIJD les 1 tegen de computer — dat is ook wat er op
+ * staat. Zonder deze terugzet bleef je in les 2 hangen zodra je die ooit had
+ * gekozen: je ging terug naar het menu, drukte op "Start de les" en belandde
+ * opnieuw in de gedeelde arena met de stappen van les 2.
+ */
+function startLes1() {
+  if (welkeLes !== 1) {
+    welkeLes = 1;
+    stapIndex = 0;
+    gehaaldeStappen.clear();
+    window.runtime.basisBesturing = false;   // in les 1 programmeer je je besturing zelf
+    if (window.zetLesStap) window.zetLesStap(1, true);
+  }
+  kiesModus('solo');
+}
+document.getElementById('kies-computer').addEventListener('click', startLes1);
 // Enter in het naamveld start meteen — één handeling minder
 document.getElementById('naam').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); kiesModus(welkeLes === 2 ? 'samen' : 'solo'); }
+  if (e.key === 'Enter') { e.preventDefault(); startLes1(); }
 });
 document.getElementById('meer-opties-knop').addEventListener('click', () => {
   const paneel = document.getElementById('meer-opties');
