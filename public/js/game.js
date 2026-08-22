@@ -23,6 +23,15 @@ let tekenOffset = { x: 0, y: 0 };
  * maar dan worden de tanks op ons kleine podium onherkenbaar.
  */
 const ZOOM = 0.72;
+/*
+ * Niet elke tank ziet even ver. In diep.io kijkt de sluipschuttertak verder
+ * dan de rest — daarom kan een Assassin je van buiten je eigen beeld
+ * neerschieten. zichtVan() (in klassen.js) rekent klasse + level om tot één
+ * factor; hier schuift de camera er langzaam naartoe zodat het beeld bij een
+ * upgrade niet plots wegspringt maar mooi uitzoomt.
+ */
+let zoom = ZOOM;          // wat je nu ziet
+let zoomDoel = ZOOM;      // waar we naartoe glijden
 let modus = null;
 
 /* ---------------- API voor de blokjes-runtime ---------------- */
@@ -437,35 +446,73 @@ let laatsteKlasseAanbod = '';      // welk aanbod hebben we al getoond?
 let klassePopupGesloten = false;   // heeft de leerling bewust weggeklikt?
 const popupStat = document.getElementById('popup-stat');
 
+/*
+ * Kaartjes zoals in diep.io: elk voorstel krijgt een eigen pastelkleur met
+ * de tank erop en de naam op een bandje onderaan. Het venster blijft klein en
+ * in de hoek staan, zodat je tank zichtbaar blijft en je gewoon door kan
+ * rijden tot je gekozen hebt.
+ */
+const KAART_KLEUREN = [
+  ['#7fe3dc', '#48b3ab'],  // cyaan
+  ['#9ce77f', '#63b249'],  // groen
+  ['#f39494', '#c26060'],  // rood
+  ['#f2df90', '#c0aa55'],  // geel
+  ['#b7a5f0', '#8270c2'],  // paars
+  ['#f3b880', '#c1854d'],  // oranje
+];
+
 function toonKlassePopup(ik) {
   const lijst = document.getElementById('klasse-lijst');
   lijst.innerHTML = '';
-  for (const k of ik.klasseAanbod) {
+  ik.klasseAanbod.forEach((k, i) => {
     const def = KLASSEN[k];
+    const [bg, rand] = KAART_KLEUREN[i % KAART_KLEUREN.length];
     const kaart = document.createElement('button');
     kaart.className = 'klasse-kaart';
+    kaart.style.setProperty('--bg', bg);
+    kaart.style.setProperty('--rand', rand);
+
+    /* De tank past zich aan het kaartje aan: een sluipschutter heeft een loop
+       van 60 pixels, die stak anders zo het kaartje uit. */
+    const B = 74, H = 56, dpr = Math.min(2, window.devicePixelRatio || 1);
     const mini = document.createElement('canvas');
-    // wat ruimer en zonder naam/levensbalk: het is een plaatje, geen speelveld
-    mini.width = 104; mini.height = 88;
+    mini.width = B * dpr; mini.height = H * dpr;
+    mini.style.width = B + 'px'; mini.style.height = H + 'px';
+    const langste = (def && def.lopen || []).reduce((m, l) => Math.max(m, (l.start || 0) + l.len), 0);
+    const schaal = Math.min(0.95, 30 / Math.max(22, 22 + langste * 0.55));
     const g = mini.getContext('2d');
-    g.translate(52, 46);
-    g.scale(0.85, 0.85);
+    g.scale(dpr, dpr);
+    g.translate(B / 2, H / 2);
+    g.scale(schaal, schaal);
     drawTank(g, {
-      klasse: k, vorm: 'cirkel', kleur: ik.kleur, angle: -Math.PI / 2, naam: '',
+      klasse: k, vorm: 'cirkel', kleur: ik.kleur, angle: Math.PI * 0.75, naam: '',
       hp: 1, maxHp: 1, zeg: null, flits: null, schild: false, onzichtbaar: false,
       alleenVorm: true,
     }, false);
-    const label = document.createElement('div');
+
+    const label = document.createElement('span');
+    label.className = 'kl-naam';
     label.textContent = def ? def.naam : k;
+    /* Zie je met deze klasse verder? Dat is in diep.io het grote voordeel van
+       de sluipschuttertak, dus zeg het erbij. */
+    if (def && def.zicht > 1) label.title = 'je ziet ' + Math.round((def.zicht - 1) * 100) + '% meer van het speelveld';
     kaart.appendChild(mini);
     kaart.appendChild(label);
+    if (def && def.zicht > 1) {
+      const oog = document.createElement('span');
+      oog.className = 'kl-zicht';
+      oog.textContent = '🔭';
+      oog.title = label.title;
+      kaart.appendChild(oog);
+    }
     kaart.addEventListener('click', () => {
       socket.emit('kiesKlasse', { klasse: k });
       popupKlasse.classList.add('verborgen');
-      toast(`Je bent nu een ${def ? def.naam : k}! 🎉`);
+      toast(`Je bent nu een ${def ? def.naam : k}! 🎉`
+        + (def && def.zicht > 1 ? ' 🔭 Je ziet nu verder!' : ''));
     });
     lijst.appendChild(kaart);
-  }
+  });
   popupKlasse.classList.remove('verborgen');
 }
 document.getElementById('klasse-sluit').addEventListener('click', () => {
@@ -652,13 +699,18 @@ setInterval(() => {
    * dan centreren we hem gewoon.
    */
   // het zichtbare stuk wereld is groter dan het canvas doordat we uitzoomen
-  const zichtB = canvas.width / ZOOM, zichtH = canvas.height / ZOOM;
+  /* Ondergrens: op een klein podium (11-inch chromebook, speelveld op "klein")
+     zou een Ranger zo ver uitzoomen dat je je eigen tank nauwelijks nog ziet.
+     Bij 0.42 is de romp nog altijd ruim 9 pixels groot. */
+  zoomDoel = ik ? Math.max(0.42, ZOOM / zichtVan(ik.klasse, ik.level)) : ZOOM;
+  zoom += (zoomDoel - zoom) * 0.06;
+  const zichtB = canvas.width / zoom, zichtH = canvas.height / zoom;
   const halfB = zichtB / 2, halfH = zichtH / 2;
   camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
   camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
-  tekenOffset = { x: canvas.width / 2 - camera.x * ZOOM, y: canvas.height / 2 - camera.y * ZOOM };
-  spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / ZOOM;
-  spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / ZOOM;
+  tekenOffset = { x: canvas.width / 2 - camera.x * zoom, y: canvas.height / 2 - camera.y * zoom };
+  spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / zoom;
+  spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / zoom;
   vernieuwHud(ik);
   // de waarnemer kijkt mee voor de checkpoints van de les
   stapWaarnemer.tik(ik, eigenKogelsTeller, window.runtime ? runtime.vars : {});
@@ -680,7 +732,7 @@ function teken() {
 
   ctx.save();
   ctx.translate(ox, oy);
-  ctx.scale(ZOOM, ZOOM);
+  ctx.scale(zoom, zoom);
   drawArena(ctx, arena, 1);
   drawZones(ctx, staat.zones);
   if (staat.basis) drawZones(ctx, [Object.assign({ team: 0 }, staat.basis)]);
@@ -849,7 +901,7 @@ function tekenMinimap() {
       ctx.arc(mx + t.x * s, my + t.y * s, 4.5, 0, Math.PI * 2);
       ctx.fill();
       // kijkkader: welk stuk van de wereld zie je nu?
-      const kb = (canvas.width / ZOOM) * s, kh = (canvas.height / ZOOM) * s;
+      const kb = (canvas.width / zoom) * s, kh = (canvas.height / zoom) * s;
       ctx.strokeStyle = 'rgba(255,255,255,.55)';
       ctx.lineWidth = 1;
       ctx.strokeRect(mx + t.x * s - kb / 2, my + t.y * s - kh / 2, kb, kh);

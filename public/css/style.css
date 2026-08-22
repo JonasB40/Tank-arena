@@ -918,21 +918,69 @@ body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }
 /* Het klassekeuzevenster klapt vanzelf open bij een nieuw level. Het gaat naar
    de hoek in plaats van het midden, en blijft smal: zo zie je je eigen tank nog
    en kan je gewoon doorspelen tot je gekozen hebt. */
+/* ---------- klassekeuze, in de stijl van diep.io ----------
+   Hij verschijnt vanzelf zodra je een nieuwe klasse mag kiezen, en blijft een
+   klein hoekvenster: je ziet je tank nog en kan gewoon doorrijden tot je
+   gekozen hebt. Linksboven, want rechtsboven staat het scorebord. */
 #popup-klasse {
-  left: auto; top: auto; right: 12px; bottom: 12px;
+  left: 12px; top: 12px; right: auto; bottom: auto;
   transform: none;
   min-width: 0;
-  width: min(330px, 62%);
-  padding: 12px 14px;
-  background: rgba(255,255,255,.97);
+  width: max-content;
+  max-width: 46%;
+  padding: 8px 10px 10px;
+  background: rgba(16,19,28,.72);
+  box-shadow: 0 6px 22px rgba(0,0,0,.4);
+  border-radius: 10px;
 }
-#popup-klasse h2 { font-size: 1rem; margin-bottom: 8px; }
-#popup-klasse .sluit { margin-top: 8px; padding: 6px 12px; font-size: .85rem; }
-
-/* Compacte klassekeuze: vier kaartjes naast elkaar in een strook onderaan.
-   Het venster mag maar een klein hoekje innemen — je moet je tank blijven
-   zien en kunnen besturen tot je gekozen hebt. */
-#popup-klasse #klasse-lijst { flex-wrap: nowrap; gap: 6px; }
-#popup-klasse .klasse-kaart { padding: 4px; font-size: .68rem; border-width: 1px; border-radius: 8px; }
-#popup-klasse .klasse-kaart canvas { width: 52px; height: 44px; }
-#popup-klasse .klasse-kaart div { max-width: 60px; line-height: 1.1; }
+#popup-klasse h2 {
+  font-size: .95rem;
+  margin-bottom: 7px;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(0,0,0,.45);
+}
+#popup-klasse #klasse-lijst {
+  display: grid;
+  /* twee even brede kolommen: anders werd "Machinegeweer" een breder kaartje
+     dan "Twin" en stond het rooster scheef */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  justify-content: center;
+}
+#popup-klasse .klasse-kaart {
+  position: relative;
+  background: var(--bg, #7fe3dc);
+  border: 3px solid var(--rand, #48b3ab);
+  border-radius: 6px;
+  padding: 3px 3px 0;
+  overflow: hidden;
+}
+#popup-klasse .klasse-kaart .kl-naam {
+  display: block;
+  width: 100%;
+  margin: 2px -3px 0;
+  padding: 2px 4px;
+  background: var(--rand, #48b3ab);
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0,0,0,.4);
+  white-space: nowrap;
+}
+/* verrekijkertje: deze klasse ziet verder (sluipschuttertak) */
+#popup-klasse .klasse-kaart .kl-zicht {
+  position: absolute;
+  top: 1px; right: 2px;
+  font-size: .68rem;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+}
+#popup-klasse .klasse-kaart:hover { transform: scale(1.06); border-color: #fff; }
+#popup-klasse .sluit {
+  margin-top: 8px;
+  padding: 4px 16px;
+  background: #cfd4de;
+  color: #222;
+  font-size: .8rem;
+  font-weight: 700;
+  border-radius: 5px;
+}

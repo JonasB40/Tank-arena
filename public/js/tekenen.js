@@ -142,24 +142,25 @@ function drawTank(c, t, isIk) {
   drawLopen(c, klasse.lopen, klasse.cannon || 'normaal', t.__recoil ? -5 : 0);
   c.restore();
 
-  // romp: omtrek in een donkerder tint van de eigen kleur (zoals diep.io),
-  // en een witte ring als het jouw eigen tank is
+  /* Romp: één effen cirkel met een omtrek in een donkerder tint van de eigen
+     kleur — precies zoals in diep.io. Je eigen tank kreeg vroeger een witte
+     rand en in je basis nog een losse blauwe ring daaromheen; samen zag dat
+     eruit als een vreemde schijf om je tank. Je herkent jezelf al aan het
+     midden van het scherm, je naam en de witte stip op de minikaart.
+     Ben je beschermd (eigen basis), dan gloeit de romp zacht op. */
+  if (t.schild) {
+    c.shadowColor = 'rgba(120,210,255,0.95)';
+    c.shadowBlur = 18;
+  }
   drawVorm(c, t.vorm, straal);
   c.lineJoin = 'round';
-  c.strokeStyle = isIk ? '#ffffff' : donkerder(lijf);
+  c.strokeStyle = donkerder(lijf);
   c.lineWidth = RAND * 2;
   c.stroke();
   c.fillStyle = lijf;
   c.fill();
-
-  // schild
-  if (t.schild) {
-    c.beginPath();
-    c.arc(0, 0, 34, 0, Math.PI * 2);
-    c.strokeStyle = 'rgba(79,195,247,0.9)';
-    c.lineWidth = 3;
-    c.stroke();
-  }
+  c.shadowBlur = 0;
+  c.shadowColor = 'transparent';
 
   /* Naam + levensbalk horen bij het spel, niet bij een plaatje. In het
      keuzevenster voor je nieuwe tankklasse stond boven elk voorbeeld een
