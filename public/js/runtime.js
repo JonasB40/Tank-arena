@@ -8,6 +8,7 @@
  */
 const runtime = {
   draait: false,
+  bevroren: false,   // "Ogen op de lesgever": alles staat stil
   scripts: [],
   threads: [],
   vars: {},
@@ -134,6 +135,18 @@ function pasBasisBesturingToe(intent) {
 
 /* ---------------- de tik (30x per seconde) ---------------- */
 setInterval(() => {
+  /*
+   * "Ogen op de lesgever": dan staat ALLES stil. Vroeger stopte alleen het
+   * programma, maar met de pijltjes kon je nog gewoon rondrijden — precies wat
+   * de knop moet voorkomen. Nu sturen we een lege intent, dus je tank rolt uit
+   * en blijft staan tot de lesgever verdergaat.
+   */
+  if (runtime.bevroren) {
+    const stil = { mx: 0, my: 0, angle: runtime.intent.angle, shoot: false };
+    runtime.intent = stil;
+    spel.stuurIntent(stil);
+    return;
+  }
   // Ook zonder gestart programma moet je in les 2 kunnen rijden en schieten,
   // anders sta je stil tot je op de groene vlag drukt.
   if (!runtime.draait) {

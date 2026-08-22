@@ -995,6 +995,11 @@ function tekenScorebord() {
   const B = 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
   const H = 24 + kopH + rijen.length * regel + 6;
   const x = canvas.width - B - 12, y = 12;
+  /* De variabelen-tellertjes staan ook rechtsboven. Het scorebord groeit met
+     het aantal spelers, dus schuiven we ze er netjes onder in plaats van
+     erdoorheen. */
+  const watchers = document.getElementById('var-watchers');
+  if (watchers) watchers.style.top = Math.round(y + H + 8) + 'px';
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.fillStyle = '#2a2f3d';
@@ -1282,6 +1287,8 @@ socket.on('lesStuur', (d) => {
     if (i >= 0 && i !== stapIndex) { stapIndex = i; toonStap(); toast(`📘 De klas gaat naar stap ${d.stap}`); }
   } else if (d.type === 'bevries') {
     document.getElementById('bevroren-melding').classList.toggle('verborgen', !d.aan);
+    document.body.classList.toggle('gepauzeerd', !!d.aan);
+    window.runtime.bevroren = !!d.aan;   // ook de pijltjes doen even niets meer
     if (d.aan) window.runtimeStop();
   } else if (d.type === 'stuurCode') {
     let tekst = '(nog geen blokken)';

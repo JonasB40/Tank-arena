@@ -50,7 +50,8 @@ Het spel bestaat uit **6 losse scripts** (net als in Scratch mogen scripts naast
 ```
 🚩 wanneer ik een level omhoog ga
    speel geluid [tada]
-   toon upgrade-keuze                           ← opent de statpunten/klasse-popup
+   toon upgrade-keuze                           ← opent het klassevenster (statpunten
+                                                  verdeel je met de balken linksonder)
 ```
 
 ### 5 · Bij kapot gaan iets zeggen *(Les 1, bouwblok 3)*
