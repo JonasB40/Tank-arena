@@ -32,13 +32,10 @@
           <span id="stap-nr">Stap 1/15</span>
           <strong id="stap-titel"></strong>
           <span id="stap-concept"></span>
+          <button id="stap-uitleg" title="Lees de uitleg van deze stap opnieuw">ℹ</button>
           <button id="stap-inklap" title="Paneel kleiner/groter maken">▾</button>
         </div>
         <div id="stap-body">
-          <div id="stap-links">
-            <p id="stap-probleem"></p>
-            <p id="stap-ontdekking"></p>
-          </div>
           <div id="stap-rechts">
             <p id="stap-doel"></p>
             <!-- "zo hoort het te staan": een klein stapeltje blokjes, want
@@ -65,6 +62,17 @@
            aan de hele kolom, dan zweefden ze bovenaan — over de lestekst. -->
       <div id="werkveld-houder">
       <div id="blocklyDiv"></div>
+      <!-- De uitleg van de stap komt over je werkblad te staan: even alleen
+           lezen, dan wegklikken en bouwen. De opdracht zelf blijft bovenaan
+           in beeld, zodat je tijdens het bouwen niets hoeft te onthouden. -->
+      <div id="uitleg-popup" class="verborgen">
+        <div id="uitleg-kaart">
+          <div id="uitleg-kop"><span id="uitleg-stap"></span><strong id="uitleg-titel"></strong></div>
+          <p id="stap-probleem"></p>
+          <p id="stap-ontdekking"></p>
+          <button id="uitleg-sluit">Begrepen 👍</button>
+        </div>
+      </div>
       <!-- hulpjes om ruimte te maken op je werkblad -->
       <!-- Icoontjes als SVG, niet als emoji: 🗂 en 🗕 bestaan niet in het
            Windows-lettertype en werden op de Chromebooks lege blokjes. -->

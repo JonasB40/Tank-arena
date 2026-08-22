@@ -296,6 +296,7 @@ document.querySelectorAll('.niveau-knop').forEach((k) => k.addEventListener('cli
  */
 function startLes1() {
   statsOntgrendeld = false;   // de les begint weer zonder statpunten in beeld
+  gelezenUitleg.clear();      // en met de uitleg er weer bij
   if (welkeLes !== 1) {
     welkeLes = 1;
     stapIndex = 0;
@@ -1211,6 +1212,26 @@ function wijsDeWegAan(stap) {
   setTimeout(() => { try { window.openCategorie(wijs.categorie); } catch { } }, 260);
 }
 
+/* Welke uitleg heeft deze leerling al gezien? (les-stap, bv. "1-7") */
+const gelezenUitleg = new Set();
+
+function toonUitleg() {
+  document.getElementById('uitleg-popup').classList.remove('verborgen');
+  document.body.classList.add('uitleg-open');
+}
+function sluitUitleg() {
+  document.getElementById('uitleg-popup').classList.add('verborgen');
+  document.body.classList.remove('uitleg-open');
+  // na het lezen mag de aandacht meteen naar het werkblad
+  try { window.herschaalWerkveld(); } catch { }
+}
+document.getElementById('uitleg-sluit').addEventListener('click', sluitUitleg);
+document.getElementById('uitleg-popup').addEventListener('click', (e) => {
+  // alleen de donkere rand sluit; een klik in de kaart zelf niet
+  if (e.target.id === 'uitleg-popup') sluitUitleg();
+});
+document.getElementById('stap-uitleg').addEventListener('click', toonUitleg);
+
 let lesKlaar = false;   // slotscherm getoond? dan geen stapchecks meer draaien
 
 /*
@@ -1239,6 +1260,13 @@ function toonStap() {
   // blokverwijzingen krijgen de kleur van hun categorie
   elStap.probleem.innerHTML = `❓ ${blokHtml(s.probleem)}`;
   elStap.ontdekking.innerHTML = blokHtml(s.ontdekking);
+  document.getElementById('uitleg-stap').textContent = `Stap ${s.nr}`;
+  document.getElementById('uitleg-titel').textContent = s.titel;
+  /* De uitleg verschijnt bij elke stap die je voor het eerst ziet. Blader je
+     terug naar iets dat je al gelezen hebt, dan blijft hij dicht — anders zit
+     je bij elk stapje terug weer te klikken. */
+  const sleutel = `${welkeLes}-${s.nr}`;
+  if (!gelezenUitleg.has(sleutel)) { gelezenUitleg.add(sleutel); toonUitleg(); }
   elStap.doel.innerHTML = `🎯 ${doelHtml(s.doel)}`;
   // sommige stappen laten zien hoe de stapel eruit hoort te zien
   elStap.voorbeeld.innerHTML = blokHtml(s.voorbeeld || '');
