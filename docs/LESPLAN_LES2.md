@@ -45,6 +45,7 @@ Tegen echte klasgenoten heb je slimmere reacties nodig dan tegen robots.
 
 - Jij klikt op de beamer **Teams: 2** (of 4 bij een grote groep). Iedereen wordt automatisch verdeeld, krijgt zijn **teamkleur** en respawnt in zijn **teamzone** (gestreepte gekleurde zone).
 - Leg de regels uit: *in je eigen zone ben je onschendbaar (veilige spawn-zone), teamgenoten kunnen elkaar géén schade doen, en het team met de meeste punten wint.*
+- **Basisdrones bewaken elke base**, net als in diep.io. Het zijn de kleine driehoekjes in teamkleur die rustig rondjes draaien voor hun eigen zone. Komt er een vijand te dicht, dan duiken ze eropaf en is die binnen enkele seconden kapot. Kamperen in de basis van de tegenstander is dus onmogelijk — vertel dat vooraf, anders vliegen de eerste drie leerlingen er meteen in.
 
 De twee opstellingen zijn dezelfde als in diep.io:
 

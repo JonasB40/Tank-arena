@@ -116,8 +116,15 @@ const STAPPEN = [
     concept: 'Als-dan + invoer',
     probleem: 'Je tank rijdt eindeloos in één richting — recht de muur in. Je kan hem niet sturen.',
     ontdekking: 'De tank moet een KEUZE maken: alleen omhoog rijden áls jij de pijltjestoets indrukt. Dat is een als-dan.',
-    doel: 'Zet in een {{bes|als … dan}}-blok met {{waa|toets ↑ ingedrukt?}}: {{bew|richt naar 0 graden}} en daaronder {{bew|neem 10 stappen}}.',
-    hint: 'De graden zijn dezelfde als in Scratch: 0 is omhoog, 90 is rechts, 180 is omlaag en -90 is links. Het {{bes|als-blok}} staat bij {{bes|Besturen}}, het zeshoekige {{waa|toets-blok}} bij {{waa|Waarnemen}}.',
+    doel: [
+      'Haal je {{bew|neem 10 stappen}} even uit de {{bes|herhaal}} en leg hem opzij.',
+      'Sleep een {{bes|als … dan}} in de {{bes|herhaal}} (oranje categorie {{bes|Besturen}}).',
+      'Sleep {{waa|toets ↑ ingedrukt?}} in het zeshoekige gaatje van het als-blok (blauwe {{waa|Waarnemen}}).',
+      'Zet in de opening van het als-blok: {{bew|richt naar 0 graden}}.',
+      'Zet daaronder je {{bew|neem 10 stappen}} terug — óók binnen het als-blok.',
+      'Druk op 🚩 en houd het pijltje omhoog ingedrukt.',
+    ].join('\n'),
+    hint: 'Kijk goed of je stappen-blok écht ín het als-blok zit: het als-blok heeft een opening, en je blokken moeten daarbinnen inspringen. Zit het eronder in plaats van erin, dan rijdt je tank altijd — ook zonder toets.\n\nDe graden zijn dezelfde als in Scratch: 0 is omhoog, 90 is rechts, 180 is omlaag, -90 is links. Klik op het getal om het te veranderen.\n\nWerkt het nog niet? Kijk of je twee stapeltjes hebt staan. Alles hoort onder één 🚩-blok.',
     check: {
       // eerst alléén omhoog: één werkende als-dan is het hele doel van deze stap
       structuur: (p) => alleCmdsVanProject(p)
@@ -134,8 +141,14 @@ const STAPPEN = [
     concept: 'Hetzelfde patroon herhalen',
     probleem: 'Omhoog rijden lukt! Maar naar beneden, links en rechts gebeurt er nog niets.',
     ontdekking: 'Je hebt het patroon nu één keer gebouwd. De andere drie richtingen werken precies hetzelfde — alleen de toets en het aantal graden verschillen.',
-    doel: 'Maak nog drie {{bes|als … dan}}-blokken bij: → is {{bew|90 graden}}, ↓ is {{bew|180 graden}} en ← is {{bew|-90 graden}}. Zet ze allemaal in je {{bes|herhaal}}-lus.',
-    hint: 'Sneller werken? Klik met de rechtermuisknop op je als-blok en kies "Dupliceren". Vergeet dan niet om in de kopie zowel de {{waa|toets}} als het {{bew|aantal graden}} te veranderen!',
+    doel: [
+      'Klik met de RECHTERmuisknop op je {{bes|als-blok}} en kies "Dupliceren".',
+      'Sleep de kopie in de {{bes|herhaal}}, onder het eerste als-blok.',
+      'Verander in de kopie de {{waa|toets}} naar → en de {{bew|graden}} naar 90.',
+      'Herhaal dat nog twee keer: ↓ met 180 graden, en ← met -90 graden.',
+      'Druk op 🚩 en probeer alle vier de pijltjes uit.',
+    ].join('\n'),
+    hint: 'Twee dingen veranderen per kopie: eerst de toets in het blauwe blokje, dán het getal bij de graden. Vergeet je het getal, dan rijden twee toetsen dezelfde kant op.\n\nAlle vier de als-blokken horen ONDER elkaar in dezelfde {{bes|herhaal}}, niet in elkaar. Ze mogen elkaar niet insluiten.\n\nDe vier richtingen: ↑ = 0, → = 90, ↓ = 180, ← = -90. Denk aan een klok waarbij 0 bovenaan staat.',
     check: {
       structuur: (p) => {
         const alsBlokken = alleCmdsVanProject(p).filter((c) => c.t === 'als' && c.c && c.c.e === 'toets');

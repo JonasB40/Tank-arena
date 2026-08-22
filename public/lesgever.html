@@ -12,6 +12,9 @@
     header .rek { margin-left: auto; }
     button { border: none; border-radius: 8px; padding: 8px 14px; font-size: .92rem; cursor: pointer; font-weight: 600; }
     .knop-bevries { background: #ffd54f; color: #5b4400; }
+    .bouw { font-size: .82rem; color: #9aa3bb; min-width: 150px; }
+    .bouw.alarm { color: #ffd54f; font-weight: 700; }
+    .knop-volg.aan { background: #2ecc71; color: #06321a; }
     .knop-bevries.aan { background: #e74c3c; color: #fff; }
     #stapbalk { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: #232736; border-bottom: 2px solid #343a52; }
     #stapbalk b { font-size: 1.05rem; }
@@ -95,6 +98,7 @@
     document.getElementById('volgende').addEventListener('click', () => stuurStap(klasStap + 1));
 
     let bevroren = false;
+    const gevolgd = new Set();   // wie we live volgen
     document.getElementById('bevries').addEventListener('click', () => {
       bevroren = !bevroren;
       socket.emit('lesCommando', { type: 'bevries', aan: bevroren });
@@ -110,15 +114,37 @@
         const tekst = l.status === 'klaar' ? '✓ klaar'
           : l.status === 'vast' ? `⚠ zit vast (${l.minuten} min)`
             : `⏳ bezig (${l.minuten} min)`;
+        /*
+         * Wie is er écht aan het bouwen? Het aantal blokken plus hoe lang er
+         * niets veranderde vertelt dat in één oogopslag. Meer dan een minuut
+         * stil terwijl de stap nog niet af is: daar ga je als eerste kijken.
+         */
+        const stil = Math.round((l.stilMs || 0) / 1000);
+        const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${stil}s stil` : `${Math.floor(stil / 60)} min stil`;
+        const alarm = stil >= 60 && l.status !== 'klaar' ? ' alarm' : '';
         return `<div class="rij ${l.status}">
           <span class="naam">${esc(l.naam)}</span>
           <span class="stap">stap ${l.stap}</span>
           <span class="status">${tekst}</span>
+          <span class="bouw${alarm}">${l.blokken || 0} blokken · ${stilTekst}</span>
+          <button class="knop-volg ${gevolgd.has(l.id) ? 'aan' : ''}" data-id="${l.id}">${gevolgd.has(l.id) ? '👁 volgt' : '👁 volg'}</button>
           <button class="knop-toon" data-id="${l.id}">toon blokken</button>
         </div>`;
       }).join('');
       for (const k of lijst.querySelectorAll('.knop-toon')) {
         k.addEventListener('click', () => socket.emit('lesCommando', { type: 'toonCode', id: k.dataset.id }));
+      }
+      /* Live meekijken: zolang dit aanstaat komen de blokken elke 2 seconden
+         binnen, zodat je ziet hoe een leerling zijn programma opbouwt. */
+      for (const k of lijst.querySelectorAll('.knop-volg')) {
+        k.addEventListener('click', () => {
+          const id = k.dataset.id;
+          const aan = !gevolgd.has(id);
+          gevolgd.clear();                 // één leerling tegelijk volgen
+          if (aan) gevolgd.add(id);
+          socket.emit('lesCommando', { type: 'volg', id, aan });
+          socket.emit('lesCommando', { type: 'toonCode', id });   // meteen tonen
+        });
       }
       const klaar = d.leerlingen.filter(l => l.status === 'klaar').length;
       const vast = d.leerlingen.filter(l => l.status === 'vast').length;
@@ -129,7 +155,8 @@
 
     /* Code van een leerling projecteren — als grote leesbare tekst. */
     socket.on('leerlingCode', (d) => {
-      document.getElementById('code-kop').textContent = `🔍 Blokken van ${d.naam}`;
+      const live = gevolgd.has(d.id) ? ' · live' : '';
+      document.getElementById('code-kop').textContent = `🔍 Blokken van ${d.naam}${live}`;
       document.getElementById('code-weergave').innerHTML =
         `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
     });

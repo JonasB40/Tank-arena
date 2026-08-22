@@ -228,7 +228,8 @@ function drawMunitie(c, b, schaal) {
   c.lineWidth = RAND * 2;
   c.fillStyle = b.kleur;
 
-  if (b.soort === 'drone') {
+  // basisdrones zien eruit als gewone drones (driehoekjes in teamkleur)
+  if (b.soort === 'drone' || b.soort === 'basisdrone') {
     c.rotate(b.hoek || 0);
     c.beginPath();
     for (let i = 0; i < 3; i++) {

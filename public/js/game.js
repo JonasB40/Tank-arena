@@ -14,6 +14,15 @@ let staat = null;
 let arena = { w: 1600, h: 1000 };
 let camera = { x: 800, y: 500 };
 let tekenOffset = { x: 0, y: 0 };
+/*
+ * We tekenen de wereld iets uitgezoomd. Op ware grootte zag een leerling maar
+ * een klein vierkantje van de arena — je reed voortdurend blind een vijand of
+ * een muur tegen het lijf, en in de gedeelde arena voelde de wereld daardoor
+ * benauwd. Met deze factor zie je bijna de helft meer omgeving, terwijl je
+ * eigen tank nog ruim groot genoeg blijft. In diep.io zie je nog véél meer,
+ * maar dan worden de tanks op ons kleine podium onherkenbaar.
+ */
+const ZOOM = 0.72;
 let modus = null;
 
 /* ---------------- API voor de blokjes-runtime ---------------- */
@@ -637,12 +646,14 @@ setInterval(() => {
    * spel dan iemand die in het midden stond. Past de arena in het venster,
    * dan centreren we hem gewoon.
    */
-  const halfB = canvas.width / 2, halfH = canvas.height / 2;
-  camera.x = arena.w <= canvas.width ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
-  camera.y = arena.h <= canvas.height ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
-  tekenOffset = { x: canvas.width / 2 - camera.x, y: canvas.height / 2 - camera.y };
-  spel.muisWereld.x = spel.muisScherm.x - tekenOffset.x;
-  spel.muisWereld.y = spel.muisScherm.y - tekenOffset.y;
+  // het zichtbare stuk wereld is groter dan het canvas doordat we uitzoomen
+  const zichtB = canvas.width / ZOOM, zichtH = canvas.height / ZOOM;
+  const halfB = zichtB / 2, halfH = zichtH / 2;
+  camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
+  camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
+  tekenOffset = { x: canvas.width / 2 - camera.x * ZOOM, y: canvas.height / 2 - camera.y * ZOOM };
+  spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / ZOOM;
+  spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / ZOOM;
   vernieuwHud(ik);
   // de waarnemer kijkt mee voor de checkpoints van de les
   stapWaarnemer.tik(ik, eigenKogelsTeller, window.runtime ? runtime.vars : {});
@@ -664,6 +675,7 @@ function teken() {
 
   ctx.save();
   ctx.translate(ox, oy);
+  ctx.scale(ZOOM, ZOOM);
   drawArena(ctx, arena, 1);
   drawZones(ctx, staat.zones);
   if (staat.basis) drawZones(ctx, [Object.assign({ team: 0 }, staat.basis)]);
@@ -1089,13 +1101,43 @@ socket.on('lesStuur', (d) => {
   }
 });
 
-/* De lesgever volgt de klas: naam, stap en status. */
+/*
+ * De lesgever volgt de klas. Behalve naam, stap en status sturen we ook hoeveel
+ * blokken er op het werkblad staan en wanneer er voor het laatst iets
+ * veranderde. Daarmee ziet de lesgever in één oogopslag wie er echt aan het
+ * bouwen is en wie al vijf minuten naar hetzelfde scherm zit te kijken —
+ * precies de leerling die je moet gaan helpen.
+ */
+let laatsteWijziging = Date.now();
+let laatsteVingerafdruk = '';
+/*
+ * "Is deze leerling aan het bouwen?" bepalen we door zijn werkblad zelf te
+ * vergelijken, niet via Blockly's gebeurtenissen. Die vuren namelijk niet bij
+ * elke manier waarop blokken op het werkblad komen (bijvoorbeeld bij het laden
+ * van een projectcode), en dan zou een leerling die druk bezig is toch als
+ * "stil" op het dashboard van de lesgever verschijnen — precies de leerling die
+ * je dan onnodig gaat storen.
+ */
+function vingerafdrukVanWerkblad() {
+  try {
+    const b = blocklyWerkruimte.getAllBlocks(false);
+    return b.length + ':' + b.map((x) => x.type + (x.id || '')).join(',').length
+      + ':' + b.map((x) => { const p = x.getRelativeToSurfaceXY(); return Math.round(p.x) + '_' + Math.round(p.y); }).join('|').length;
+  } catch { return ''; }
+}
+
 function meldStatusAanLesgever(status) {
   if (!lesGestart) return;
+  let blokken = 0;
+  try { blokken = blocklyWerkruimte.getAllBlocks(false).length; } catch { /* editor nog niet klaar */ }
+  const nu = vingerafdrukVanWerkblad();
+  if (nu !== laatsteVingerafdruk) { laatsteVingerafdruk = nu; laatsteWijziging = Date.now(); }
   socket.emit('lesStatus', {
     naam: document.getElementById('naam').value.trim() || 'Naamloos',
     stap: stappen()[stapIndex].nr,
     status,
+    blokken,
+    stilMs: Date.now() - laatsteWijziging,
   });
 }
 setInterval(() => meldStatusAanLesgever(stapKlaar ? 'klaar' : 'bezig'), 4000);

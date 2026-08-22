@@ -53,7 +53,15 @@ function lanIps() {
 /* ------------------------------------------------------------------ */
 /* Constanten                                                          */
 /* ------------------------------------------------------------------ */
-const ARENA = { w: 3200, h: 2000 };
+/*
+ * Twee arenamaten. Solo speelt één leerling met een handvol robots — daar is
+ * een compacte arena juist prettig. In de gedeelde arena staan er twaalf
+ * tanks tegelijk in, en dan is 3200x2000 véél te krap: je botst voortdurend
+ * op elkaar en op de teamzones. De maat hieronder geldt voor beide teamopzetten,
+ * zodat de wereld niet plots verspringt als de lesgever van 2 naar 4 teams gaat.
+ */
+const ARENA = { w: 3200, h: 2000 };            // solo
+const GEDEELDE_ARENA = { w: 5200, h: 3400 };   // samen spelen (2 of 4 teams)
 const TANK_RADIUS = 22;
 const BULLET_SPEED = 420;
 const BULLET_LIFE = 1800;      // ms
@@ -96,8 +104,8 @@ const VORM_TYPES = {
    * ploeteren. Zeshoek = de helft van een alfa, zoals de wiki zegt.
    */
   vierkant: { r: 18, hp: 10, punten: 10, kleur: '#FFE869', botsschade: 8 },
-  driehoek: { r: 19, hp: 30, punten: 25, kleur: '#FC7677', botsschade: 9 },
-  vijfhoek: { r: 30, hp: 150, punten: 130, kleur: '#4C6FF0', botsschade: 12 },   // duidelijk blauw
+  driehoek: { r: 19, hp: 30, punten: 25, kleur: '#FC7677', botsschade: 8 },
+  vijfhoek: { r: 30, hp: 100, punten: 130, kleur: '#4C6FF0', botsschade: 12 },   // duidelijk blauw
   // De drie waardevolle vormen moeten in één oogopslag uit elkaar te houden
   // zijn: vijfhoek helder blauw, zeshoek lichtblauw, alfa donkerblauw. Ze
   // hadden bijna dezelfde tint terwijl ze 12x en 23x zoveel punten geven.
@@ -219,7 +227,9 @@ function nieuweProjectCode() {
 const rooms = new Map();
 
 function maakRoom(id, solo, niveau) {
+  const arena = solo ? ARENA : GEDEELDE_ARENA;
   const room = {
+    arena,
     id, solo,
     niveau: NIVEAUS[niveau] ? niveau : 'makkelijk',
     gestartOm: Date.now(),
@@ -236,7 +246,7 @@ function maakRoom(id, solo, niveau) {
      * veilige plek, want teamzones bestaan alleen als de lesgever teams
      * aanzet. Zodra dat gebeurt nemen de teamzones het over (zie basisVan).
      */
-    basis: { x: 0, y: ARENA.h - 380, w: 380, h: 380 },
+    basis: { x: 0, y: arena.h - 380, w: 380, h: 380 },
   };
   rooms.set(id, room);
   vulVormenAan(room);
@@ -260,20 +270,29 @@ function inBasis(room, x, y) {
 /* Teamzones: veilige spawn-zones per team (les 2). */
 const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
 
+/*
+ * Teamzones, met dezelfde indeling als diep.io:
+ *  - 2 teams: twee brede stroken links en rechts (blauw tegen rood)
+ *  - 4 teams: vier vierkanten in de hoeken
+ * De maten schalen mee met de arena, zodat een base in de grotere gedeelde
+ * arena niet ineens een postzegel is. https://diepio.fandom.com/wiki/2_Teams
+ */
 function teamZones(room) {
+  const a = room.arena;
   if (room.teamModus === 2) {
+    const breed = Math.round(a.w * 0.13);
     return [
-      { team: 0, x: 0, y: 0, w: 190, h: ARENA.h },
-      { team: 1, x: ARENA.w - 190, y: 0, w: 190, h: ARENA.h },
+      { team: 0, x: 0, y: 0, w: breed, h: a.h },
+      { team: 1, x: a.w - breed, y: 0, w: breed, h: a.h },
     ];
   }
   if (room.teamModus === 4) {
-    const z = 300;
+    const z = Math.round(Math.min(a.w, a.h) * 0.22);
     return [
       { team: 0, x: 0, y: 0, w: z, h: z },
-      { team: 1, x: ARENA.w - z, y: 0, w: z, h: z },
-      { team: 2, x: 0, y: ARENA.h - z, w: z, h: z },
-      { team: 3, x: ARENA.w - z, y: ARENA.h - z, w: z, h: z },
+      { team: 1, x: a.w - z, y: 0, w: z, h: z },
+      { team: 2, x: 0, y: a.h - z, w: z, h: z },
+      { team: 3, x: a.w - z, y: a.h - z, w: z, h: z },
     ];
   }
   return [];
@@ -313,57 +332,52 @@ function wijsTeamToe(room, t) {
   }
 }
 
-function doelAantalVormen(room) {
-  const spelers = [...room.tanks.values()].filter((t) => !t.ai).length;
-  return room.solo ? 42 : Math.min(90, 44 + spelers * 4);
-}
-
 function vulVormenAan(room) {
-  const doel = doelAantalVormen(room);
-  // bewakers van het nest: altijd een handvol, meestal kleine
-  const CRASHERS = room.solo ? 7 : 12;
-  while (room.vormen.filter((v) => v.jaagt).length < CRASHERS) {
-    spawnVorm(room, Math.random() < 0.75 ? 'crasher' : 'grotecrasher');
-  }
+  const spelers = Math.max(1, [...room.tanks.values()].filter((t) => !t.ai).length);
   /*
-   * Vaste aantallen per soort in plaats van een loterij: zo is de kaart altijd
-   * evenwichtig gevuld en niet de ene keer vol vijfhoeken en de andere keer
-   * leeg. De verhouding volgt diep.io: vierkanten overal, driehoeken vlot te
-   * vinden, vijfhoeken al schaarser, en de zeshoek is écht een buitenkans.
-   * Het nest in het midden is — net als het Pentagon Nest — vooral gevuld met
-   * vijfhoeken en een paar alfa's, bewaakt door de crashers.
+   * Het aantal vormen schaalt mee met het aantal spelers, net als in diep.io:
+   * daar komen er per aangesloten speler een stuk of twaalf polygons bij, en
+   * in een rustige arena zijn ze juist schaars. Met vaste aantallen stond onze
+   * gedeelde arena bomvol zodra er één leerling inzat, en zag je door de
+   * vormen de tanks niet meer. https://diepwiki.io/#/shapes/
+   *
+   * De verhouding blijft die van diep.io: vierkanten overal, driehoeken vlot
+   * te vinden, vijfhoeken duidelijk schaarser, en zeshoek/alfa een buitenkans.
    */
-  /*
-   * Verhouding zoals in diep.io: vierkanten overal, driehoeken vlot te vinden,
-   * vijfhoeken duidelijk schaarser. Ik had ze eerder te ruim gezet omdat ze
-   * bijna allemaal in het nest zaten; daardoor stonden er in de gedeelde arena
-   * evenveel vijfhoeken als driehoeken. Buiten het nest ontmoet je nu grofweg
-   * 1 vijfhoek per 3 driehoeken en per 5 vierkanten.
-   */
-  const quota = room.solo
-    ? { vierkant: 26, driehoek: 16, vijfhoek: 8, nestVijfhoek: 7, alfa: 2, zeshoek: 2, zeshoekBuiten: 1 }
-    : { vierkant: 44, driehoek: 27, vijfhoek: 10, nestVijfhoek: 11, alfa: 3, zeshoek: 3, zeshoekBuiten: 1 };
+  const f = room.solo ? 1 : Math.min(3, 0.6 + spelers * 0.28);
+  const rond = (n) => Math.round(n * f);
+  const quota = {
+    vierkant: rond(room.solo ? 26 : 22),
+    driehoek: rond(room.solo ? 16 : 13),
+    vijfhoek: rond(room.solo ? 8 : 6),          // buiten het nest
+    nestVijfhoek: rond(room.solo ? 7 : 6),      // in het nest
+    alfa: room.solo ? 2 : 3,
+    zeshoek: room.solo ? 2 : 3,
+    zeshoekBuiten: 1,
+    muur: rond(room.solo ? 16 : 14),
+    crashers: rond(room.solo ? 7 : 6),
+  };
 
   const aantal = (type) => room.vormen.filter((v) => v.type === type).length;
-  const buiten = (type) => room.vormen.filter((v) => v.type === type && !inNest(v.x, v.y)).length;
+  const buiten = (type) => room.vormen.filter((v) => v.type === type && !inNest(room, v.x, v.y)).length;
+
+  // bewakers van het nest: meestal de kleine
+  while (room.vormen.filter((v) => v.jaagt).length < quota.crashers) {
+    spawnVorm(room, Math.random() < 0.75 ? 'crasher' : 'grotecrasher');
+  }
   while (aantal('vierkant') < quota.vierkant) spawnVorm(room, 'vierkant');
   while (aantal('driehoek') < quota.driehoek) spawnVorm(room, 'driehoek');
   /*
-   * Vijfhoeken zaten bijna allemaal in het nest, achter de crashers. Wie het
-   * midden meed, kwam er dus nooit een tegen en bleef eeuwig vierkanten
-   * schieten. Nu vullen we eerst het aantal BUITEN het nest aan, zodat er
-   * altijd een handvol te vinden is op de rest van de kaart.
+   * Eerst het aantal BUITEN het nest aanvullen: zaten ze allemaal in het nest
+   * achter de crashers, dan kwam wie het midden meed er nooit een tegen.
    */
   while (buiten('vijfhoek') < quota.vijfhoek) spawnVorm(room, 'vijfhoek', false);
   while (aantal('vijfhoek') < quota.vijfhoek + quota.nestVijfhoek) spawnVorm(room, 'vijfhoek', true);
   while (aantal('alfa') < quota.alfa) spawnVorm(room, 'alfa');
-  // en één zeshoek zwerft buiten rond: de buitenkans moet wél te vinden zijn
+  // één zeshoek zwerft buiten rond: de buitenkans moet wél te vinden zijn
   while (buiten('zeshoek') < quota.zeshoekBuiten) spawnVorm(room, 'zeshoek', false);
   while (aantal('zeshoek') < quota.zeshoek) spawnVorm(room, 'zeshoek', true);
-  // ruimere dekking om je achter te verstoppen
-  while (room.vormen.filter((v) => v.type === 'muur').length < (room.solo ? 16 : 24)) {
-    spawnVorm(room, 'muur');
-  }
+  while (aantal('muur') < quota.muur) spawnVorm(room, 'muur');
 }
 
 /*
@@ -373,8 +387,16 @@ function vulVormenAan(room) {
  * basis, waardoor je met één zeshoek (1500 XP, precies zoals diep.io) in één
  * klap van level 1 naar 15 sprong. De getallen klopten; de plek niet.
  */
-const NEST = { x: ARENA.w * 0.34, y: ARENA.h * 0.3, w: ARENA.w * 0.32, h: ARENA.h * 0.4 };
-const inNest = (x, y) => x >= NEST.x && x <= NEST.x + NEST.w && y >= NEST.y && y <= NEST.y + NEST.h;
+/* Het nest ligt altijd midden in de arena en is even groot t.o.v. de arena,
+   ongeacht of je solo of samen speelt. */
+const nestVan = (room) => ({
+  x: room.arena.w * 0.34, y: room.arena.h * 0.3,
+  w: room.arena.w * 0.32, h: room.arena.h * 0.4,
+});
+const inNest = (room, x, y) => {
+  const n = nestVan(room);
+  return x >= n.x && x <= n.x + n.w && y >= n.y && y <= n.y + n.h;
+};
 
 function spawnVorm(room, type, inHetNest) {
   const def = VORM_TYPES[type];
@@ -382,15 +404,16 @@ function spawnVorm(room, type, inHetNest) {
   // Alleen alfa's en de nestbewakers horen per se in het nest; van de andere
   // soorten bepaalt de aanroeper waar ze komen (zie de quota hieronder).
   if (inHetNest || type === 'alfa' || def.jaagt) {
-    x = NEST.x + Math.random() * NEST.w;
-    y = NEST.y + Math.random() * NEST.h;
+    const n = nestVan(room);
+    x = n.x + Math.random() * n.w;
+    y = n.y + Math.random() * n.h;
   } else {
     do {                                    // buiten het nest, mooi verspreid
-      x = 80 + Math.random() * (ARENA.w - 160);
-      y = 80 + Math.random() * (ARENA.h - 160);
-    } while (inNest(x, y));
+      x = 80 + Math.random() * (room.arena.w - 160);
+      y = 80 + Math.random() * (room.arena.h - 160);
+    } while (inNest(room, x, y));
   }
-  if (inBasis(room, x, y)) { x = ARENA.w / 2; y = ARENA.h / 2; }
+  if (inBasis(room, x, y)) { x = room.arena.w / 2; y = room.arena.h / 2; }
   room.vormen.push({
     id: room.volgendVormId++,
     type,
@@ -415,8 +438,7 @@ function nieuweTank(id, naam) {
     kleur: '#3498db', vorm: 'cirkel', klasse: 'basis', team: null,
     score: 0, level: 1, statPunten: 0,
     stats: legeStats(),
-    x: 100 + Math.random() * (ARENA.w - 200),
-    y: 100 + Math.random() * (ARENA.h - 200),
+    x: 0, y: 0,   // spawnTank() zet hem meteen op zijn echte plek
     angle: 0,
     intent: { mx: 0, my: 0, angle: 0, shoot: false, tx: 0, ty: 0 },
     hp: 90, maxHp: 90,
@@ -431,6 +453,65 @@ function nieuweTank(id, naam) {
 
 /* Hoe ver steekt deze loop uit vanaf het midden van de tank? */
 function loopLengte(loop) { return (loop.start || 0) + loop.len; }
+
+/*
+ * Basisdrones: de bewakers van elke teamzone.
+ * In diep.io zijn dat er 12 per base bij 4 teams en 30 in totaal bij 2 teams.
+ * Wij houden het bewust wat rustiger — met twaalf leerlingen is het anders een
+ * wolk van stipjes — maar het effect is hetzelfde: in een vijandelijke base
+ * blijven rondhangen lukt niet meer.
+ */
+const BASISDRONE_ZICHT = 520;      // vanaf hier duiken ze op een vijand af
+const BASISDRONE_LOS = 1100;       // verder dan dit van hun post: eerst terug
+const BASISDRONE_SNELHEID = 260;   // sneller dan een tank, je ontkomt er niet aan
+
+/* Hoeveel bewakers heeft deze zone nodig? Een lange strook (2 teams) heeft er
+   meer nodig dan een hoekvierkant (4 teams), anders kan je er gewoon omheen. */
+function aantalBasisDrones(zone) {
+  return Math.round(6 + Math.min(6, Math.max(zone.w, zone.h) / 700));
+}
+
+/*
+ * De vaste post van bewaker i: netjes verspreid over de zone, in paren links
+ * en rechts van het midden — precies zoals de wiki het beschrijft voor 2 teams
+ * ("spread evenly in pairs all across the base"). Eerst cirkelden ze allemaal
+ * rond het midden van de zone; bij een strook van 3400 hoog kon je daar met
+ * gemak omheen rijden en stond de halve base onbewaakt.
+ */
+function basisDronePost(zone, i, totaal) {
+  const langsY = zone.h >= zone.w;
+  const deel = (i + 0.5) / totaal;
+  const zij = i % 2 === 0 ? 0.34 : 0.66;
+  return langsY
+    ? { x: zone.x + zone.w * zij, y: zone.y + zone.h * deel }
+    : { x: zone.x + zone.w * deel, y: zone.y + zone.h * zij };
+}
+
+function vulBasisDronesAan(room, nu) {
+  if (!room.teamModus) return;
+  for (const zone of teamZones(room)) {
+    const totaal = aantalBasisDrones(zone);
+    const mijne = room.bullets.filter((b) => !b.weg && b.soort === 'basisdrone' && b.team === zone.team);
+    const bezet = new Set(mijne.map((b) => b.post));
+    for (let i = 0; i < totaal; i++) {
+      if (bezet.has(i)) continue;
+      const p = basisDronePost(zone, i, totaal);
+      room.bullets.push({
+        id: room.volgendKogelId++, soort: 'basisdrone',
+        x: p.x, y: p.y, vx: 0, vy: 0, hoek: Math.random() * Math.PI * 2,
+        eigenaar: null, team: zone.team, post: i, kleur: TEAM_KLEUREN[zone.team],
+        r: 11, schade: 7, leven: 6,
+        dood: Infinity,   // ze blijven tot ze kapotgeschoten worden
+      });
+    }
+  }
+}
+
+/* De arena waarin deze socket speelt (voor handlers zonder room-variabele). */
+function arenaVan(socket) {
+  const room = rooms.get(socket.data.roomId);
+  return room ? room.arena : ARENA;
+}
 
 function klasseVan(t) { return KLASSEN[t.klasse] || KLASSEN.basis; }
 
@@ -493,8 +574,8 @@ function klasseAanbod(t) {
 }
 
 function spawnTank(room, t) {
-  t.x = 100 + Math.random() * (ARENA.w - 200);
-  t.y = 100 + Math.random() * (ARENA.h - 200);
+  t.x = 100 + Math.random() * (room.arena.w - 200);
+  t.y = 100 + Math.random() * (room.arena.h - 200);
   const basis = basisVan(room);
   if (!t.ai && basis) {
     // je start veilig in de thuisbasis (solo én in de gedeelde arena
@@ -503,7 +584,7 @@ function spawnTank(room, t) {
     t.y = basis.y + 60 + Math.random() * (basis.h - 120);
   }
   if (t.ai && basis && inBasis(room, t.x, t.y)) {
-    t.x = ARENA.w / 2; t.y = ARENA.h / 2;
+    t.x = room.arena.w / 2; t.y = room.arena.h / 2;
   }
   if (!t.ai && t.team !== null) {
     const zone = teamZones(room).find((z) => z.team === t.team);
@@ -629,7 +710,14 @@ function zorgVoorAI(room) {
   const n = NIVEAUS[room.niveau] || NIVEAUS.gemiddeld;
   const doel = process.env.TESTROBOTS ? Number(process.env.TESTROBOTS) : (room.solo
     ? Math.min(n.max, 1 + Math.floor(score / n.perScore))
-    : Math.min(10, 2 + spelers + Math.floor(score / 500)));
+    /*
+     * Veel minder robots in de gedeelde arena. Met twaalf leerlingen erbij was
+     * 10 robots een drukte van jewelste: je zag door de tanks het spel niet
+     * meer, en leerlingen werden voortdurend van opzij neergeschoten door een
+     * computertank terwijl ze aan het bouwen waren. Eén robot per drie spelers,
+     * met een maximum van vier — genoeg om iets te doen te hebben.
+     */
+    : Math.min(4, 1 + Math.floor(spelers / 3)));
   const huidige = [...room.tanks.values()].filter((t) => t.ai).length;
   for (let i = huidige; i < doel; i++) {
     const t = maakAiTank(room, n);
@@ -720,7 +808,7 @@ function stuurAI(room, t, nu) {
   if (!a.doelPunt || Math.hypot(a.doelPunt.x - t.x, a.doelPunt.y - t.y) < 60 || nu > a.doelPuntTot) {
     a.doelPunt = vorm && Math.random() < 0.7
       ? { x: vorm.x, y: vorm.y }
-      : { x: 200 + Math.random() * (ARENA.w - 400), y: 200 + Math.random() * (ARENA.h - 400) };
+      : { x: 200 + Math.random() * (room.arena.w - 400), y: 200 + Math.random() * (room.arena.h - 400) };
     a.doelPuntTot = nu + 4000;
   }
   const naar = Math.atan2(a.doelPunt.y - t.y, a.doelPunt.x - t.x);
@@ -750,7 +838,7 @@ io.on('connection', (socket) => {
     spawnTank(room, t);
     socket.join(roomId);
     socket.data.roomId = roomId;
-    socket.emit('welkom', { id: socket.id, arena: ARENA, modus });
+    socket.emit('welkom', { id: socket.id, arena: room.arena, modus });
     zorgVoorAI(room);
   });
 
@@ -774,8 +862,8 @@ io.on('connection', (socket) => {
       angle: Number(inp.angle) || 0,
       shoot: !!inp.shoot,
       // waar de muis in de wereld staat: drones vliegen daar naartoe
-      tx: klem(Number(inp.tx) || t.x, 0, ARENA.w),
-      ty: klem(Number(inp.ty) || t.y, 0, ARENA.h),
+      tx: klem(Number(inp.tx) || t.x, 0, arenaVan(socket).w),
+      ty: klem(Number(inp.ty) || t.y, 0, arenaVan(socket).h),
     };
   });
 
@@ -868,6 +956,9 @@ io.on('connection', (socket) => {
       naam: saneNaam(d.naam),
       stap: klem(d.stap, 1, 20),
       status: ['bezig', 'klaar', 'vast'].includes(d.status) ? d.status : 'bezig',
+      // hoeveel blokken staan er, en hoe lang is er al niets veranderd?
+      blokken: klem(Number(d.blokken) || 0, 0, 999),
+      stilMs: klem(Number(d.stilMs) || 0, 0, 99 * 60000),
       sinds: (klas.get(socket.id) || {}).stap === d.stap ? (klas.get(socket.id) || {}).sinds || Date.now() : Date.now(),
       bijgewerkt: Date.now(),
     });
@@ -888,6 +979,9 @@ io.on('connection', (socket) => {
       io.emit('lesStuur', { type: 'bevries', aan: bevroren });
     } else if (d.type === 'toonCode') {
       io.to(d.id).emit('lesStuur', { type: 'stuurCode' }); // vraag de leerling zijn blokken
+    } else if (d.type === 'volg') {
+      // live meekijken: zolang dit aanstaat vragen we de blokken elke 2 sec op
+      if (d.aan) gevolgd.add(d.id); else gevolgd.delete(d.id);
     }
   });
 
@@ -906,6 +1000,14 @@ io.on('connection', (socket) => {
 
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
 const klas = new Map();
+/* Leerlingen waarvan de lesgever live meekijkt met de blokken. */
+const gevolgd = new Set();
+setInterval(() => {
+  for (const id of gevolgd) {
+    if (klas.has(id)) io.to(id).emit('lesStuur', { type: 'stuurCode' });
+    else gevolgd.delete(id);   // weg uit de les: niet blijven vragen
+  }
+}, 2000);
 let bevroren = false;
 
 /* Klasoverzicht naar de lesgever(s) sturen. */
@@ -913,7 +1015,7 @@ setInterval(() => {
   const nu = Date.now();
   const lijst = [...klas.entries()]
     .filter(([, l]) => nu - l.bijgewerkt < 15000)
-    .map(([id, l]) => ({ id, naam: l.naam, stap: l.stap, status: l.status, minuten: Math.floor((nu - l.sinds) / 60000) }))
+    .map(([id, l]) => ({ id, naam: l.naam, stap: l.stap, status: l.status, blokken: l.blokken || 0, stilMs: l.stilMs || 0, minuten: Math.floor((nu - l.sinds) / 60000) }))
     .sort((a, b) => a.naam.localeCompare(b.naam));
   io.to('lesgevers').emit('klasoverzicht', { leerlingen: lijst, bevroren });
 }, 1500);
@@ -992,8 +1094,9 @@ function tickRoom(room, nu, dt) {
   const CRASHER_SNELHEID = 145;
   for (const v of room.vormen) {
     if (!v.jaagt) continue;
-    let doelX = NEST.x + NEST.w / 2, doelY = NEST.y + NEST.h / 2;
-    const verVanNest = Math.hypot(doelX - v.x, doelY - v.y) > Math.max(NEST.w, NEST.h) * 0.75;
+    const nest = nestVan(room);
+    let doelX = nest.x + nest.w / 2, doelY = nest.y + nest.h / 2;
+    const verVanNest = Math.hypot(doelX - v.x, doelY - v.y) > Math.max(nest.w, nest.h) * 0.75;
     if (!verVanNest) {
       let dichtst = null, best = CRASHER_ZICHT;
       for (const t of room.tanks.values()) {
@@ -1007,8 +1110,8 @@ function tickRoom(room, nu, dt) {
     const dx = doelX - v.x, dy = doelY - v.y, d = Math.hypot(dx, dy) || 1;
     v.vx += ((dx / d) * CRASHER_SNELHEID - v.vx) * Math.min(1, dt * 2.5);
     v.vy += ((dy / d) * CRASHER_SNELHEID - v.vy) * Math.min(1, dt * 2.5);
-    v.x = klem(v.x + v.vx * dt, v.r, ARENA.w - v.r);
-    v.y = klem(v.y + v.vy * dt, v.r, ARENA.h - v.r);
+    v.x = klem(v.x + v.vx * dt, v.r, room.arena.w - v.r);
+    v.y = klem(v.y + v.vy * dt, v.r, room.arena.h - v.r);
   }
 
   for (const t of room.tanks.values()) {
@@ -1029,8 +1132,8 @@ function tickRoom(room, nu, dt) {
       t.y += (t.intent.my / len) * v;
       t.laatsteActie = nu;
     }
-    t.x = Math.max(TANK_RADIUS, Math.min(ARENA.w - TANK_RADIUS, t.x));
-    t.y = Math.max(TANK_RADIUS, Math.min(ARENA.h - TANK_RADIUS, t.y));
+    t.x = Math.max(TANK_RADIUS, Math.min(room.arena.w - TANK_RADIUS, t.x));
+    t.y = Math.max(TANK_RADIUS, Math.min(room.arena.h - TANK_RADIUS, t.y));
     t.angle = t.intent.angle;
 
     // robots kunnen de thuisbasis niet in
@@ -1078,8 +1181,8 @@ function tickRoom(room, nu, dt) {
         v.x -= nx * overlap * 0.75;
         v.y -= ny * overlap * 0.75;
         // vormen mogen het speelveld niet uit geduwd worden
-        v.x = klem(v.x, v.r, ARENA.w - v.r);
-        v.y = klem(v.y, v.r, ARENA.h - v.r);
+        v.x = klem(v.x, v.r, room.arena.w - v.r);
+        v.y = klem(v.y, v.r, room.arena.h - v.r);
         t.x += nx * overlap * 0.25;
         t.y += ny * overlap * 0.25;
       }
@@ -1193,8 +1296,43 @@ function tickRoom(room, nu, dt) {
 
   // kogels bewegen en raken vormen/tanks
   const over = [];
+  vulBasisDronesAan(room, nu);
+
   for (const b of room.bullets) {
     if (b.weg) continue;
+
+    /*
+     * Basisdrones bewaken de teamzone. Ze cirkelen rustig rond in hun eigen
+     * base en schieten eropaf zodra er een vijand te dicht komt; die kan dan
+     * alleen ontsnappen door weg te rijden. Precies zoals in diep.io:
+     * https://diepio.fandom.com/wiki/Base_Drones
+     */
+    if (b.soort === 'basisdrone') {
+      const zone = teamZones(room).find((z) => z.team === b.team);
+      if (!zone) { b.weg = true; continue; }
+      const post = basisDronePost(zone, b.post || 0, aantalBasisDrones(zone));
+      let doel = null, besteD = BASISDRONE_ZICHT;
+      for (const t of room.tanks.values()) {
+        if (nu < t.deadUntil || t.team === b.team) continue;
+        const d = Math.hypot(t.x - b.x, t.y - b.y);
+        if (d < besteD) { besteD = d; doel = t; }
+      }
+      let doelX, doelY;
+      if (doel) { doelX = doel.x; doelY = doel.y; }
+      else {
+        // rustig rondje draaien rond de eigen post
+        const hoek = nu / 1400 + (b.post || 0) * 0.9;
+        const straal = Math.min(120, Math.min(zone.w, zone.h) * 0.22);
+        doelX = post.x + Math.cos(hoek) * straal;
+        doelY = post.y + Math.sin(hoek) * straal;
+      }
+      // te ver van zijn post? eerst terug — ze mogen niet de hele arena over
+      if (Math.hypot(b.x - post.x, b.y - post.y) > BASISDRONE_LOS) { doelX = post.x; doelY = post.y; }
+      const dx = doelX - b.x, dy = doelY - b.y, d = Math.hypot(dx, dy) || 1;
+      b.vx += ((dx / d) * BASISDRONE_SNELHEID - b.vx) * Math.min(1, dt * 3.4);
+      b.vy += ((dy / d) * BASISDRONE_SNELHEID - b.vy) * Math.min(1, dt * 3.4);
+      b.hoek = Math.atan2(b.vy, b.vx);
+    }
 
     if (b.soort === 'drone') {
       // Drones zoeken zelf de dichtstbijzijnde vijand; is die er niet, dan
@@ -1245,10 +1383,10 @@ function tickRoom(room, nu, dt) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     if (b.soort === 'drone' || b.soort === 'trap') { // binnen het veld houden
-      b.x = klem(b.x, b.r, ARENA.w - b.r);
-      b.y = klem(b.y, b.r, ARENA.h - b.r);
+      b.x = klem(b.x, b.r, room.arena.w - b.r);
+      b.y = klem(b.y, b.r, room.arena.h - b.r);
     }
-    if (nu > b.dood || b.x < 0 || b.x > ARENA.w || b.y < 0 || b.y > ARENA.h) continue;
+    if (nu > b.dood || b.x < 0 || b.x > room.arena.w || b.y < 0 || b.y > room.arena.h) continue;
 
     // vijandelijke kogels lossen op aan de rand van de thuisbasis
     if (inBasis(room, b.x, b.y)) {
@@ -1281,18 +1419,21 @@ function tickRoom(room, nu, dt) {
     if (dood) continue;
 
     // raakt een tank? (elke tank hoogstens één keer per kogel)
+    const blijftRammen = b.soort === 'drone' || b.soort === 'basisdrone';
     for (const t of room.tanks.values()) {
       if (t.id === b.eigenaar || nu < t.deadUntil) continue;
+      // basisdrones hebben geen eigenaar-tank; zij gaan op teamkleur af
+      if (b.soort === 'basisdrone' && t.team === b.team) continue;
       // Een kogel raakt elke tank hoogstens één keer. Een drone blijft rammen:
       // die mag dezelfde tank opnieuw raken na een korte pauze, anders is hij
       // na één treffer nutteloos.
       const vorige = b.geraakt && b.geraakt.get(t.id);
-      if (vorige && (b.soort !== 'drone' || nu - vorige < 600)) continue;
+      if (vorige && (!blijftRammen || nu - vorige < 300)) continue;
       if (Math.hypot(t.x - b.x, t.y - b.y) < TANK_RADIUS + b.r) {
         const schutter = room.tanks.get(b.eigenaar);
         beschadigTank(room, t, b.schade, schutter, nu);
         (b.geraakt || (b.geraakt = new Map())).set(t.id, nu);
-        if (b.soort !== 'drone') {      // drones stuiteren af i.p.v. op te gaan
+        if (!blijftRammen) {            // drones stuiteren af i.p.v. op te gaan
           b.leven -= 1;
           if (b.leven <= 0) dood = true;
         }
@@ -1430,11 +1571,11 @@ setInterval(() => {
   const nu = Date.now();
   for (const room of rooms.values()) {
     const staat = {
-      arena: ARENA,
+      arena: room.arena,
       teamModus: room.teamModus,
       zones: teamZones(room),
       basis: basisVan(room),
-      nest: NEST,
+      nest: nestVan(room),
       statLijst: STAT_LIJST,
       statMax: MAX_STAT,
       tanks: [...room.tanks.values()].map((t) => ({
