@@ -914,3 +914,25 @@ body.les-nog-niet-gestart #editor-kolom { visibility: hidden; }
    wint van een verborgen ouder. Ze bleven dus als gekleurde stippen op het
    startscherm staan. Hier zetten we ze expliciet weer uit. */
 body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }
+
+/* Het klassekeuzevenster klapt vanzelf open bij een nieuw level. Het gaat naar
+   de hoek in plaats van het midden, en blijft smal: zo zie je je eigen tank nog
+   en kan je gewoon doorspelen tot je gekozen hebt. */
+#popup-klasse {
+  left: auto; top: auto; right: 12px; bottom: 12px;
+  transform: none;
+  min-width: 0;
+  width: min(330px, 62%);
+  padding: 12px 14px;
+  background: rgba(255,255,255,.97);
+}
+#popup-klasse h2 { font-size: 1rem; margin-bottom: 8px; }
+#popup-klasse .sluit { margin-top: 8px; padding: 6px 12px; font-size: .85rem; }
+
+/* Compacte klassekeuze: vier kaartjes naast elkaar in een strook onderaan.
+   Het venster mag maar een klein hoekje innemen — je moet je tank blijven
+   zien en kunnen besturen tot je gekozen hebt. */
+#popup-klasse #klasse-lijst { flex-wrap: nowrap; gap: 6px; }
+#popup-klasse .klasse-kaart { padding: 4px; font-size: .68rem; border-width: 1px; border-radius: 8px; }
+#popup-klasse .klasse-kaart canvas { width: 52px; height: 44px; }
+#popup-klasse .klasse-kaart div { max-width: 60px; line-height: 1.1; }

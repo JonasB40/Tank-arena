@@ -433,6 +433,8 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* ---------------- upgrade-popups ---------------- */
 const popupKlasse = document.getElementById('popup-klasse');
+let laatsteKlasseAanbod = '';      // welk aanbod hebben we al getoond?
+let klassePopupGesloten = false;   // heeft de leerling bewust weggeklikt?
 const popupStat = document.getElementById('popup-stat');
 
 function toonKlassePopup(ik) {
@@ -466,7 +468,10 @@ function toonKlassePopup(ik) {
   }
   popupKlasse.classList.remove('verborgen');
 }
-document.getElementById('klasse-sluit').addEventListener('click', () => popupKlasse.classList.add('verborgen'));
+document.getElementById('klasse-sluit').addEventListener('click', () => {
+  popupKlasse.classList.add('verborgen');
+  klassePopupGesloten = true;   // niet meteen opnieuw openklappen
+});
 
 /* De 8 eigenschappen zoals diep.io — sleutels moeten matchen met de server. */
 const STAT_META = {
@@ -734,6 +739,7 @@ function teken() {
   ctx.restore();
 
   tekenMinimap();
+  tekenScorebord();
 }
 requestAnimationFrame(teken);
 
@@ -799,7 +805,11 @@ function bijwerkAnimaties(nu) {
  * een kwart van je speelveld in beslag.
  */
 function tekenMinimap() {
-  const mw = 128, mh = Math.round(mw * (arena.h / arena.w));
+  /* Groter dan eerst: de arena is fors gegroeid, en op een kaartje van 128 px
+     waren de stipjes niet meer uit elkaar te houden. Ook een kijkkader erbij,
+     zodat je ziet wélk stukje van de wereld je nu voor je hebt. */
+  const mw = Math.round(Math.min(200, Math.max(120, canvas.width * 0.34)));
+  const mh = Math.round(mw * (arena.h / arena.w));
   const mx = canvas.width - mw - 12, my = canvas.height - mh - 12;
   const s = mw / arena.w;
   ctx.save();
@@ -836,14 +846,92 @@ function tekenMinimap() {
     if (t.id === mijnId) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(mx + t.x * s, my + t.y * s, 4, 0, Math.PI * 2);
+      ctx.arc(mx + t.x * s, my + t.y * s, 4.5, 0, Math.PI * 2);
       ctx.fill();
+      // kijkkader: welk stuk van de wereld zie je nu?
+      const kb = (canvas.width / ZOOM) * s, kh = (canvas.height / ZOOM) * s;
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mx + t.x * s - kb / 2, my + t.y * s - kh / 2, kb, kh);
     } else {
-      ctx.fillStyle = t.ai ? '#ff5252' : t.kleur;
+      // altijd de eigen tankkleur: in teammodus is dat de teamkleur, dus je
+      // ziet meteen wie vriend is en wie vijand
+      ctx.fillStyle = t.kleur;
       ctx.beginPath();
-      ctx.arc(mx + t.x * s, my + t.y * s, 3, 0, Math.PI * 2);
+      ctx.arc(mx + t.x * s, my + t.y * s, t.ai ? 2.5 : 3.5, 0, Math.PI * 2);
       ctx.fill();
+      if (!t.ai) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.stroke(); }
     }
+  }
+  ctx.restore();
+}
+
+/* ---------------- scorebord ---------------- */
+/*
+ * Rechtsboven in beeld, zoals in diep.io: wie staat er voor? Leerlingen willen
+ * dat tijdens het spelen kunnen zien zonder naar de beamer te moeten kijken.
+ * We tonen de top 5 spelers, met jezelf altijd erbij ook al sta je lager, en
+ * in teammodus de teamstand erboven.
+ */
+function tekenScorebord() {
+  if (!staat || !staat.tanks) return;
+  const spelers = staat.tanks.filter((t) => !t.ai);
+  if (!spelers.length) return;
+  const top = [...spelers].sort((a, b) => b.score - a.score);
+  const ik = spel.mijnTank();
+  const rijen = top.slice(0, 5);
+  if (ik && !rijen.some((t) => t.id === ik.id)) rijen.push(ik);
+
+  const teams = [];
+  if (staat.teamModus) {
+    const som = new Map();
+    for (const t of staat.tanks) {
+      if (t.team === null || t.team === undefined) continue;
+      som.set(t.team, (som.get(t.team) || 0) + t.score);
+    }
+    for (let i = 0; i < staat.teamModus; i++) if (!som.has(i)) som.set(i, 0);
+    teams.push(...[...som.entries()].sort((a, b) => b[1] - a[1]));
+  }
+
+  const B = 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
+  const H = 24 + kopH + rijen.length * regel + 6;
+  const x = canvas.width - B - 12, y = 12;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = '#181c2a';
+  ctx.fillRect(x, y, B, H);
+  ctx.strokeStyle = '#39405c';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, B, H);
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 11px Segoe UI, sans-serif';
+  ctx.fillStyle = '#9aa3bb';
+  ctx.fillText('SCOREBORD', x + 10, y + 16);
+
+  let ry = y + 20;
+  for (const [team, punten] of teams) {
+    ry += regel;
+    ctx.fillStyle = TEAM_ZONE_KLEUREN[team] || '#fff';
+    ctx.fillRect(x + 8, ry - 9, 6, 11);
+    ctx.font = 'bold 12px Segoe UI, sans-serif';
+    ctx.fillStyle = '#eef0f6';
+    ctx.fillText(TEAM_NAAM_CLIENT[team] || ('Team ' + team), x + 20, ry);
+    ctx.textAlign = 'right';
+    ctx.fillText(String(punten), x + B - 10, ry);
+    ctx.textAlign = 'left';
+  }
+  if (teams.length) ry += 6;
+
+  for (const t of rijen) {
+    ry += regel;
+    const isIk = ik && t.id === ik.id;
+    ctx.font = (isIk ? 'bold ' : '') + '12px Segoe UI, sans-serif';
+    ctx.fillStyle = isIk ? '#ffd54f' : '#cfd6e4';
+    const naam = String(t.naam || '').slice(0, 13);
+    ctx.fillText(naam, x + 10, ry);
+    ctx.textAlign = 'right';
+    ctx.fillText(String(t.score), x + B - 10, ry);
+    ctx.textAlign = 'left';
   }
   ctx.restore();
 }
@@ -889,6 +977,19 @@ function vernieuwHud(ik) {
   balk.style.width = `${Math.round(deel * 100)}%`;
 
   const statChip = document.getElementById('hud-statpunten');
+  /*
+   * Zodra er een nieuwe tankklasse te kiezen valt (level 15, 30, 45) klapt het
+   * keuzevenster vanzelf open, zoals in diep.io. Het staat in de hoek en is
+   * klein, dus je blijft je tank gewoon zien én besturen tot je gekozen hebt.
+   * Wie nu niet wil kiezen, klikt "later" — dan blijft het ⚡-tabje knipperen.
+   */
+  const teKiezen = (ik.klasseAanbod || []).join(',');
+  if (teKiezen && teKiezen !== laatsteKlasseAanbod && !klassePopupGesloten) {
+    laatsteKlasseAanbod = teKiezen;
+    toonKlassePopup(ik);
+  }
+  if (!teKiezen) { laatsteKlasseAanbod = ''; klassePopupGesloten = false; }
+
   if (ik.statPunten > 0 || (ik.klasseAanbod && ik.klasseAanbod.length)) {
     statChip.classList.remove('verborgen');
     statChip.textContent = ik.klasseAanbod && ik.klasseAanbod.length

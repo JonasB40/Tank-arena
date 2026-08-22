@@ -61,8 +61,22 @@ function lanIps() {
  * zodat de wereld niet plots verspringt als de lesgever van 2 naar 4 teams gaat.
  */
 const ARENA = { w: 3200, h: 2000 };            // solo
-const GEDEELDE_ARENA = { w: 5200, h: 3400 };   // samen spelen (2 of 4 teams)
+/*
+ * Langer, niet hoger. De hoogte was al goed, maar je stond te snel middenin
+ * het speelveld — en juist dáár, in het nest, liggen de vijfhoeken die het
+ * meeste opleveren. Nu moet je er echt naartoe rijden, langs de crashers.
+ */
+const GEDEELDE_ARENA = { w: 11000, h: 5200 };   // samen spelen (2 of 4 teams)
 const TANK_RADIUS = 22;
+const TANKS_IN_ARENA = 12;  // samen spelen: altijd 12 tanks in het veld (6 per team)
+const RECOIL_KRACHT = 26;   // hoe hard één 'recoil-eenheid' van de wiki duwt
+/*
+ * Tanks groeien met hun level, net als in diep.io: elke level maal 1,01. Een
+ * tank van level 45 is dus anderhalf keer zo groot als een beginner — je ziet
+ * meteen wie er al een tijdje bezig is. De wiki tekent precies zo: straal 50
+ * op level 1, 57 op 15, 67 op 30 en 77 op 45. https://diepwiki.io/#/formulas/
+ */
+function straalVan(t) { return TANK_RADIUS * Math.pow(1.01, Math.max(0, (t.level || 1) - 1)); }
 const BULLET_SPEED = 420;
 const BULLET_LIFE = 1800;      // ms
 const RESPAWN_MS = 2500;
@@ -269,6 +283,7 @@ function inBasis(room, x, y) {
 
 /* Teamzones: veilige spawn-zones per team (les 2). */
 const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
+const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
 
 /*
  * Teamzones, met dezelfde indeling als diep.io:
@@ -280,14 +295,14 @@ const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
 function teamZones(room) {
   const a = room.arena;
   if (room.teamModus === 2) {
-    const breed = Math.round(a.w * 0.13);
+    const breed = Math.round(a.w * 0.2);
     return [
       { team: 0, x: 0, y: 0, w: breed, h: a.h },
       { team: 1, x: a.w - breed, y: 0, w: breed, h: a.h },
     ];
   }
   if (room.teamModus === 4) {
-    const z = Math.round(Math.min(a.w, a.h) * 0.22);
+    const z = Math.round(Math.min(a.w, a.h) * 0.3);
     return [
       { team: 0, x: 0, y: 0, w: z, h: z },
       { team: 1, x: a.w - z, y: 0, w: z, h: z },
@@ -309,19 +324,33 @@ function inEigenZone(room, t) {
 function zetTeamModus(room, n) {
   if (!room || ![0, 2, 4].includes(n)) return;
   room.teamModus = n;
-  for (const t of room.tanks.values()) {
-    if (t.ai) continue;
-    if (n) wijsTeamToe(room, t);
-    else { t.team = null; t.kleur = '#3498db'; }
-    spawnTank(room, t);
+  /*
+   * Eerst iedereen ontkoppelen en dán opnieuw indelen: anders telt de verdeling
+   * de oude teams mee en kom je op 7 tegen 5 uit. Spelers gaan als eerste, dan
+   * de robots — zo staan de leerlingen mooi verdeeld en vullen de robots aan.
+   */
+  for (const t of room.tanks.values()) t.team = null;
+  const spelersEerst = [...room.tanks.values()].sort((a, b) => (a.ai ? 1 : 0) - (b.ai ? 1 : 0));
+  for (const t of spelersEerst) {
+    if (!n) {
+      t.team = null;
+      if (t.ai) t.kleur = t.ai.elite ? '#6a1b9a' : (AI_PROFIELEN[t.ai.profiel] || {}).kleur || '#95a5a6';
+      else { t.kleur = '#3498db'; spawnTank(room, t); }
+      continue;
+    }
+    wijsTeamToe(room, t);
+    if (t.ai) t.naam = `🤖 ${TEAM_NAAM[t.team]} ${t.ai.elite ? 'ELITE' : t.ai.profiel} · lvl ${t.level}`;
+    else spawnTank(room, t);
   }
 }
 
 function wijsTeamToe(room, t) {
   if (!room.teamModus) { t.team = null; return; }
+  /* Alle tanks tellen mee — spelers én robots. Zo blijft het 6 tegen 6 in
+     plaats van dat de robots per ongeluk allemaal aan dezelfde kant staan. */
   const telling = new Array(room.teamModus).fill(0);
   for (const ander of room.tanks.values()) {
-    if (!ander.ai && ander.team !== null && ander.id !== t.id) telling[ander.team]++;
+    if (ander.team !== null && ander.team !== undefined && ander.id !== t.id) telling[ander.team]++;
   }
   t.team = telling.indexOf(Math.min(...telling));
   t.kleur = TEAM_KLEUREN[t.team];
@@ -344,18 +373,21 @@ function vulVormenAan(room) {
    * De verhouding blijft die van diep.io: vierkanten overal, driehoeken vlot
    * te vinden, vijfhoeken duidelijk schaarser, en zeshoek/alfa een buitenkans.
    */
-  const f = room.solo ? 1 : Math.min(3, 0.6 + spelers * 0.28);
+  const f = room.solo ? 1 : Math.min(3.2, 1.1 + spelers * 0.18);
   const rond = (n) => Math.round(n * f);
   const quota = {
-    vierkant: rond(room.solo ? 26 : 22),
-    driehoek: rond(room.solo ? 16 : 13),
-    vijfhoek: rond(room.solo ? 8 : 6),          // buiten het nest
-    nestVijfhoek: rond(room.solo ? 7 : 6),      // in het nest
-    alfa: room.solo ? 2 : 3,
-    zeshoek: room.solo ? 2 : 3,
+    /* Vierkanten en driehoeken zijn het voer voor kleine tanks: die moeten er
+       in overvloed zijn, anders kan een leerling die net begint nergens
+       upgraden. Vijfhoeken blijven schaars en liggen vooral in het nest. */
+    vierkant: rond(room.solo ? 30 : 34),
+    driehoek: rond(room.solo ? 18 : 20),
+    vijfhoek: rond(room.solo ? 8 : 7),          // buiten het nest
+    nestVijfhoek: rond(room.solo ? 7 : 8),      // in het nest
+    alfa: room.solo ? 2 : 2,                    // de dikke blauwe: écht zeldzaam
+    zeshoek: room.solo ? 2 : 2,
     zeshoekBuiten: 1,
-    muur: rond(room.solo ? 16 : 14),
-    crashers: rond(room.solo ? 7 : 6),
+    muur: rond(room.solo ? 16 : 16),
+    crashers: rond(room.solo ? 8 : 10),  // bewakers van het nest: mogen talrijk zijn
   };
 
   const aantal = (type) => room.vormen.filter((v) => v.type === type).length;
@@ -378,6 +410,32 @@ function vulVormenAan(room) {
   while (buiten('zeshoek') < quota.zeshoekBuiten) spawnVorm(room, 'zeshoek', false);
   while (aantal('zeshoek') < quota.zeshoek) spawnVorm(room, 'zeshoek', true);
   while (aantal('muur') < quota.muur) spawnVorm(room, 'muur');
+
+  vulVeiligeZonesAan(room);
+}
+
+/*
+ * Ook in je eigen veilige zone liggen vormen, en ze komen er terug zodra je ze
+ * kapotschiet. Een leerling met een zwakke tank kan zo eerst rustig oefenen en
+ * sterker worden vóór hij het veld in gaat, waar de crashers en de robots hem
+ * anders meteen neermaaien. Alleen makkelijke vormen: vierkanten en driehoeken,
+ * geen vijfhoeken — anders wordt de basis een gratis puntenautomaat.
+ */
+function vulVeiligeZonesAan(room) {
+  const zones = room.teamModus ? teamZones(room) : (room.basis ? [room.basis] : []);
+  for (const zone of zones) {
+    const rand = 40;
+    const vak = { x: zone.x + rand, y: zone.y + rand, w: zone.w - rand * 2, h: zone.h - rand * 2 };
+    if (vak.w < 60 || vak.h < 60) continue;
+    const inZone = (v) => v.x >= zone.x && v.x <= zone.x + zone.w && v.y >= zone.y && v.y <= zone.y + zone.h;
+    // hoeveel er passen: een grote teamstrook krijgt er meer dan een hoekje
+    const doel = Math.max(4, Math.min(14, Math.round((zone.w * zone.h) / 90000)));
+    let hier = room.vormen.filter((v) => (v.type === 'vierkant' || v.type === 'driehoek') && inZone(v)).length;
+    while (hier < doel) {
+      spawnVorm(room, Math.random() < 0.7 ? 'vierkant' : 'driehoek', false, vak);
+      hier++;
+    }
+  }
 }
 
 /*
@@ -390,17 +448,23 @@ function vulVormenAan(room) {
 /* Het nest ligt altijd midden in de arena en is even groot t.o.v. de arena,
    ongeacht of je solo of samen speelt. */
 const nestVan = (room) => ({
-  x: room.arena.w * 0.34, y: room.arena.h * 0.3,
-  w: room.arena.w * 0.32, h: room.arena.h * 0.4,
+  x: room.arena.w * 0.38, y: room.arena.h * 0.28,
+  w: room.arena.w * 0.24, h: room.arena.h * 0.44,
 });
 const inNest = (room, x, y) => {
   const n = nestVan(room);
   return x >= n.x && x <= n.x + n.w && y >= n.y && y <= n.y + n.h;
 };
 
-function spawnVorm(room, type, inHetNest) {
+function spawnVorm(room, type, inHetNest, vak) {
   const def = VORM_TYPES[type];
   let x, y;
+  // vak = spawn precies binnen deze rechthoek (gebruikt voor de thuisbasis)
+  if (vak) {
+    x = vak.x + def.r + Math.random() * Math.max(1, vak.w - def.r * 2);
+    y = vak.y + def.r + Math.random() * Math.max(1, vak.h - def.r * 2);
+    return duwVormInDeArena(room, type, def, x, y);
+  }
   // Alleen alfa's en de nestbewakers horen per se in het nest; van de andere
   // soorten bepaalt de aanroeper waar ze komen (zie de quota hieronder).
   if (inHetNest || type === 'alfa' || def.jaagt) {
@@ -414,6 +478,11 @@ function spawnVorm(room, type, inHetNest) {
     } while (inNest(room, x, y));
   }
   if (inBasis(room, x, y)) { x = room.arena.w / 2; y = room.arena.h / 2; }
+  return duwVormInDeArena(room, type, def, x, y);
+}
+
+/* De vorm daadwerkelijk in de arena zetten. */
+function duwVormInDeArena(room, type, def, x, y) {
   room.vormen.push({
     id: room.volgendVormId++,
     type,
@@ -446,7 +515,7 @@ function nieuweTank(id, naam) {
     flashKleur: null, flashUntil: 0,
     sayText: null, sayUntil: 0,
     laatsteActie: Date.now(), onzichtbaar: false,
-    beschermTot: 0, contactEvT: 0, laatsteSchade: 0,
+    beschermTot: 0, contactEvT: 0, laatsteSchade: 0, laatsteSchot: 0, rvx: 0, rvy: 0,
     ai: null,
   };
 }
@@ -704,20 +773,23 @@ function spelerScoreVoorAI(room) {
 function zorgVoorAI(room) {
   const spelers = [...room.tanks.values()].filter((t) => !t.ai).length;
   if (spelers === 0) return;
-  // rustige start: de eerste robot komt pas na de opwarmtijd
-  if (!process.env.TESTROBOTS && Date.now() - room.gestartOm < OPWARM_MS) return;
+  /*
+   * Rustige start in SOLO: daar bouwt een leerling zijn eerste blokken en moet
+   * er niet meteen een robot op hem staan schieten. In de gedeelde arena is het
+   * omgekeerd — daar wil je meteen een vol veld, zodat het spel meteen leeft.
+   */
+  if (room.solo && !process.env.TESTROBOTS && Date.now() - room.gestartOm < OPWARM_MS) return;
   const score = spelerScoreVoorAI(room);
   const n = NIVEAUS[room.niveau] || NIVEAUS.gemiddeld;
   const doel = process.env.TESTROBOTS ? Number(process.env.TESTROBOTS) : (room.solo
     ? Math.min(n.max, 1 + Math.floor(score / n.perScore))
     /*
-     * Veel minder robots in de gedeelde arena. Met twaalf leerlingen erbij was
-     * 10 robots een drukte van jewelste: je zag door de tanks het spel niet
-     * meer, en leerlingen werden voortdurend van opzij neergeschoten door een
-     * computertank terwijl ze aan het bouwen waren. Eén robot per drie spelers,
-     * met een maximum van vier — genoeg om iets te doen te hebben.
+     * In de gedeelde arena rijden er altijd TANKS_IN_ARENA tanks rond: eerst de
+     * echte leerlingen, en de rest vullen we aan met robots. Zo blijft het veld
+     * even druk of de klas nu met vier of met twaalf is, en blijven de teams
+     * even groot. Zit de klas voltallig binnen, dan verdwijnen de robots vanzelf.
      */
-    : Math.min(4, 1 + Math.floor(spelers / 3)));
+    : Math.max(0, TANKS_IN_ARENA - spelers));
   const huidige = [...room.tanks.values()].filter((t) => t.ai).length;
   for (let i = huidige; i < doel; i++) {
     const t = maakAiTank(room, n);
@@ -735,8 +807,18 @@ function maakAiTank(room, n) {
     lvl = klem(spelerLvl + randInt(8, 20), 6, 60);
   } else {
     lvl = klem(spelerLvl + randInt(n.spreidLaag, n.spreidHoog), 1, 45);
+    /*
+     * In de gedeelde arena mag ongeveer een derde van de robots een stuk verder
+     * staan: dan rijden er ook Twins, Sluipschutters en Vernietigers rond in
+     * plaats van twaalf identieke beginnerstanks. Het gros blijft wél rond het
+     * niveau van de klas, zodat een beginner niet meteen afgemaakt wordt.
+     */
+    if (!room.solo && Math.random() < 0.34) lvl = klem(lvl + randInt(14, 32), 1, 45);
   }
   const t = nieuweTank(`ai-${room.id}-${room.volgendAiId++}`, '🤖 Robot');
+  /* Meteen in de lijst zetten: de teamverdeling telt alle tanks, en anders
+     zag robot 3 robot 2 nog niet staan — zo kwam je op 7 tegen 5 uit. */
+  room.tanks.set(t.id, t);
   t.ai = {
     profiel: n.profiel, elite,
     snelheid: p.snelheid * (elite ? 1.1 : 1),
@@ -752,9 +834,20 @@ function maakAiTank(room, n) {
     punten: Math.round((elite ? 60 : 30) + lvl * 10),
   };
   t.level = lvl;
-  t.naam = `🤖 ${elite ? 'ELITE' : n.profiel} · lvl ${lvl}`;
-  t.kleur = elite ? '#6a1b9a' : p.kleur;
   t.klasse = robotKlasseVoorLevel(lvl);
+  /*
+   * In teammodus vecht een robot mee voor een team: hij krijgt de teamkleur en
+   * telt mee voor die kant. Zonder dit reden er grijze robots rond die iedereen
+   * aanvielen — verwarrend als de rest van het veld rood of blauw is.
+   * Het team met de minste robots krijgt de volgende, zodat het eerlijk blijft.
+   */
+  if (room.teamModus) {
+    wijsTeamToe(room, t);
+    t.naam = `🤖 ${TEAM_NAAM[t.team]} ${elite ? 'ELITE' : n.profiel} · lvl ${lvl}`;
+  } else {
+    t.kleur = elite ? '#6a1b9a' : p.kleur;
+    t.naam = `🤖 ${elite ? 'ELITE' : n.profiel} · lvl ${lvl}`;
+  }
   t.maxHp = t.ai.hp;
   spawnTank(room, t);
   t.hp = t.maxHp;
@@ -1090,8 +1183,14 @@ function tickRoom(room, nu, dt) {
    * bij de dikke vormen en heeft een beginner er buiten het midden geen last
    * van. (https://diepio.fandom.com/wiki/Crashers)
    */
-  const CRASHER_ZICHT = 340;
-  const CRASHER_SNELHEID = 145;
+  /*
+   * Crashers moeten het nest écht bewaken: daar liggen de vijfhoeken en alfa's
+   * die veruit het meeste opleveren. Met een klein zichtveld kon je er gewoon
+   * tussendoor rijden. Ze zien je nu van verder en gaan sneller — je moet ze
+   * neerschieten of wegblijven.
+   */
+  const CRASHER_ZICHT = 620;
+  const CRASHER_SNELHEID = 210;
   for (const v of room.vormen) {
     if (!v.jaagt) continue;
     const nest = nestVan(room);
@@ -1100,7 +1199,7 @@ function tickRoom(room, nu, dt) {
     if (!verVanNest) {
       let dichtst = null, best = CRASHER_ZICHT;
       for (const t of room.tanks.values()) {
-        if (t.ai || nu < t.deadUntil || isVeilig(room, t, nu)) continue;
+        if (nu < t.deadUntil || isVeilig(room, t, nu)) continue;   // ook robots worden aangevallen
         const d = Math.hypot(t.x - v.x, t.y - v.y);
         if (d < best) { best = d; dichtst = t; }
       }
@@ -1132,8 +1231,18 @@ function tickRoom(room, nu, dt) {
       t.y += (t.intent.my / len) * v;
       t.laatsteActie = nu;
     }
-    t.x = Math.max(TANK_RADIUS, Math.min(room.arena.w - TANK_RADIUS, t.x));
-    t.y = Math.max(TANK_RADIUS, Math.min(room.arena.h - TANK_RADIUS, t.y));
+    // terugslag van het laatste schot uitwerken (dooft snel uit)
+    if (t.rvx || t.rvy) {
+      t.x += t.rvx * dt;
+      t.y += t.rvy * dt;
+      const demping = Math.pow(0.06, dt);   // ~94% weg per seconde
+      t.rvx *= demping;
+      t.rvy *= demping;
+      if (Math.abs(t.rvx) < 1 && Math.abs(t.rvy) < 1) { t.rvx = 0; t.rvy = 0; }
+    }
+    const straal = straalVan(t);
+    t.x = Math.max(straal, Math.min(room.arena.w - straal, t.x));
+    t.y = Math.max(straal, Math.min(room.arena.h - straal, t.y));
     t.angle = t.intent.angle;
 
     // robots kunnen de thuisbasis niet in
@@ -1141,18 +1250,27 @@ function tickRoom(room, nu, dt) {
       const b = basisVan(room);
       const naarRechts = (b.x + b.w) - t.x;
       const naarBoven = t.y - b.y;
-      if (naarRechts < naarBoven) t.x = b.x + b.w + TANK_RADIUS;
-      else t.y = b.y - TANK_RADIUS;
+      if (naarRechts < naarBoven) t.x = b.x + b.w + straalVan(t);
+      else t.y = b.y - straalVan(t);
     }
 
     // genezen (zoals diep.io): traag passief; maar heb je ~8 sec geen schade
     // gehad, dan schiet de regen in de snelle modus (levensregen-stat telt zwaar
     // mee). In een veilige zone (thuisbasis of eigen teamzone) genees je extra.
     if (!t.ai) {
+      /*
+       * Genezen werkt overal, niet alleen thuis. Buiten je basis moest je
+       * vroeger 20 seconden wachten op één levenspunt — op een grote kaart is
+       * teruglopen naar huis dan de enige optie, en dat is saai. Nu geldt:
+       * even niet geschoten en niet geraakt, dan begint je tank te herstellen.
+       * Hoe hard, dat hangt af van je stat levensregeneratie — met punten erin
+       * sta je in seconden weer vol, zonder punten duurt het een minuutje.
+       */
       let regen = regenPerSec(t);
-      if (nu - t.laatsteSchade > 8000) regen *= 5;             // snelle regen
+      const rustig = nu - t.laatsteSchade > 5000 && nu - (t.laatsteSchot || 0) > 3000;
+      if (rustig) regen = regen * 6 + 0.8 + t.stats.levensregen * 0.7;
       const veiligeZone = inBasis(room, t.x, t.y) || inEigenZone(room, t);
-      if (veiligeZone) regen += 8;
+      if (veiligeZone) regen += 8;   // thuis blijft het snelst
       if (regen > 0) t.hp = Math.min(t.maxHp, t.hp + regen * dt);
     }
 
@@ -1164,7 +1282,7 @@ function tickRoom(room, nu, dt) {
       const v = room.vormen[i];
       const dx = t.x - v.x, dy = t.y - v.y;
       const d = Math.hypot(dx, dy);
-      const min = TANK_RADIUS + v.r;
+      const min = straalVan(t) + v.r;
       // 1 px speling: ook wie er tegenaan geduwd blijft staan (bv. klem tegen
       // de rand) blijft schade geven en krijgen — anders stopt het schuren.
       if (d >= min + 1 || d <= 0.01) continue;
@@ -1172,6 +1290,22 @@ function tickRoom(room, nu, dt) {
 
       if (v.blokkeert) { // muur: gewoon terugduwen, geen schade
         if (d < min) { t.x = v.x + nx * min; t.y = v.y + ny * min; }
+        continue;
+      }
+
+      /*
+       * Crashers (de roze driehoekjes) ontploffen als ze je raken: ze geven
+       * één harde klap en zijn dan weg. Daardoor loont het om ze néér te
+       * schieten terwijl ze op je af komen, in plaats van er tegenaan te
+       * blijven schuren. Precies zoals in diep.io — ze bestaan om te
+       * voorkomen dat je rustig bij het nest staat te farmen.
+       */
+      if (v.jaagt) {
+        beschadigTank(room, t, v.botsschade, null, nu);
+        room.vormen.splice(i--, 1);
+        if (!t.ai) {
+          geefPunten(room, t, Math.round(v.punten / 3));   // een botsing levert minder op dan hem neerschieten
+        }
         continue;
       }
 
@@ -1218,9 +1352,9 @@ function tickRoom(room, nu, dt) {
           x: t.x + Math.cos(hoek) * loopLengte(loop), y: t.y + Math.sin(hoek) * loopLengte(loop),
           vx: Math.cos(hoek) * 90, vy: Math.sin(hoek) * 90,
           hoek, eigenaar: t.id, kleur: t.kleur, team: t.team,
-          r: loop.w * 0.42,
+          r: loop.w * 0.42 * (kl.kogelSchaal || 1),
           schade: bulletSchadeVan(t) * 0.55,
-          leven: 3 + bulletPierce(t),
+          leven: (3 + bulletPierce(t)) * (kl.kogelLeven || 1),
           dood: Infinity,           // drones blijven tot ze kapotgeschoten worden
         });
       }
@@ -1229,6 +1363,17 @@ function tickRoom(room, nu, dt) {
     if (t.intent.shoot && nu > t.reloadUntil && kl.lopen.length && kl.munitie !== 'drone') {
       t.reloadUntil = nu + herlaadMsVan(t);
       t.laatsteActie = nu;
+      t.laatsteSchot = nu;           // pauzeert het genezen
+      /*
+       * Terugslag. Een Vernietiger of Annihilator duwt zichzelf flink achteruit
+       * bij elk schot — in diep.io gebruik je dat zelfs om vooruit te komen:
+       * omdraaien en achteruit "raketten". Zonder dit voelde zo'n kanon als
+       * een gewoon geweer. https://diepwiki.io/#/tanks/destroyer
+       */
+      if (kl.recoil) {
+        t.rvx = (t.rvx || 0) - Math.cos(t.angle) * kl.recoil * RECOIL_KRACHT;
+        t.rvy = (t.rvy || 0) - Math.sin(t.angle) * kl.recoil * RECOIL_KRACHT;
+      }
       if (!t.ai) t.beschermTot = 0; // wie schiet, geeft zijn spawnbescherming op
       const snelheid = BULLET_SPEED * kl.kogelSnelheid * bulletSnelheidFactor(t);
       /*
@@ -1264,7 +1409,7 @@ function tickRoom(room, nu, dt) {
           // bepaalt dus de grootte — niet je level en niet je upgrades. Zo
           // heeft een robot met hetzelfde kanon even grote kogels als jij.
           // Volgorde klopt met de wiki: gunner < basis < destroyer < annihilator.
-          r: loop.w * 0.42,
+          r: loop.w * 0.42 * (kl.kogelSchaal || 1),
           soort: kl.munitie === 'trap' ? 'trap' : 'kogel',
           hoek: richting,
           schade: bulletSchadeVan(t) * (loop.schade || 1),
@@ -1285,7 +1430,7 @@ function tickRoom(room, nu, dt) {
     // (rammer/stekelbol via klasse-multiplier, gewone tanks via de botsschade-stat)
     for (const ander of room.tanks.values()) {
       if (ander.id === t.id || nu < ander.deadUntil) continue;
-      if (Math.hypot(ander.x - t.x, ander.y - t.y) < TANK_RADIUS * 2 + 4) {
+      if (Math.hypot(ander.x - t.x, ander.y - t.y) < straalVan(t) + straalVan(ander) + 4) {
         beschadigTank(room, ander, botsschadeVan(t, 'tank') * dt, t, nu, true);
       }
     }
@@ -1429,7 +1574,7 @@ function tickRoom(room, nu, dt) {
       // na één treffer nutteloos.
       const vorige = b.geraakt && b.geraakt.get(t.id);
       if (vorige && (!blijftRammen || nu - vorige < 300)) continue;
-      if (Math.hypot(t.x - b.x, t.y - b.y) < TANK_RADIUS + b.r) {
+      if (Math.hypot(t.x - b.x, t.y - b.y) < straalVan(t) + b.r) {
         const schutter = room.tanks.get(b.eigenaar);
         beschadigTank(room, t, b.schade, schutter, nu);
         (b.geraakt || (b.geraakt = new Map())).set(t.id, nu);
@@ -1581,6 +1726,7 @@ setInterval(() => {
       tanks: [...room.tanks.values()].map((t) => ({
         id: t.id, naam: t.naam, kleur: t.kleur, vorm: t.vorm, klasse: t.klasse,
         statMax: statMaxVan(t),   // Smashers mogen 10 i.p.v. 7 per stat
+        r: Math.round(straalVan(t) * 10) / 10,   // tanks groeien met hun level
         ai: !!t.ai, elite: !!(t.ai && t.ai.elite), level: t.level, team: t.team,
         x: Math.round(t.x), y: Math.round(t.y), angle: t.angle,
         hp: Math.max(0, Math.round(t.hp)), maxHp: Math.round(t.maxHp),

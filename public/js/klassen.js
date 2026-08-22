@@ -40,7 +40,11 @@
        met wat minder schade per kogel. */
     twin: { naam: 'Twin', tier: 2, cannon: 'normaal', lopen: [L(0, -9, 32, 10), L(0, 9, 32, 10)], afwisselend: true, herlaad: 0.55, schade: 0.7, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
     sluipschutter: { naam: 'Sluipschutter', tier: 2, cannon: 'sniper', lopen: [L(0, 0, 50, 10)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0 },
-    machinegeweer: { naam: 'Machinegeweer', tier: 2, cannon: 'machinegeweer', lopen: [L(0, 0, 34, 18)], herlaad: 0.45, schade: 0.5, kogelSnelheid: 1, kogelR: 7, spreiding: 0.28 },
+    /* Wiki: herladen 0,32s (1,88x sneller dan de basistank, niet meer), schade
+       0,7x en spreiding +-15 graden. Het was hier te snel EN de kogels waren
+       veel te dik: de loop is breed, maar daar komen gewone kogels uit.
+       https://diepwiki.io/#/tanks/machine-gun */
+    machinegeweer: { naam: 'Machinegeweer', tier: 2, cannon: 'machinegeweer', lopen: [L(0, 0, 34, 18)], herlaad: 0.53, schade: 0.7, kogelSnelheid: 1, kogelSchaal: 0.62, spreiding: 0.26 },
     flankwacht: { naam: 'Flankwacht', tier: 2, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI, 0, 28, 11)], herlaad: 1, schade: 0.85, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
 
     /* ---- Tier 3 (level 30) ---- */
@@ -91,7 +95,13 @@
       herlaad: 1.4, schade: 1.3, kogelSnelheid: 0.9, kogelR: 8, spreiding: 0,
     },
     assassin: { naam: 'Assassin', tier: 3, cannon: 'trapezium', lopen: [L(0, 0, 62, 10)], herlaad: 1.9, schade: 1.7, kogelSnelheid: 1.85, kogelR: 6, spreiding: 0 },
-    vernietiger: { naam: 'Vernietiger', tier: 3, cannon: 'destroyer', lopen: [L(0, 0, 38, 22)], herlaad: 2.8, schade: 2.5, kogelSnelheid: 0.65, kogelR: 14, spreiding: 0 },
+    /* Vernietiger: één trage, dikke kogel per 2,4 seconden die 3x zoveel schade
+       doet en twee keer zoveel incasseert. De terugslag is enorm (15x) — die
+       gebruik je in diep.io om vooruit te komen. https://diepwiki.io/#/tanks/destroyer */
+    vernietiger: {
+      naam: 'Vernietiger', tier: 3, cannon: 'destroyer', lopen: [L(0, 0, 38, 24)],
+      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.18, recoil: 15, spreiding: 0,
+    },
     /*
      * Gunner: vier evenwijdige lopen, het binnenste paar langer. Ze overlapten
      * elkaar (de randen liepen door elkaar heen) en staken maar tien pixels
@@ -127,8 +137,13 @@
     ranger: { naam: 'Ranger', tier: 4, cannon: 'trapezium', lopen: [L(0, 0, 58, 11)], herlaad: 2, schade: 1.8, kogelSnelheid: 1.9, kogelR: 6, spreiding: 0 },
     sluiper: { naam: 'Sluiper (Stalker)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 52, 11)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0, sluip: true },
     predator: { naam: 'Predator (Roofdier)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 58, 13, { schade: 0.8 }), L(0, 0, 50, 10, { schade: 0.6 }), L(0, 0, 42, 7, { schade: 0.5, r: 5 })], herlaad: 1.8, schade: 1.9, kogelSnelheid: 1.7, kogelR: 7, spreiding: 0 },
-    annihilator: { naam: 'Annihilator', tier: 4, cannon: 'destroyer', lopen: [L(0, 0, 40, 27)], herlaad: 3.2, schade: 3.2, kogelSnelheid: 0.6, kogelR: 18, spreiding: 0 },
-    sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.4, schade: 0.5, kogelSnelheid: 1, kogelR: 7, spreiding: 0.2 },
+    /* Annihilator: dezelfde kogel als de Vernietiger, maar uit een nog bredere
+       loop en met nog meer terugslag (17x). https://diepwiki.io/#/tanks/annihilator */
+    annihilator: {
+      naam: 'Annihilator', tier: 4, cannon: 'destroyer', lopen: [L(0, 0, 40, 30)],
+      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.2, recoil: 17, spreiding: 0,
+    },
+    sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.48, schade: 0.6, kogelSnelheid: 1, kogelSchaal: 0.62, spreiding: 0.2 },
     streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 52, 9), L(0, 0, 46, 9), L(0, 0, 40, 9), L(0, 0, 34, 9), L(0, 0, 28, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03 },
     booster: { naam: 'Booster', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI - 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI + 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI - 0.25, 0, 28, 8, { schade: 0.2, r: 4 }), L(PI + 0.25, 0, 28, 8, { schade: 0.2, r: 4 })], herlaad: 1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 65 },
     vechter: { naam: 'Vechter (Fighter)', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(-PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI - 0.6, 0, 26, 8, { schade: 0.2, r: 4 }), L(PI + 0.6, 0, 26, 8, { schade: 0.2, r: 4 })], herlaad: 1.1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 45 },

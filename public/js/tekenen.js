@@ -90,7 +90,9 @@ function cannonPad(c, l, type, terug) {
  */
 function drawLopen(c, lopen, type, terug) {
   if (!lopen.length) return;
-  c.lineJoin = 'miter';
+  /* De wiki tekent élk kanon met ronde hoeken (stroke-linejoin: round). Met
+     scherpe punten kregen lange smalle lopen spitse uitsteeksels. */
+  c.lineJoin = 'round';
   c.lineCap = 'butt';
   c.strokeStyle = LOOP_RAND;
   c.lineWidth = RAND * 2; // de helft valt binnen de vorm en wordt straks overschilderd
@@ -106,6 +108,10 @@ function drawLopen(c, lopen, type, terug) {
 /* Tekent één tank op (0,0) — de aanroeper doet translate/scale. */
 function drawTank(c, t, isIk) {
   const klasse = KLASSEN[t.klasse] || KLASSEN.basis;
+  /* Tanks groeien met hun level (de server rekent het uit en stuurt t.r mee).
+     De lopen groeien netjes mee, anders steken ze straks in de romp. */
+  const straal = t.r || 22;
+  const groei = straal / 22;
 
   // sluiper: bijna onzichtbaar (jij ziet je eigen tank nog vaag)
   if (t.onzichtbaar) {
@@ -119,7 +125,7 @@ function drawTank(c, t, isIk) {
   if (klasse.ram) {
     c.save();
     c.rotate(t.angle);
-    drawVorm(c, klasse.stekels ? 'ster' : 'zeshoek', klasse.stekels ? 34 : 30);
+    drawVorm(c, klasse.stekels ? 'ster' : 'zeshoek', (klasse.stekels ? 34 : 30) * groei);
     c.lineJoin = 'round';
     c.strokeStyle = LOOP_RAND;
     c.lineWidth = RAND * 2;
@@ -132,12 +138,13 @@ function drawTank(c, t, isIk) {
   // lopen (kanonnen) per klasse — vorm hangt af van het cannon-type (diep.io)
   c.save();
   c.rotate(t.angle);
+  c.scale(groei, groei);
   drawLopen(c, klasse.lopen, klasse.cannon || 'normaal', t.__recoil ? -5 : 0);
   c.restore();
 
   // romp: omtrek in een donkerder tint van de eigen kleur (zoals diep.io),
   // en een witte ring als het jouw eigen tank is
-  drawVorm(c, t.vorm, 22);
+  drawVorm(c, t.vorm, straal);
   c.lineJoin = 'round';
   c.strokeStyle = isIk ? '#ffffff' : donkerder(lijf);
   c.lineWidth = RAND * 2;
@@ -162,11 +169,14 @@ function drawTank(c, t, isIk) {
     c.textAlign = 'center';
     c.fillStyle = '#ffffff';
     c.font = 'bold 13px Segoe UI, sans-serif';
-    c.fillText(t.naam, 0, -38);
+    // naam en balk boven de romp; die groeit mee, dus de afstand ook
+    const boven = -straal - 10;
+    const balkB = Math.max(48, straal * 2.2);
+    c.fillText(t.naam, 0, boven - 6);
     c.fillStyle = 'rgba(0,0,0,0.5)';
-    c.fillRect(-24, -32, 48, 6);
+    c.fillRect(-balkB / 2, boven, balkB, 6);
     c.fillStyle = t.hp / t.maxHp > 0.4 ? '#2ecc71' : '#e74c3c';
-    c.fillRect(-24, -32, 48 * (t.hp / t.maxHp), 6);
+    c.fillRect(-balkB / 2, boven, balkB * (t.hp / t.maxHp), 6);
   }
 
   // tekstballon
@@ -259,17 +269,23 @@ function drawMunitie(c, b, schaal) {
 
 /* Tekent de teamzones (les 2): veilige spawn-gebieden per team. */
 const TEAM_ZONE_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
+const TEAM_NAAM_CLIENT = ['Blauw', 'Rood', 'Groen', 'Paars'];
 
+/*
+ * Teamzones. In diep.io is de base een groot, duidelijk gekleurd gebied — je
+ * ziet meteen van wie welke kant is. Bij ons was het een flauw streepjeskader
+ * dat je nauwelijks opmerkte, waardoor niemand wist wie waar hoorde.
+ */
 function drawZones(c, zones) {
   for (const z of zones || []) {
     const kleur = TEAM_ZONE_KLEUREN[z.team] || '#ffffff';
     c.save();
-    c.globalAlpha = 0.13;
+    c.globalAlpha = 0.3;
     c.fillStyle = kleur;
     c.fillRect(z.x, z.y, z.w, z.h);
-    c.globalAlpha = 0.6;
-    c.setLineDash([12, 8]);
-    c.lineWidth = 3;
+    c.globalAlpha = 0.95;
+    c.setLineDash([18, 10]);
+    c.lineWidth = 6;
     c.strokeStyle = kleur;
     c.strokeRect(z.x, z.y, z.w, z.h);
     c.restore();
