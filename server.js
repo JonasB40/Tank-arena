@@ -381,6 +381,52 @@ function wijsTeamToe(room, t) {
   }
 }
 
+/*
+ * EEN RASTER VOOR DE VORMEN. Er liggen duizenden vormen in de arena, en zowel
+ * de kogels als de tanks moeten weten of ze er eentje raken. Elke kogel tegen
+ * elke vorm vergelijken is honderdduizenden vergelijkingen per tik. Daarom
+ * hangen we de vormen in vakjes van 240 pixels: een kogel kijkt alleen in zijn
+ * eigen vakje en de acht vakjes eromheen. Zo mag het er gerust nog veel meer
+ * worden zonder dat de server het zwaarder krijgt.
+ */
+const VORMRASTER = 240;
+/* Eén hergebruikt lijstje: elke tik duizenden keren een nieuwe array maken is
+   zonde van het geheugen (en van de opruimtijd achteraf). */
+const buurVormen = [];
+
+function bouwVormRaster(room) {
+  const vakjes = new Map();
+  for (const v of room.vormen) {
+    if (v.weg) continue;
+    const k = ((v.x / VORMRASTER) | 0) + ',' + ((v.y / VORMRASTER) | 0);
+    let lijst = vakjes.get(k);
+    if (!lijst) vakjes.set(k, (lijst = []));
+    lijst.push(v);
+  }
+  room.vormRaster = vakjes;
+}
+
+/* Alle vormen in de buurt van dit punt (het eigen vakje + de acht buren). */
+function vormenRondom(room, x, y, uit) {
+  uit.length = 0;
+  const raster = room.vormRaster;
+  if (!raster) return uit;
+  const cx = (x / VORMRASTER) | 0, cy = (y / VORMRASTER) | 0;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const lijst = raster.get((cx + dx) + ',' + (cy + dy));
+      if (lijst) for (const v of lijst) uit.push(v);
+    }
+  }
+  return uit;
+}
+
+/* Kapotgeschoten vormen worden gemarkeerd en pas na de lussen opgeruimd:
+   tijdens het rekenen mag de lijst niet onder je handen veranderen. */
+function ruimKapotteVormenOp(room) {
+  if (room.vormen.some((v) => v.weg)) room.vormen = room.vormen.filter((v) => !v.weg);
+}
+
 function vulVormenAan(room) {
   /*
    * Het aantal vormen hangt af van de OPPERVLAKTE van de arena, niet van het
@@ -401,9 +447,16 @@ function vulVormenAan(room) {
      tot er toevallig een vierkant voorbijkomt. */
   const dicht = room.solo ? 0.5 : 1;
   const per = (px2, min) => Math.max(min || 1, Math.round(opp / (px2 * dicht)));
+  /*
+   * Nagerekend op een schermafdruk van diep.io: daar liggen er zo'n 28 vormen
+   * in beeld op een scherm waar ongeveer 37 vierkanten naast elkaar passen.
+   * Met een vierkant per 40.000 pixels komen we op hetzelfde uit. Dat kan pas
+   * sinds de vormen in een raster hangen (zie bouwVormRaster) — anders werd
+   * elke kogel tegen duizenden vormen vergeleken.
+   */
   const quota = {
-    vierkant: per(90000),          // het voer van elke beginner
-    driehoek: per(260000),         // vlot te vinden, meer punten
+    vierkant: per(40000),          // het voer van elke beginner
+    driehoek: per(115000),         // vlot te vinden, meer punten
     vijfhoek: per(2400000, 4),     // schaars, buiten het nest
     nestVijfhoek: per(2800000, 5), // in het nest, achter de crashers
     alfa: room.solo ? 2 : 3,       // de dikke blauwe: écht zeldzaam
@@ -1390,8 +1443,10 @@ function tickRoom(room, nu, dt) {
   }
   zorgVoorAI(room);
   vulVormenAan(room);
+  bouwVormRaster(room);   // eerst de vakjes vullen, dan pas rekenen
 
   for (const v of room.vormen) {
+    if (v.weg) continue;
     v.hoek += v.draai * dt;
     // "Polygons will regenerate health if they are left unharmed for at least
     // thirty seconds" (wiki). Zo kan je een dikke vorm niet in tien beurten
@@ -1416,7 +1471,7 @@ function tickRoom(room, nu, dt) {
   const CRASHER_ZICHT = 620;
   const CRASHER_SNELHEID = 210;
   for (const v of room.vormen) {
-    if (!v.jaagt) continue;
+    if (v.weg || !v.jaagt) continue;
     const nest = nestVan(room);
     let doelX = nest.x + nest.w / 2, doelY = nest.y + nest.h / 2;
     const verVanNest = Math.hypot(doelX - v.x, doelY - v.y) > Math.max(nest.w, nest.h) * 0.75;
@@ -1513,8 +1568,10 @@ function tickRoom(room, nu, dt) {
     // kapot te maken — en een gevaarlijke, want jij verliest ook levens.
     // Muren blokkeren volledig en doen geen schade.
     const mijnStraal = straalVan(t);
-    for (let i = 0; i < room.vormen.length; i++) {
-      const v = room.vormen[i];
+    const dichtbijT = vormenRondom(room, t.x, t.y, buurVormen);
+    for (let i = 0; i < dichtbijT.length; i++) {
+      const v = dichtbijT[i];
+      if (v.weg) continue;
       const dx = t.x - v.x, dy = t.y - v.y;
       const min = mijnStraal + v.r;
       // grof filter eerst: verreweg de meeste vormen liggen niet in de buurt
@@ -1562,7 +1619,7 @@ function tickRoom(room, nu, dt) {
       v.laatsteSchade = nu;
       v.hitUntil = nu + 150;
       if (v.hp <= 0) {
-        room.vormen.splice(i--, 1);
+        v.weg = true;
         if (!t.ai) {
           geefPunten(room, t, v.punten);
           stuurEvent(t, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
@@ -1777,11 +1834,12 @@ function tickRoom(room, nu, dt) {
     let dood = false;
 
     // raakt een vorm? (kan er meerdere doorboren zolang er leven over is)
-    /* Deze lus draait 20x per seconde over alle vormen maal alle kogels. Met
-       honderden vormen in de arena is Math.hypot (een wortel!) te duur; we
-       vergelijken de kwadraten en slaan alles wat ver weg ligt meteen over. */
-    for (let i = 0; i < room.vormen.length; i++) {
-      const v = room.vormen[i];
+    /* Alleen de vormen uit de vakjes rondom deze kogel; en geen Math.hypot
+       (een wortel is duur), maar de kwadraten vergelijken. */
+    const dichtbij = vormenRondom(room, b.x, b.y, buurVormen);
+    for (let i = 0; i < dichtbij.length; i++) {
+      const v = dichtbij[i];
+      if (v.weg) continue;
       const vdx = v.x - b.x, vdy = v.y - b.y, vmin = v.r + b.r;
       if (vdx > vmin || vdx < -vmin || vdy > vmin || vdy < -vmin) continue;
       if (vdx * vdx + vdy * vdy < vmin * vmin) {
@@ -1789,7 +1847,7 @@ function tickRoom(room, nu, dt) {
         v.laatsteSchade = nu;
         v.hitUntil = nu + 150; // wit flitsje (animatie)
         if (v.hp <= 0) {
-          room.vormen.splice(i, 1);
+          v.weg = true;
           const schutter = room.tanks.get(b.eigenaar);
           if (schutter && !schutter.ai) {
             geefPunten(room, schutter, v.punten);
@@ -1843,6 +1901,8 @@ function tickRoom(room, nu, dt) {
     if (!dood) over.push(b);
   }
   room.bullets = over;
+  // pas nu de kapotgeschoten vormen echt uit de lijst halen
+  ruimKapotteVormenOp(room);
 }
 
 /*
@@ -2053,7 +2113,9 @@ setInterval(() => {
         const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
         const vormen = [];
         if (tikTeller % 5 === 0) {
-          for (let i = 0; i < room.vormen.length; i += stap) vormen.push(pakVorm(room.vormen[i]));
+          for (let i = 0; i < room.vormen.length; i += stap) {
+            if (!room.vormen[i].weg) vormen.push(pakVorm(room.vormen[i]));
+          }
         }
         beamerPakket = Object.assign({}, gedeeld, {
           vormen: tikTeller % 5 === 0 ? vormen : null,   // null = houd wat je had
@@ -2069,6 +2131,7 @@ setInterval(() => {
       const hw = kijk.w / 2 + ZICHT_RAND, hh = kijk.h / 2 + ZICHT_RAND;
       const vormen = [];
       for (const v of room.vormen) {
+        if (v.weg) continue;
         const dx = v.x - t.x, dy = v.y - t.y;
         if (dx > hw || dx < -hw || dy > hh || dy < -hh) continue;
         vormen.push(pakVorm(v));

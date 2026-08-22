@@ -18,11 +18,13 @@ let tekenOffset = { x: 0, y: 0 };
  * We tekenen de wereld iets uitgezoomd. Op ware grootte zag een leerling maar
  * een klein vierkantje van de arena — je reed voortdurend blind een vijand of
  * een muur tegen het lijf, en in de gedeelde arena voelde de wereld daardoor
- * benauwd. Met deze factor zie je bijna de helft meer omgeving, terwijl je
- * eigen tank nog ruim groot genoeg blijft. In diep.io zie je nog véél meer,
- * maar dan worden de tanks op ons kleine podium onherkenbaar.
+ * benauwd. Omgekeerd zag je op 0,72 zoveel veld dat alles klein en ver weg
+ * leek. Nagerekend tegen een schermafdruk van diep.io: daar passen ongeveer
+ * 37 vierkanten naast elkaar op het scherm. Op deze zoom zijn dat er bij ons
+ * 36 — even dichtbij dus, en je tank is een herkenbare bol in plaats van een
+ * stipje. Vanaf hier zoomt de camera uit met je level (zie zichtVan).
  */
-const ZOOM = 0.85;
+const ZOOM = 1;
 /*
  * Niet elke tank ziet even ver. In diep.io kijkt de sluipschuttertak verder
  * dan de rest — daarom kan een Assassin je van buiten je eigen beeld

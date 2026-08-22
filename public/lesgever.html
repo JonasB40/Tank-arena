@@ -72,7 +72,14 @@
     .knoppen .knop-tip { background: #ffd54f; color: #5b4400; }
 
     /* ---------- rechterkolom ---------- */
-    #rechts { width: 40%; min-width: 340px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
+    #rechts { width: 46%; min-width: 420px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
+    /* Slepen in een smalle kolom is priegelen: met deze stand neemt het
+       werkblad het hele venster in, en klap je daarna weer terug. */
+    body.blokken-groot #rechts {
+      position: fixed; inset: 0; width: auto; z-index: 60;
+      border-left: none; box-shadow: 0 0 0 100vmax rgba(10,12,18,.6);
+    }
+    body.blokken-groot #tipvak { display: none; }
     #code-kop { padding: 9px 13px; background: #232736; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     #code-weergave { flex: 1; background: #f9f9f9; overflow: auto; }
     #blok-paneel { flex: 1; position: relative; background: #f9f9f9; min-height: 0; }
@@ -147,6 +154,7 @@
         <span id="code-titel">🔍 Blokken van een leerling</span>
         <span class="rek" style="margin-left:auto"></span>
         <button id="stuur-blokken" class="knop-primair" disabled title="Jouw versie naar deze leerling sturen">📤 stuur terug</button>
+        <button id="groot-klein" class="knop-hint" title="Groot scherm: veel meer ruimte om te slepen">⤢</button>
         <button id="wissel-weergave" class="knop-hint" title="Blokken of platte tekst">📄</button>
       </div>
       <!-- Hier staat een échte blokkeneditor: dezelfde blokken die de leerling
@@ -450,6 +458,8 @@
       getoondeLeerling = { id: d.id, naam: d.naam };
       // vanaf nu kan je terugsturen: je hoeft niet per se iets aangepast te hebben
       document.getElementById('stuur-blokken').disabled = false;
+      // het grijze "klik op blokken"-laagje mag weg zodra er iemand getoond wordt
+      blokPaneel.classList.add('bezig');
       document.getElementById('code-weergave').innerHTML = `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
       // jouw eigen sleepwerk niet overschrijven met de volgende live-update
       if (d.werkruimte && window.blocklyWerkruimte && (anders || !zelfAangepast)) {
@@ -475,6 +485,18 @@
       k.disabled = true;
       setTimeout(() => { k.textContent = '📤 stuur terug'; k.disabled = !getoondeLeerling; }, 1600);
       zetTitel();
+    });
+
+    /* Groot scherm om in te slepen. Blockly moet daarna opnieuw uitrekenen
+       hoe groot zijn werkveld is, anders blijft de tekenlaag op de oude maat
+       staan en klopt er niets van je sleepbeweging. */
+    document.getElementById('groot-klein').addEventListener('click', () => {
+      const groot = document.body.classList.toggle('blokken-groot');
+      document.getElementById('groot-klein').textContent = groot ? '⤡' : '⤢';
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        try { Blockly.svgResize(window.blocklyWerkruimte); } catch { }
+      }, 60);
     });
 
     /* Blokken of platte tekst — tekst leest soms prettiger op een beamer. */
