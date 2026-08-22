@@ -136,15 +136,20 @@ const VORM_TYPES = {
   grotecrasher: { r: 20, hp: 30, punten: 25, kleur: '#f177dd', botsschade: 18, jaagt: true },
 };
 
+/* Wat de browser van elke vormsoort moet weten om hem te tekenen. */
+const VORM_INFO = Object.fromEntries(Object.entries(VORM_TYPES).map(([naam, d]) => [
+  naam, { r: d.r, kleur: d.kleur, maxHp: d.hp, jaagt: !!d.jaagt },
+]));
+
 /*
  * AI-profielen bepalen alleen hoe AGRESSIEF/scherp een robot is
  * (snelheid, reactietijd, schietafstand). De KRACHT (hp, schade) hangt
  * af van het level van de robot — zie maakAiTank.
  */
 const AI_PROFIELEN = {
-  makkelijk: { snelheid: 90, reactieMs: 900, herlaadMs: 900, schietAfstand: 360, kleur: '#e8a0b4' },
-  gemiddeld: { snelheid: 120, reactieMs: 560, herlaadMs: 620, schietAfstand: 410, kleur: '#c75b7a' },
-  moeilijk: { snelheid: 150, reactieMs: 320, herlaadMs: 440, schietAfstand: 470, kleur: '#8e1e3f' },
+  makkelijk: { snelheid: 110, reactieMs: 900, herlaadMs: 900, schietAfstand: 360, kleur: '#e8a0b4' },
+  gemiddeld: { snelheid: 145, reactieMs: 560, herlaadMs: 620, schietAfstand: 410, kleur: '#c75b7a' },
+  moeilijk: { snelheid: 180, reactieMs: 320, herlaadMs: 440, schietAfstand: 470, kleur: '#8e1e3f' },
 };
 
 /*
@@ -362,54 +367,72 @@ function wijsTeamToe(room, t) {
 }
 
 function vulVormenAan(room) {
-  const spelers = Math.max(1, [...room.tanks.values()].filter((t) => !t.ai).length);
   /*
-   * Het aantal vormen schaalt mee met het aantal spelers, net als in diep.io:
-   * daar komen er per aangesloten speler een stuk of twaalf polygons bij, en
-   * in een rustige arena zijn ze juist schaars. Met vaste aantallen stond onze
-   * gedeelde arena bomvol zodra er één leerling inzat, en zag je door de
-   * vormen de tanks niet meer. https://diepwiki.io/#/shapes/
+   * Het aantal vormen hangt af van de OPPERVLAKTE van de arena, niet van het
+   * aantal spelers. Dat is hoe diep.io het doet: overal even veel te schieten,
+   * of je nu alleen in een hoek zit of met de hele klas in het midden.
    *
-   * De verhouding blijft die van diep.io: vierkanten overal, driehoeken vlot
-   * te vinden, vijfhoeken duidelijk schaarser, en zeshoek/alfa een buitenkans.
+   * Onze arena werd drie keer groter, maar het aantal vormen bleef staan —
+   * daardoor reed je minutenlang door een leeg veld. Deze getallen zeggen:
+   * "één vierkant per 90.000 pixels arena". Dat komt neer op ongeveer even
+   * veel blokjes per scherm als in het echte spel (zie de screenshots van
+   * diep.io: een stuk of twintig vierkanten en een handvol driehoeken in
+   * beeld). https://diepwiki.io/#/shapes/
    */
-  const f = room.solo ? 1 : Math.min(3.2, 1.1 + spelers * 0.18);
-  const rond = (n) => Math.round(n * f);
+  const opp = room.arena.w * room.arena.h;
+  const per = (px2, min) => Math.max(min || 1, Math.round(opp / px2));
   const quota = {
-    /* Vierkanten en driehoeken zijn het voer voor kleine tanks: die moeten er
-       in overvloed zijn, anders kan een leerling die net begint nergens
-       upgraden. Vijfhoeken blijven schaars en liggen vooral in het nest. */
-    vierkant: rond(room.solo ? 30 : 34),
-    driehoek: rond(room.solo ? 18 : 20),
-    vijfhoek: rond(room.solo ? 8 : 7),          // buiten het nest
-    nestVijfhoek: rond(room.solo ? 7 : 8),      // in het nest
-    alfa: room.solo ? 2 : 2,                    // de dikke blauwe: écht zeldzaam
-    zeshoek: room.solo ? 2 : 2,
+    vierkant: per(90000),          // het voer van elke beginner
+    driehoek: per(260000),         // vlot te vinden, meer punten
+    vijfhoek: per(2400000, 4),     // schaars, buiten het nest
+    nestVijfhoek: per(2800000, 5), // in het nest, achter de crashers
+    alfa: room.solo ? 2 : 3,       // de dikke blauwe: écht zeldzaam
+    zeshoek: room.solo ? 2 : 4,
     zeshoekBuiten: 1,
-    muur: rond(room.solo ? 16 : 16),
-    crashers: rond(room.solo ? 8 : 10),  // bewakers van het nest: mogen talrijk zijn
+    muur: per(1600000, 6),      // losse blokken als dekking; in diep.io zijn er geen
+    crashers: per(3000000, 6),     // bewakers van het nest
   };
 
-  const aantal = (type) => room.vormen.filter((v) => v.type === type).length;
-  const buiten = (type) => room.vormen.filter((v) => v.type === type && !inNest(room, v.x, v.y)).length;
+  /*
+   * Eén telling voor alle soorten samen. Vroeger stond hier een filter() per
+   * soort ÍN de while-voorwaarde: bij het aanleggen van zeshonderd vierkanten
+   * liep de server dan zeshonderd keer de hele lijst door. Nu tellen we één
+   * keer en houden we de teller bij terwijl we bijvullen.
+   */
+  const telling = {};
+  let buitenVijfhoek = 0, buitenZeshoek = 0, jagers = 0;
+  for (const v of room.vormen) {
+    telling[v.type] = (telling[v.type] || 0) + 1;
+    if (v.jaagt) jagers++;
+    else if (!inNest(room, v.x, v.y)) {
+      if (v.type === 'vijfhoek') buitenVijfhoek++;
+      else if (v.type === 'zeshoek') buitenZeshoek++;
+    }
+  }
+  const bij = (type, inHetNest) => {
+    spawnVorm(room, type, inHetNest);
+    telling[type] = (telling[type] || 0) + 1;
+  };
+  const aantal = (type) => telling[type] || 0;
 
   // bewakers van het nest: meestal de kleine
-  while (room.vormen.filter((v) => v.jaagt).length < quota.crashers) {
-    spawnVorm(room, Math.random() < 0.75 ? 'crasher' : 'grotecrasher');
+  while (jagers < quota.crashers) {
+    bij(Math.random() < 0.75 ? 'crasher' : 'grotecrasher');
+    jagers++;
   }
-  while (aantal('vierkant') < quota.vierkant) spawnVorm(room, 'vierkant');
-  while (aantal('driehoek') < quota.driehoek) spawnVorm(room, 'driehoek');
+  while (aantal('vierkant') < quota.vierkant) bij('vierkant');
+  while (aantal('driehoek') < quota.driehoek) bij('driehoek');
   /*
    * Eerst het aantal BUITEN het nest aanvullen: zaten ze allemaal in het nest
    * achter de crashers, dan kwam wie het midden meed er nooit een tegen.
    */
-  while (buiten('vijfhoek') < quota.vijfhoek) spawnVorm(room, 'vijfhoek', false);
-  while (aantal('vijfhoek') < quota.vijfhoek + quota.nestVijfhoek) spawnVorm(room, 'vijfhoek', true);
-  while (aantal('alfa') < quota.alfa) spawnVorm(room, 'alfa');
+  while (buitenVijfhoek < quota.vijfhoek) { bij('vijfhoek', false); buitenVijfhoek++; }
+  while (aantal('vijfhoek') < quota.vijfhoek + quota.nestVijfhoek) bij('vijfhoek', true);
+  while (aantal('alfa') < quota.alfa) bij('alfa');
   // één zeshoek zwerft buiten rond: de buitenkans moet wél te vinden zijn
-  while (buiten('zeshoek') < quota.zeshoekBuiten) spawnVorm(room, 'zeshoek', false);
-  while (aantal('zeshoek') < quota.zeshoek) spawnVorm(room, 'zeshoek', true);
-  while (aantal('muur') < quota.muur) spawnVorm(room, 'muur');
+  while (buitenZeshoek < quota.zeshoekBuiten) { bij('zeshoek', false); buitenZeshoek++; }
+  while (aantal('zeshoek') < quota.zeshoek) bij('zeshoek', true);
+  while (aantal('muur') < quota.muur) bij('muur');
 
   vulVeiligeZonesAan(room);
 }
@@ -508,6 +531,7 @@ function nieuweTank(id, naam) {
     score: 0, level: 1, statPunten: 0,
     stats: legeStats(),
     x: 0, y: 0,   // spawnTank() zet hem meteen op zijn echte plek
+    vx: 0, vy: 0, // huidige vaart: de tank versnelt en rolt uit
     angle: 0,
     intent: { mx: 0, my: 0, angle: 0, shoot: false, tx: 0, ty: 0 },
     hp: 90, maxHp: 90,
@@ -607,11 +631,26 @@ function bulletPierce(t) { return t.ai ? 2 : 2 + t.stats.kogelpantser * 1.5; }
 function herlaadMsVan(t) {
   return t.ai ? t.ai.herlaadMs : Math.max(90, 600 * Math.pow(0.914, t.stats.herladen) * klasseVan(t).herlaad);
 }
-// Movement Speed: hoe hoger je level, hoe trager je van nature wordt (diep.io).
+/*
+ * Movement Speed: hoe hoger je level, hoe trager je van nature wordt (diep.io).
+ * De basissnelheid ging van 150 naar 185: de arena werd drie keer groter, en
+ * met de oude snelheid was je een minuut onderweg van de ene kant naar de
+ * andere. Zeven punten in Snelheid brengt je op ruim het dubbele.
+ */
 function snelheidVan(t) {
   if (t.ai) return t.ai.snelheid;
-  return (150 - Math.min(45, t.level) * 0.9) + t.stats.snelheid * 15 + (klasseVan(t).snelheidBonus || 0);
+  return (185 - Math.min(45, t.level) * 0.9) + t.stats.snelheid * 18 + (klasseVan(t).snelheidBonus || 0);
 }
+
+/*
+ * Hoe snel je op gang komt en weer tot stilstand. In diep.io glijdt een tank:
+ * je duwt hem op gang en hij rolt nog even door. Wij zetten de tank vroeger
+ * pardoes op zijn nieuwe plek — dat voelde stroef en schokkerig, zeker met de
+ * pijltjestoetsen. Nu bouwt hij snelheid op (VERSNELLING) en rolt hij uit
+ * (WRIJVING) zodra je loslaat.
+ */
+const VERSNELLING = 7;   // hoe snel je de topsnelheid haalt (hoger = directer)
+const WRIJVING = 4.5;    // hoe snel je uitrolt als je niets doet
 
 /*
  * Body Damage: (punten + 5) × een factor die van het doelwit afhangt.
@@ -931,7 +970,13 @@ io.on('connection', (socket) => {
     spawnTank(room, t);
     socket.join(roomId);
     socket.data.roomId = roomId;
-    socket.emit('welkom', { id: socket.id, arena: room.arena, modus });
+    /*
+     * De vaste eigenschappen van elke vormsoort (kleur, grootte, max levens)
+     * sturen we ÉÉN keer mee. Vroeger stond dat bij elk blokje in elk
+     * pakketje: met tachtig vormen in beeld was dat 11 KB, twintig keer per
+     * seconde, per leerling. Nu sturen we per vorm alleen nog wat verandert.
+     */
+    socket.emit('welkom', { id: socket.id, arena: room.arena, modus, vormSoorten: VORM_INFO });
     zorgVoorAI(room);
   });
 
@@ -1000,6 +1045,23 @@ io.on('connection', (socket) => {
     if (!rooms.has('arena')) maakRoom('arena', false);
     socket.join('arena');
     socket.data.isBeamer = true;
+    beamers.add(socket.id);
+    // ook de beamer tekent de vormen, dus die heeft de soortentabel nodig
+    socket.emit('vormSoorten', VORM_INFO);
+  });
+
+  /*
+   * De browser vertelt hoe groot zijn kijkvenster is (dat verschilt: een
+   * sluipschutter zoomt uit, en een chromebook heeft een kleiner scherm).
+   * Zo weet de server precies hoeveel wereld hij moet opsturen.
+   */
+  socket.on('kijk', (d) => {
+    const t = vindTank(socket);
+    if (!t || !d) return;
+    t.kijk = {
+      w: Math.max(600, Math.min(6000, Number(d.w) || 2600)),
+      h: Math.max(400, Math.min(4000, Number(d.h) || 1600)),
+    };
   });
 
   /* Les 2: de lesgever (admin, via de beamer) kiest 0, 2 of 4 teams. */
@@ -1088,7 +1150,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('verlaat', () => verlaatRoom(socket));
-  socket.on('disconnect', () => { klas.delete(socket.id); verlaatRoom(socket); });
+  socket.on('disconnect', () => { klas.delete(socket.id); beamers.delete(socket.id); verlaatRoom(socket); });
 });
 
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
@@ -1223,14 +1285,24 @@ function tickRoom(room, nu, dt) {
 
     if (t.ai) stuurAI(room, t, nu);
 
-    // bewegen volgens intent
+    // bewegen volgens intent: eerst versnellen, dan pas verplaatsen
     const len = Math.hypot(t.intent.mx, t.intent.my);
+    const top = snelheidVan(t);
+    let doelVx = 0, doelVy = 0;
     if (len > 0.05) {
-      const v = snelheidVan(t) * dt;
-      t.x += (t.intent.mx / len) * v;
-      t.y += (t.intent.my / len) * v;
+      // schuin lopen is niet sneller dan recht: de richting wordt genormaliseerd
+      const kracht = Math.min(1, len);
+      doelVx = (t.intent.mx / len) * top * kracht;
+      doelVy = (t.intent.my / len) * top * kracht;
       t.laatsteActie = nu;
     }
+    const grip = Math.min(1, dt * (len > 0.05 ? VERSNELLING : WRIJVING));
+    t.vx = (t.vx || 0) + (doelVx - (t.vx || 0)) * grip;
+    t.vy = (t.vy || 0) + (doelVy - (t.vy || 0)) * grip;
+    if (Math.abs(t.vx) < 1 && !doelVx) t.vx = 0;
+    if (Math.abs(t.vy) < 1 && !doelVy) t.vy = 0;
+    t.x += t.vx * dt;
+    t.y += t.vy * dt;
     // terugslag van het laatste schot uitwerken (dooft snel uit)
     if (t.rvx || t.rvy) {
       t.x += t.rvx * dt;
@@ -1278,11 +1350,15 @@ function tickRoom(room, nu, dt) {
     // lichaamsschade. Erop inrijden is dus een échte manier om een blokje
     // kapot te maken — en een gevaarlijke, want jij verliest ook levens.
     // Muren blokkeren volledig en doen geen schade.
+    const mijnStraal = straalVan(t);
     for (let i = 0; i < room.vormen.length; i++) {
       const v = room.vormen[i];
       const dx = t.x - v.x, dy = t.y - v.y;
-      const d = Math.hypot(dx, dy);
-      const min = straalVan(t) + v.r;
+      const min = mijnStraal + v.r;
+      // grof filter eerst: verreweg de meeste vormen liggen niet in de buurt
+      const grof = min + 1;
+      if (dx > grof || dx < -grof || dy > grof || dy < -grof) continue;
+      const d = Math.sqrt(dx * dx + dy * dy);
       // 1 px speling: ook wie er tegenaan geduwd blijft staan (bv. klem tegen
       // de rand) blijft schade geven en krijgen — anders stopt het schuren.
       if (d >= min + 1 || d <= 0.01) continue;
@@ -1294,35 +1370,32 @@ function tickRoom(room, nu, dt) {
       }
 
       /*
-       * Crashers (de roze driehoekjes) ontploffen als ze je raken: ze geven
-       * één harde klap en zijn dan weg. Daardoor loont het om ze néér te
-       * schieten terwijl ze op je af komen, in plaats van er tegenaan te
-       * blijven schuren. Precies zoals in diep.io — ze bestaan om te
-       * voorkomen dat je rustig bij het nest staat te farmen.
+       * Crashers (de roze driehoekjes) RAMMEN je, ze ontploffen niet.
+       * Eerst lieten we ze bij de eerste aanraking verdwijnen met één harde
+       * klap; dan voelde het alsof ze door je tank heen vlogen. In diep.io
+       * botsen ze echt: ze duwen je opzij en blijven tegen je aan beuken tot
+       * jij of zij het niet meer houdt. Ze duwen harder en doen meer pijn dan
+       * een gewoon blokje — dat is hun hele bestaansreden als bewaker van het
+       * nest. Met tien levens houdt een crasher het maar even vol tegen een
+       * tank die terugramt. (https://diepio.fandom.com/wiki/Crashers)
        */
-      if (v.jaagt) {
-        beschadigTank(room, t, v.botsschade, null, nu);
-        room.vormen.splice(i--, 1);
-        if (!t.ai) {
-          geefPunten(room, t, Math.round(v.punten / 3));   // een botsing levert minder op dan hem neerschieten
-        }
-        continue;
-      }
+      const ram = v.jaagt ? 2.6 : 1;
 
       // de vorm wijkt, de tank schuift een beetje terug (de tank wint)
       if (d < min) {
         const overlap = min - d;
-        v.x -= nx * overlap * 0.75;
-        v.y -= ny * overlap * 0.75;
+        const deelVorm = v.jaagt ? 0.55 : 0.75;   // een crasher laat zich minder wegduwen
+        v.x -= nx * overlap * deelVorm;
+        v.y -= ny * overlap * deelVorm;
         // vormen mogen het speelveld niet uit geduwd worden
         v.x = klem(v.x, v.r, room.arena.w - v.r);
         v.y = klem(v.y, v.r, room.arena.h - v.r);
-        t.x += nx * overlap * 0.25;
-        t.y += ny * overlap * 0.25;
+        t.x += nx * overlap * (1 - deelVorm);
+        t.y += ny * overlap * (1 - deelVorm);
       }
 
       // schade in beide richtingen
-      beschadigTank(room, t, v.botsschade * dt, null, nu, true);
+      beschadigTank(room, t, v.botsschade * ram * dt, null, nu, true);
       v.hp -= botsschadeVan(t, 'vorm') * dt;
       v.laatsteSchade = nu;
       v.hitUntil = nu + 150;
@@ -1542,9 +1615,14 @@ function tickRoom(room, nu, dt) {
     let dood = false;
 
     // raakt een vorm? (kan er meerdere doorboren zolang er leven over is)
+    /* Deze lus draait 20x per seconde over alle vormen maal alle kogels. Met
+       honderden vormen in de arena is Math.hypot (een wortel!) te duur; we
+       vergelijken de kwadraten en slaan alles wat ver weg ligt meteen over. */
     for (let i = 0; i < room.vormen.length; i++) {
       const v = room.vormen[i];
-      if (Math.hypot(v.x - b.x, v.y - b.y) < v.r + b.r) {
+      const vdx = v.x - b.x, vdy = v.y - b.y, vmin = v.r + b.r;
+      if (vdx > vmin || vdx < -vmin || vdy > vmin || vdy < -vmin) continue;
+      if (vdx * vdx + vdy * vdy < vmin * vmin) {
         v.hp -= b.schade;
         v.laatsteSchade = nu;
         v.hitUntil = nu + 150; // wit flitsje (animatie)
@@ -1574,13 +1652,28 @@ function tickRoom(room, nu, dt) {
       // na één treffer nutteloos.
       const vorige = b.geraakt && b.geraakt.get(t.id);
       if (vorige && (!blijftRammen || nu - vorige < 300)) continue;
-      if (Math.hypot(t.x - b.x, t.y - b.y) < straalVan(t) + b.r) {
+      const bmin = straalVan(t) + b.r;
+      if (Math.hypot(t.x - b.x, t.y - b.y) < bmin) {
         const schutter = room.tanks.get(b.eigenaar);
         beschadigTank(room, t, b.schade, schutter, nu);
         (b.geraakt || (b.geraakt = new Map())).set(t.id, nu);
-        if (!blijftRammen) {            // drones stuiteren af i.p.v. op te gaan
+        if (!blijftRammen) {            // een kogel gaat op
           b.leven -= 1;
           if (b.leven <= 0) dood = true;
+        } else {
+          /*
+           * Drones BOTSEN: ze vlogen vroeger dwars door je tank heen en deden
+           * alleen schade, waardoor het leek alsof ze meteen ontploften. Nu
+           * worden ze netjes tegen de rand van je tank gezet en geven ze je
+           * een duwtje — je voelt de klap, en zij blijven bestaan om opnieuw
+           * aan te vallen.
+           */
+          const bdx = b.x - t.x, bdy = b.y - t.y;
+          const bd = Math.hypot(bdx, bdy) || 1;
+          b.x = t.x + (bdx / bd) * bmin;
+          b.y = t.y + (bdy / bd) * bmin;
+          t.rvx = (t.rvx || 0) - (bdx / bd) * 45;
+          t.rvy = (t.rvy || 0) - (bdy / bd) * 45;
         }
         break; // hooguit één tank per tik
       }
@@ -1711,11 +1804,25 @@ function beschadigTank(room, t, schade, dader, nu, contact) {
   }
 }
 
-/* De wereld per room naar de spelers sturen. */
+/* Welke sockets kijken mee op de beamer? Die krijgen de hele arena te zien. */
+const beamers = new Set();
+
+/*
+ * De wereld naar de spelers sturen — maar alleen het stuk dat ze kunnen zien.
+ *
+ * De arena telt inmiddels honderden vormen. Die allemaal twintig keer per
+ * seconde naar iedereen sturen zou megabytes per seconde kosten en de
+ * chromebooks laten haperen. Elke leerling krijgt dus enkel wat binnen zijn
+ * scherm past (plus een randje, zodat er niets voor je ogen "inploft").
+ * Tanks gaan wél altijd volledig mee: die heb je nodig voor het scorebord en
+ * de minikaart, en het zijn er maar twaalf.
+ */
+const ZICHT_RAND = 300;   // extra wereld buiten je scherm
+
 setInterval(() => {
   const nu = Date.now();
   for (const room of rooms.values()) {
-    const staat = {
+    const gedeeld = {
       arena: room.arena,
       teamModus: room.teamModus,
       zones: teamZones(room),
@@ -1747,13 +1854,36 @@ setInterval(() => {
         hoek: b.hoek ? Math.round(b.hoek * 100) / 100 : 0,
         tl: b.dood === Infinity ? 9999 : Math.max(0, b.dood - nu),
       })),
-      vormen: room.vormen.map((v) => ({
-        id: v.id, type: v.type, jaagt: v.jaagt, x: Math.round(v.x), y: Math.round(v.y),
-        r: v.r, hp: Math.round(v.hp), maxHp: v.maxHp, kleur: v.kleur, hoek: v.hoek,
-        hit: nu < (v.hitUntil || 0),
-      })),
+      /* Alleen wat verandert: plaats, draaiing, en levens/flits als de vorm
+         geraakt is. Kleur, grootte en max levens kent de browser al uit
+         VORM_INFO (meegestuurd bij het welkom). */
+      vormen: room.vormen.map((v) => {
+        const o = {
+          id: v.id, type: v.type, x: Math.round(v.x), y: Math.round(v.y),
+          hoek: Math.round(v.hoek * 100) / 100,
+        };
+        if (v.hp < v.maxHp) o.hp = Math.round(v.hp);
+        if (nu < (v.hitUntil || 0)) o.hit = true;
+        return o;
+      }),
     };
-    io.to(room.id).emit('state', staat);
+
+    // de beamer kijkt over de hele arena mee
+    for (const id of beamers) {
+      if (room.tanks.has(id) || room.id === 'arena') io.to(id).emit('state', gedeeld);
+    }
+
+    for (const t of room.tanks.values()) {
+      if (t.ai) continue;
+      const kijk = t.kijk || { w: 2600, h: 1600 };
+      const hw = kijk.w / 2 + ZICHT_RAND, hh = kijk.h / 2 + ZICHT_RAND;
+      const inBeeld = (o) => Math.abs(o.x - t.x) <= hw + (o.r || 0)
+                          && Math.abs(o.y - t.y) <= hh + (o.r || 0);
+      io.to(t.id).emit('state', Object.assign({}, gedeeld, {
+        vormen: gedeeld.vormen.filter(inBeeld),
+        bullets: gedeeld.bullets.filter(inBeeld),
+      }));
+    }
   }
 }, 1000 / 20);
 

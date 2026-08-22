@@ -168,11 +168,17 @@ function drawTank(c, t, isIk) {
      zelf (t.alleenVorm). */
   if (!t.alleenVorm) {
     c.textAlign = 'center';
-    c.fillStyle = '#ffffff';
     c.font = 'bold 13px Segoe UI, sans-serif';
     // naam en balk boven de romp; die groeit mee, dus de afstand ook
     const boven = -straal - 10;
     const balkB = Math.max(48, straal * 2.2);
+    // witte letters met een donkere rand: leesbaar op de lichte vloer én op
+    // een gekleurde teamzone (zoals de namen in diep.io)
+    c.lineJoin = 'round';
+    c.lineWidth = 3;
+    c.strokeStyle = 'rgba(20,24,32,.85)';
+    c.strokeText(t.naam, 0, boven - 6);
+    c.fillStyle = '#ffffff';
     c.fillText(t.naam, 0, boven - 6);
     c.fillStyle = 'rgba(0,0,0,0.5)';
     c.fillRect(-balkB / 2, boven, balkB, 6);
@@ -281,31 +287,47 @@ function drawZones(c, zones) {
   for (const z of zones || []) {
     const kleur = TEAM_ZONE_KLEUREN[z.team] || '#ffffff';
     c.save();
-    c.globalAlpha = 0.3;
+    // een zachte tint over de vloer, zoals de gekleurde hoeken in diep.io
+    c.globalAlpha = 0.22;
     c.fillStyle = kleur;
     c.fillRect(z.x, z.y, z.w, z.h);
-    c.globalAlpha = 0.95;
+    c.globalAlpha = 0.75;
     c.setLineDash([18, 10]);
-    c.lineWidth = 6;
+    c.lineWidth = 5;
     c.strokeStyle = kleur;
     c.strokeRect(z.x, z.y, z.w, z.h);
     c.restore();
   }
 }
 
-/* Tekent de arena-achtergrond (vloer, raster, rand) op (0,0). */
-function drawArena(c, arena, lijnDikte) {
-  c.fillStyle = '#181c2a';
+/*
+ * De vloer van de arena: licht grijs met een fijn raster, precies zoals
+ * diep.io. We speelden eerst op een donkerblauwe vloer, maar daar verdwenen de
+ * blokjes en de tanks half in weg — op het lichte vlak springt alles eruit.
+ * Buiten de arena is het grijs een tint donkerder; zo zie je meteen waar de
+ * rand ligt, zonder een streep te tekenen.
+ *
+ * VENSTER: teken alleen het stuk raster dat in beeld is. Over de volle breedte
+ * van een arena van elf kilometer waren dat tweehonderd lijnen van 11.000
+ * pixels per beeldje — nergens voor nodig, en op een chromebook merk je dat.
+ */
+const ARENA_VLOER = '#cdd0d6';
+const ARENA_BUITEN = '#a9adb5';
+const ARENA_RASTER = 'rgba(0,0,0,0.055)';
+const RASTER_STAP = 64;
+
+function drawArena(c, arena, lijnDikte, venster) {
+  c.fillStyle = ARENA_VLOER;
   c.fillRect(0, 0, arena.w, arena.h);
-  c.strokeStyle = 'rgba(255,255,255,0.05)';
+  const v = venster || { x: 0, y: 0, w: arena.w, h: arena.h };
+  const x0 = Math.max(0, Math.floor(v.x / RASTER_STAP) * RASTER_STAP);
+  const x1 = Math.min(arena.w, v.x + v.w);
+  const y0 = Math.max(0, Math.floor(v.y / RASTER_STAP) * RASTER_STAP);
+  const y1 = Math.min(arena.h, v.y + v.h);
+  c.strokeStyle = ARENA_RASTER;
   c.lineWidth = lijnDikte || 1;
-  for (let x = 0; x <= arena.w; x += 80) {
-    c.beginPath(); c.moveTo(x, 0); c.lineTo(x, arena.h); c.stroke();
-  }
-  for (let y = 0; y <= arena.h; y += 80) {
-    c.beginPath(); c.moveTo(0, y); c.lineTo(arena.w, y); c.stroke();
-  }
-  c.strokeStyle = '#4fc3f7';
-  c.lineWidth = (lijnDikte || 1) * 4;
-  c.strokeRect(0, 0, arena.w, arena.h);
+  c.beginPath();
+  for (let x = x0; x <= x1; x += RASTER_STAP) { c.moveTo(x, y0); c.lineTo(x, y1); }
+  for (let y = y0; y <= y1; y += RASTER_STAP) { c.moveTo(x0, y); c.lineTo(x1, y); }
+  c.stroke();
 }

@@ -100,12 +100,11 @@
       <div id="podium-canvas">
         <canvas id="canvas"></canvas>
 
-        <!-- Upgrades: klein tabje linksonder; het paneel verschijnt als je
-             er met de muis komt, of vanzelf als je iets te besteden hebt -->
-        <div id="stat-hoek" class="verborgen">
-          <div id="stat-overzicht"></div>
-          <div id="stat-tab" title="Jouw upgrades">⚡</div>
-        </div>
+        <!-- Upgrades linksonder, precies zoals in diep.io: acht balkjes die
+             altijd in beeld staan. Heb je een punt te besteden, dan lichten de
+             plusjes op en klik je er gewoon op (of toets 1-8). Er springt geen
+             apart venster meer open. -->
+        <div id="stat-balken" class="verborgen"></div>
 
         <!-- Eigen variabelen als tellertjes, zoals in Scratch -->
         <div id="var-watchers"></div>
@@ -160,13 +159,6 @@
           <h2>⬆️ Upgrades</h2>
           <div id="klasse-lijst"></div>
           <button id="klasse-sluit" class="sluit">Negeren</button>
-        </div>
-
-        <!-- Statpunten-popup -->
-        <div id="popup-stat" class="popup verborgen">
-          <h2>⚡ Verdeel je statpunten (<span id="stat-punten-over">0</span> over)</h2>
-          <div id="stat-lijst"></div>
-          <button id="stat-sluit" class="sluit">Klaar</button>
         </div>
 
         <div id="bevroren-melding" class="verborgen">⏸ Ogen op de lesgever!</div>

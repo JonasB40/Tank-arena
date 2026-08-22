@@ -32,6 +32,7 @@ const ZOOM = 0.72;
  */
 let zoom = ZOOM;          // wat je nu ziet
 let zoomDoel = ZOOM;      // waar we naartoe glijden
+let gemeldZicht = { w: 0, h: 0 };   // wat we de server al verteld hebben
 let modus = null;
 
 /* ---------------- API voor de blokjes-runtime ---------------- */
@@ -150,8 +151,10 @@ const spel = {
     const ik = spel.mijnTank();
     if (!ik) return;
     if (ik.klasseAanbod && ik.klasseAanbod.length) toonKlassePopup(ik);
-    else if (ik.statPunten > 0) toonStatPopup(ik);
-    else toast('Nog niets te kiezen — verdien eerst meer punten! 🏆');
+    else if (ik.statPunten > 0) {
+      wijsStatBalkenAan();
+      toast(`⬆️ ${ik.statPunten} punt${ik.statPunten > 1 ? 'en' : ''} te besteden — klik op een + linksonder!`);
+    } else toast('Nog niets te kiezen — verdien eerst meer punten! 🏆');
   },
 };
 window.spel = spel;
@@ -166,9 +169,20 @@ window.spel = spel;
 let laatsteJoin = null;
 socket.on('connect', () => { if (laatsteJoin) socket.emit('join', laatsteJoin); });
 
-socket.on('welkom', (d) => { mijnId = d.id; arena = d.arena; });
+/* De vaste eigenschappen van elke vormsoort krijgen we één keer bij binnenkomst;
+   daarna stuurt de server per vorm alleen nog de plaats en de draaiing mee. */
+let vormSoorten = {};
+socket.on('welkom', (d) => { mijnId = d.id; arena = d.arena; vormSoorten = d.vormSoorten || {}; });
 socket.on('vol', () => toast('De arena zit vol! Vraag de begeleider om hulp.'));
 socket.on('state', (s) => {
+  // de vaste eigenschappen er weer bij zetten, zodat de rest van de code
+  // gewoon v.kleur / v.r / v.maxHp kan blijven gebruiken
+  for (const v of s.vormen) {
+    const info = vormSoorten[v.type];
+    if (!info) continue;
+    v.r = info.r; v.kleur = info.kleur; v.maxHp = info.maxHp; v.jaagt = info.jaagt;
+    if (v.hp === undefined) v.hp = info.maxHp;
+  }
   staat = s; arena = s.arena;
   // wisselt de lesgever van teamopstelling, dan hoort de leerling dat te zien
   if (typeof meldTeamstand === 'function') meldTeamstand();
@@ -444,7 +458,6 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 const popupKlasse = document.getElementById('popup-klasse');
 let laatsteKlasseAanbod = '';      // welk aanbod hebben we al getoond?
 let klassePopupGesloten = false;   // heeft de leerling bewust weggeklikt?
-const popupStat = document.getElementById('popup-stat');
 
 /*
  * Kaartjes zoals in diep.io: elk voorstel krijgt een eigen pastelkleur met
@@ -547,64 +560,6 @@ function statBalk(waarde, max) {
   return '▰'.repeat(waarde) + '▱'.repeat(Math.max(0, max - waarde)) + ` ${waarde}/${max}`;
 }
 
-function toonStatPopup() {
-  bouwStatPopupEenmalig();
-  vernieuwStatPopup();
-  popupStat.classList.remove('verborgen');
-}
-
-/*
- * BUG (opgelost): vernieuwStatPopup() herbouwde vroeger bij ELKE aanroep alle
- * 8 knoppen helemaal opnieuw (lijst.innerHTML = '' + createElement). Omdat
- * vernieuwHud() dit 30x/seconde aanroept zolang de popup open staat, werd
- * elke knop 30x/sec vernietigd en vervangen — een muisklik (100-300ms) botste
- * daardoor bijna altijd met een herbouw halverwege, waardoor de klik nooit
- * aankwam. Nu bouwen we de knoppen maar ÉÉN keer (bij het openen) en werken
- * we nadien enkel hun tekst/balkje/disabled-status bij, zonder de knoppen
- * zelf (en hun click-listener) te vervangen.
- */
-function bouwStatPopupEenmalig() {
-  const lijst = document.getElementById('stat-lijst');
-  if (lijst.dataset.gebouwd === '1') return; // al gebouwd, niet opnieuw aanmaken
-  lijst.dataset.gebouwd = '1';
-  lijst.innerHTML = '';
-  statVolgorde().forEach((stat, i) => {
-    const [icoon, label] = STAT_META[stat] || ['•', stat];
-    const rij = document.createElement('div');
-    rij.className = 'stat-rij';
-    const naam = document.createElement('span');
-    naam.className = 'stat-naam';
-    naam.dataset.stat = stat;
-    naam.innerHTML = `<span class="stat-toets">${i + 1}</span> ${icoon} ${label} <span class="stat-balk"></span>`;
-    const knop = document.createElement('button');
-    knop.textContent = '+';
-    knop.dataset.stat = stat;
-    knop.addEventListener('click', () => {
-      socket.emit('kiesStat', { stat });
-      setTimeout(vernieuwStatPopup, 120); // even wachten op de server
-    });
-    rij.appendChild(naam);
-    rij.appendChild(knop);
-    lijst.appendChild(rij);
-  });
-}
-
-function vernieuwStatPopup() {
-  const ik = spel.mijnTank();
-  if (!ik || !ik.stats) return;
-  const max = statMaxVan();
-  document.getElementById('stat-punten-over').textContent = ik.statPunten;
-  const lijst = document.getElementById('stat-lijst');
-  if (lijst.dataset.gebouwd !== '1') bouwStatPopupEenmalig(); // veiligheidsnet als er nog niets stond
-  lijst.querySelectorAll('.stat-rij').forEach((rij) => {
-    const stat = rij.querySelector('button').dataset.stat;
-    const nu = ik.stats[stat] || 0;
-    rij.querySelector('.stat-balk').textContent = statBalk(nu, max);
-    rij.querySelector('button').disabled = ik.statPunten <= 0 || nu >= max;
-  });
-}
-document.getElementById('stat-sluit').addEventListener('click', () => popupStat.classList.add('verborgen'));
-
 /* Cijfertoetsen [1]..[8] upgraden meteen de bijhorende eigenschap (zoals diep.io). */
 window.addEventListener('keydown', (e) => {
   if (!mijnId) return;
@@ -621,27 +576,75 @@ window.addEventListener('keydown', (e) => {
   toast(`⬆️ ${label} verbeterd! (toets ${n})`);
 });
 
-/* Altijd-zichtbaar overzicht van je upgrades (bv. 💥 Kogelschade ▰▰▰▱▱▱▱ 3/7). */
+/* ---------------- upgradebalken linksonder (zoals diep.io) ----------------
+ * Acht balkjes die gewoon in beeld blijven staan. Elke stat heeft zijn eigen
+ * kleur: het gevulde stuk laat zien hoeveel punten er al in zitten, en het
+ * plusje wordt kleurig zodra je iets te besteden hebt. Vroeger klapte hier een
+ * apart venster open; dat onderbrak het spel terwijl je in diep.io gewoon
+ * doorspeelt en tussendoor op een plusje tikt.
+ */
+const STAT_KLEUR = {
+  levensregen: '#f0a17f',
+  maxlevens: '#e07fd2',
+  botsschade: '#a58ce8',
+  kogelsnelheid: '#7f92ef',
+  kogelpantser: '#7fcdef',
+  kogelschade: '#f2716e',
+  herladen: '#86dd7f',
+  snelheid: '#6fded2',
+};
+
+function bouwStatBalken() {
+  const el = document.getElementById('stat-balken');
+  if (el.dataset.gebouwd === '1') return;
+  el.dataset.gebouwd = '1';
+  el.innerHTML = '';
+  statVolgorde().forEach((stat, i) => {
+    const [icoon, label] = STAT_META[stat] || ['•', stat];
+    const rij = document.createElement('div');
+    rij.className = 'stat-balk-rij';
+    rij.style.setProperty('--kleur', STAT_KLEUR[stat] || '#9aa4b8');
+    rij.innerHTML =
+      '<div class="sb-balk"><span class="sb-vul"></span>'
+      + '<span class="sb-tekst">' + icoon + ' ' + label
+      + ' <b class="sb-toets">[' + (i + 1) + ']</b></span></div>';
+    const knop = document.createElement('button');
+    knop.className = 'sb-plus';
+    knop.textContent = '+';
+    knop.title = label + ' verbeteren (toets ' + (i + 1) + ')';
+    /* De knoppen worden één keer gemaakt en daarna alleen bijgewerkt. Zouden we
+       ze 30x/s opnieuw opbouwen, dan liep een muisklik halverwege stuk. */
+    knop.addEventListener('click', () => socket.emit('kiesStat', { stat }));
+    rij.appendChild(knop);
+    el.appendChild(rij);
+  });
+}
+
 function vernieuwStatOverzicht(ik) {
-  const el = document.getElementById('stat-overzicht');
-  const hoek = document.getElementById('stat-hoek');
-  if (!ik || !ik.stats) { el.innerHTML = ''; hoek.classList.add('verborgen'); return; }
+  const el = document.getElementById('stat-balken');
+  if (!ik || !ik.stats) { el.classList.add('verborgen'); return; }
+  bouwStatBalken();
+  el.classList.remove('verborgen');
   const max = statMaxVan();
-  const kanUpgraden = ik.statPunten > 0;
-  // het tabje verschijnt pas als upgraden zin heeft; het paneel klapt open
-  // bij hover, of vanzelf zodra er punten te besteden zijn
-  const heeftIetsGedaan = kanUpgraden || ik.level > 1
-    || statVolgorde().some((s) => (ik.stats[s] || 0) > 0);
-  hoek.classList.toggle('verborgen', !heeftIetsGedaan);
-  hoek.classList.toggle('heeft-punten', kanUpgraden);
-  el.innerHTML =
-    `<div class="ov-titel">⚡ Mijn upgrades${kanUpgraden ? ` · <b>${ik.statPunten} punt${ik.statPunten > 1 ? 'en' : ''}</b> (toets 1-8)` : ''}</div>` +
-    statVolgorde().map((stat, i) => {
-      const [icoon, label] = STAT_META[stat] || ['•', stat];
-      const nu = ik.stats[stat] || 0;
-      const vol = nu >= max;
-      return `<div class="ov-rij ${vol ? 'ov-vol' : ''} ${kanUpgraden && !vol ? 'ov-kan' : ''}"><span><span class="ov-toets">${i + 1}</span> ${icoon} ${label}</span><span class="ov-balk">${statBalk(nu, max)}</span></div>`;
-    }).join('');
+  const kan = ik.statPunten > 0;
+  el.classList.toggle('heeft-punten', kan);
+  el.querySelectorAll('.stat-balk-rij').forEach((rij, i) => {
+    const stat = statVolgorde()[i];
+    const nu = ik.stats[stat] || 0;
+    const vol = nu >= max;
+    rij.querySelector('.sb-vul').style.width = Math.round((nu / max) * 100) + '%';
+    rij.classList.toggle('vol', vol);
+    rij.classList.toggle('kan', kan && !vol);
+    rij.querySelector('.sb-plus').disabled = !kan || vol;
+  });
+}
+
+/* Het "toon upgradescherm"-blok: een nieuwe klasse kiezen gebeurt nog in een
+   venster, maar statpunten wijzen we gewoon aan in de balk linksonder. */
+function wijsStatBalkenAan() {
+  const el = document.getElementById('stat-balken');
+  el.classList.add('let-op');
+  setTimeout(() => el.classList.remove('let-op'), 2400);
 }
 
 /* ---------------- drie schermgroottes (zoals in Scratch) ---------------- */
@@ -705,6 +708,14 @@ setInterval(() => {
   zoomDoel = ik ? Math.max(0.42, ZOOM / zichtVan(ik.klasse, ik.level)) : ZOOM;
   zoom += (zoomDoel - zoom) * 0.06;
   const zichtB = canvas.width / zoom, zichtH = canvas.height / zoom;
+  /* De server stuurt alleen wat je kan zien, dus moet hij weten hoe groot je
+     venster is. Dat verandert zelden (schermgrootte, uitzoomen bij een
+     sluipschutter), dus we melden het pas als het echt anders is. */
+  if (mijnId && (Math.abs(zichtB - gemeldZicht.w) > zichtB * 0.06
+              || Math.abs(zichtH - gemeldZicht.h) > zichtH * 0.06)) {
+    gemeldZicht = { w: zichtB, h: zichtH };
+    socket.emit('kijk', { w: Math.round(zichtB), h: Math.round(zichtH) });
+  }
   const halfB = zichtB / 2, halfH = zichtH / 2;
   camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
   camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
@@ -720,7 +731,8 @@ setInterval(() => {
 function teken() {
   requestAnimationFrame(teken);
 
-  ctx.fillStyle = '#10131c';
+  // buiten de arena: een tint donkerder dan de vloer, zoals in diep.io
+  ctx.fillStyle = ARENA_BUITEN;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (!staat) return;
 
@@ -733,7 +745,11 @@ function teken() {
   ctx.save();
   ctx.translate(ox, oy);
   ctx.scale(zoom, zoom);
-  drawArena(ctx, arena, 1);
+  // alleen het raster tekenen dat in beeld staat (scheelt honderden lijnen)
+  drawArena(ctx, arena, 1, {
+    x: camera.x - canvas.width / zoom / 2, y: camera.y - canvas.height / zoom / 2,
+    w: canvas.width / zoom, h: canvas.height / zoom,
+  });
   drawZones(ctx, staat.zones);
   if (staat.basis) drawZones(ctx, [Object.assign({ team: 0 }, staat.basis)]);
 
@@ -781,9 +797,14 @@ function teken() {
     const d = (nu - p.start) / 900;
     ctx.save();
     ctx.globalAlpha = Math.max(0, 1 - d);
-    ctx.fillStyle = '#ffd54f';
     ctx.font = 'bold 20px Segoe UI, sans-serif';
     ctx.textAlign = 'center';
+    // donkere rand: op de lichte vloer verdween het geel anders in het grijs
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(20,24,32,.8)';
+    ctx.strokeText(`+${p.n}`, p.x, p.y - d * 46);
+    ctx.fillStyle = '#ffd54f';
     ctx.fillText(`+${p.n}`, p.x, p.y - d * 46);
     ctx.restore();
   }
@@ -817,8 +838,15 @@ function bijwerkAnimaties(nu) {
   // verdwenen vormen -> brokstukken
   const huidige = new Map();
   for (const v of staat.vormen) huidige.set(v.id, v);
+  /* Een vorm kan ook uit je beeld schuiven (de server stuurt enkel wat je
+     ziet). Dan is hij niet kapot — daar horen dus geen brokstukken bij. We
+     maken ze alleen voor vormen die ruim binnen je scherm stonden. */
+  const ikNu = spel.mijnTank();
+  const inBeeld = (v) => !ikNu
+    || (Math.abs(v.x - ikNu.x) < canvas.width / zoom / 2 - 40
+     && Math.abs(v.y - ikNu.y) < canvas.height / zoom / 2 - 40);
   for (const [id, v] of vorigeVormen) {
-    if (!huidige.has(id) && brokstukken.length < 220) {
+    if (!huidige.has(id) && inBeeld(v) && brokstukken.length < 220) {
       for (let i = 0; i < 7; i++) {
         const hoek = Math.random() * Math.PI * 2;
         const vaart = 60 + Math.random() * 140;
@@ -849,72 +877,91 @@ function bijwerkAnimaties(nu) {
   }
 }
 
-/* ---------------- minimap ---------------- */
+/* ---------------- minikaart ---------------- */
 /*
- * Kleine kaart met alleen wat je écht moet weten: waar sta jij, waar zijn de
- * anderen, waar is je veilige zone en waar ligt het nest. Alle losse blokjes
- * stonden er vroeger ook op — dat was één grote confettivlek en het ding nam
- * een kwart van je speelveld in beslag.
+ * Opgebouwd zoals de kaart van diep.io: een licht vlak met een dikke rand, de
+ * teamstroken in hun eigen kleur, en jij als zwart pijltje dat meedraait met
+ * de richting waarin je kijkt. Zo zie je in één oogopslag of je in het midden
+ * zit of tegen de rand plakt.
+ *
+ * Wat er bewust NIET op staat: de losse blokjes. Dat was één grote
+ * confettivlek. Wat er wel bij staat en in diep.io niet: de andere tanks. In
+ * een arena van elf kilometer breed moeten klasgenoten elkaar kunnen vinden.
  */
 function tekenMinimap() {
-  /* Groter dan eerst: de arena is fors gegroeid, en op een kaartje van 128 px
-     waren de stipjes niet meer uit elkaar te houden. Ook een kijkkader erbij,
-     zodat je ziet wélk stukje van de wereld je nu voor je hebt. */
-  const mw = Math.round(Math.min(200, Math.max(120, canvas.width * 0.34)));
+  const mw = Math.round(Math.min(240, Math.max(150, canvas.width * 0.2)));
   const mh = Math.round(mw * (arena.h / arena.w));
-  const mx = canvas.width - mw - 12, my = canvas.height - mh - 12;
+  const mx = canvas.width - mw - 14, my = canvas.height - mh - 14;
   const s = mw / arena.w;
+  const px = (wx) => mx + wx * s, py = (wy) => my + wy * s;
   ctx.save();
-  ctx.globalAlpha = 0.88;
-  ctx.fillStyle = '#181c2a';
+
+  // titelregel boven de kaart, net als "diep.io — 939 players"
+  const levend = staat.tanks.filter((t) => !t.dood).length;
+  ctx.font = 'bold 11px Segoe UI, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.fillText(`Tank Arena · ${levend} tanks`, mx + mw, my - 5);
+
+  // het vlak zelf: licht, met een stevige rand
+  ctx.fillStyle = 'rgba(206,211,219,.92)';
   ctx.fillRect(mx, my, mw, mh);
-  ctx.strokeStyle = '#4fc3f7';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(mx, my, mw, mh);
-  if (staat.basis) {
-    ctx.fillStyle = 'rgba(52,152,219,0.5)';
-    ctx.fillRect(mx + staat.basis.x * s, my + staat.basis.y * s, staat.basis.w * s, staat.basis.h * s);
+
+  // veilige zones als volle stroken in hun teamkleur
+  const zones = (staat.zones && staat.zones.length)
+    ? staat.zones
+    : (staat.basis ? [Object.assign({ team: 0 }, staat.basis)] : []);
+  for (const z of zones) {
+    ctx.fillStyle = (TEAM_ZONE_KLEUREN[z.team] || '#3498db');
+    ctx.globalAlpha = 0.75;
+    ctx.fillRect(px(z.x), py(z.y), z.w * s, z.h * s);
+    ctx.globalAlpha = 1;
   }
-  for (const z of staat.zones || []) {
-    ctx.fillStyle = (TEAM_ZONE_KLEUREN[z.team] || '#fff') + '66';
-    ctx.fillRect(mx + z.x * s, my + z.y * s, z.w * s, z.h * s);
-  }
-  // het nest in het midden: daar liggen de dikke vormen én de bewakers
+
+  /* Het nest in het midden krijgt een lichte tint mee: daar liggen de dikke
+     vormen én de crashers. Een gestippeld kader leek een losse doos op de
+     kaart; een vlekje leest rustiger. */
   if (staat.nest) {
-    ctx.strokeStyle = 'rgba(155,89,208,.85)';
-    ctx.setLineDash([4, 3]);
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(mx + staat.nest.x * s, my + staat.nest.y * s, staat.nest.w * s, staat.nest.h * s);
-    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(120,80,160,.16)';
+    ctx.fillRect(px(staat.nest.x), py(staat.nest.y), staat.nest.w * s, staat.nest.h * s);
   }
-  // alleen muren als grijs blokje: handig om je te oriënteren
-  for (const v of staat.vormen) {
-    if (v.type !== 'muur') continue;
-    ctx.fillStyle = 'rgba(92,101,114,.8)';
-    ctx.fillRect(mx + v.x * s - 2, my + v.y * s - 2, 4, 4);
-  }
+
+  const ik = staat.tanks.find((t) => t.id === mijnId);
+
+  // de andere tanks als stipje in hun teamkleur
   for (const t of staat.tanks) {
-    if (t.dood) continue;
-    if (t.id === mijnId) {
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(mx + t.x * s, my + t.y * s, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-      // kijkkader: welk stuk van de wereld zie je nu?
-      const kb = (canvas.width / zoom) * s, kh = (canvas.height / zoom) * s;
-      ctx.strokeStyle = 'rgba(255,255,255,.55)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(mx + t.x * s - kb / 2, my + t.y * s - kh / 2, kb, kh);
-    } else {
-      // altijd de eigen tankkleur: in teammodus is dat de teamkleur, dus je
-      // ziet meteen wie vriend is en wie vijand
-      ctx.fillStyle = t.kleur;
-      ctx.beginPath();
-      ctx.arc(mx + t.x * s, my + t.y * s, t.ai ? 2.5 : 3.5, 0, Math.PI * 2);
-      ctx.fill();
-      if (!t.ai) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.stroke(); }
-    }
+    if (t.dood || t.id === mijnId) continue;
+    ctx.fillStyle = t.kleur;
+    ctx.beginPath();
+    ctx.arc(px(t.x), py(t.y), t.ai ? 2.2 : 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    // echte spelers krijgen een randje: die zijn belangrijker dan de robots
+    if (!t.ai) { ctx.strokeStyle = 'rgba(20,24,34,.8)'; ctx.lineWidth = 1; ctx.stroke(); }
   }
+
+  // jijzelf: een zwart pijltje dat wijst waar je kijkt (zoals diep.io)
+  if (ik && !ik.dood) {
+    ctx.save();
+    ctx.translate(px(ik.x), py(ik.y));
+    ctx.rotate(ik.angle || 0);
+    ctx.beginPath();
+    ctx.moveTo(7, 0);
+    ctx.lineTo(-4.5, -5);
+    ctx.lineTo(-4.5, 5);
+    ctx.closePath();
+    ctx.fillStyle = '#14181f';
+    ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // rand er als laatste overheen, anders lopen de zones eroverheen
+  ctx.strokeStyle = 'rgba(150,157,170,.95)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(mx - 1.5, my - 1.5, mw + 3, mh + 3);
   ctx.restore();
 }
 
@@ -949,10 +996,10 @@ function tekenScorebord() {
   const H = 24 + kopH + rijen.length * regel + 6;
   const x = canvas.width - B - 12, y = 12;
   ctx.save();
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle = '#181c2a';
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#2a2f3d';
   ctx.fillRect(x, y, B, H);
-  ctx.strokeStyle = '#39405c';
+  ctx.strokeStyle = 'rgba(255,255,255,.25)';
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, B, H);
   ctx.textAlign = 'left';
@@ -1019,9 +1066,6 @@ function vernieuwHud(ik) {
   vernieuwVariabeleTellers();
   if (!ik) return;
 
-  // als de statpopup openstaat, live meelopen met de server
-  if (!popupStat.classList.contains('verborgen')) vernieuwStatPopup();
-
   document.getElementById('hud-score').textContent = ik.score;
   document.getElementById('hud-level').textContent = ik.level;
   const balk = document.getElementById('xp-balk-vul');
@@ -1052,11 +1096,6 @@ function vernieuwHud(ik) {
   }
 }
 document.getElementById('hud-statpunten').addEventListener('click', () => spel.toonUpgrade());
-
-/* ⚡-tabje linksonder: klik open, klik dicht. */
-document.getElementById('stat-tab').addEventListener('click', () => {
-  document.getElementById('stat-hoek').classList.toggle('open');
-});
 
 /* ------------------------------------------------------------------ */
 /* De les: stappen met checkpoints (structuur én gedrag)               */

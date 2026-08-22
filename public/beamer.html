@@ -58,6 +58,10 @@
     // stilletjes zijn plek in de arena én zijn lesgeversrechten kwijt:
     // het scherm blijft dan leeg en de teamknoppen doen niets meer.
     socket.on('connect', () => socket.emit('beamer'));
+    /* De server stuurt de vaste eigenschappen van elke vormsoort één keer op;
+       in de statuspakketjes zit daarna alleen nog wat verandert. */
+    let vormSoorten = {};
+    socket.on('vormSoorten', (d) => { vormSoorten = d || {}; });
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let staat = null;
@@ -96,7 +100,7 @@
       const wrap = document.getElementById('canvasWrap');
       canvas.width = wrap.clientWidth;
       canvas.height = wrap.clientHeight;
-      ctx.fillStyle = '#10131c';
+      ctx.fillStyle = ARENA_BUITEN;   // zelfde grijs als in het spel
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       if (!staat) return;
 
@@ -111,7 +115,14 @@
       drawArena(ctx, arena, 1 / s);
       drawZones(ctx, staat.zones);
 
-      for (const v of staat.vormen || []) drawVormObj(ctx, v);
+      for (const v of staat.vormen || []) {
+        const info = vormSoorten[v.type];
+        if (info) {
+          v.r = info.r; v.kleur = info.kleur; v.maxHp = info.maxHp; v.jaagt = info.jaagt;
+          if (v.hp === undefined) v.hp = info.maxHp;
+        }
+        drawVormObj(ctx, v);
+      }
 
       // zelfde tekening als in het spel: kogels rond, drones driehoekig,
       // traps als driepuntige ster
