@@ -295,6 +295,7 @@ document.querySelectorAll('.niveau-knop').forEach((k) => k.addEventListener('cli
  * opnieuw in de gedeelde arena met de stappen van les 2.
  */
 function startLes1() {
+  statsOntgrendeld = false;   // de les begint weer zonder statpunten in beeld
   if (welkeLes !== 1) {
     welkeLes = 1;
     stapIndex = 0;
@@ -395,6 +396,12 @@ function kiesModus(m) {
   startmenu.classList.add('verborgen');
   document.getElementById('naam-weergave').textContent = `👤 ${naam}`;
   document.getElementById('modus-badge').textContent = m === 'solo' ? '🤖 tegen de computer' : '🧑‍🤝‍🧑 met klasgenoten';
+  /*
+   * De hulpknop hoort bij de les: daar zit je te bouwen en kan je vastlopen.
+   * In de gedeelde arena speel je — daar roep je geen lesgever voor.
+   */
+  document.getElementById('hulp-knop').classList.toggle('verborgen', m !== 'solo');
+  if (m !== 'solo' && hulpGevraagd) zetHulpVraag(false);
   // nu pas begint de les — anders staan er twee instructies tegelijk
   if (!lesGestart) toonStap();
   if (welkeLes === 2) toast('🎮 Rijden met de pijltjes, mikken en schieten met de muis — dat werkt hier meteen.');
@@ -620,9 +627,25 @@ function bouwStatBalken() {
   });
 }
 
+/*
+ * De statpuntenbalk hoort bij het SPEL. Tijdens de eerste stappen van de les
+ * leidt hij af: zodra een leerling bij stap 6 leert schieten, gaan de levels
+ * omhoog en zit hij punten te verdelen in plaats van te programmeren. De balk
+ * verschijnt daarom pas bij stap 14 — de stap die er juist over gaat — of
+ * meteen zodra je de gedeelde arena in gaat om te spelen. Eenmaal zichtbaar
+ * blijft hij staan, ook als je terugbladert.
+ */
+let statsOntgrendeld = false;
+function statpuntenMogenZichtbaar() {
+  if (statsOntgrendeld) return true;
+  const stap = stappen()[stapIndex];
+  if (modus === 'samen' || welkeLes === 2 || (stap && stap.nr >= 14)) statsOntgrendeld = true;
+  return statsOntgrendeld;
+}
+
 function vernieuwStatOverzicht(ik) {
   const el = document.getElementById('stat-balken');
-  if (!ik || !ik.stats) { el.classList.add('verborgen'); return; }
+  if (!ik || !ik.stats || !statpuntenMogenZichtbaar()) { el.classList.add('verborgen'); return; }
   bouwStatBalken();
   el.classList.remove('verborgen');
   const max = statMaxVan();
@@ -812,7 +835,12 @@ function teken() {
   ctx.restore();
 
   tekenMinimap();
-  tekenScorebord();
+  /*
+   * Het scorebord hoort bij het SPEL, niet bij de les. Wie in zijn eigen
+   * oefenarena tegen de computer werkt, is aan het programmeren — dan hoeft
+   * er geen ranglijst in beeld te staan waar hij toch alleen op staat.
+   */
+  if (modus === 'samen') tekenScorebord();
 }
 requestAnimationFrame(teken);
 
@@ -1091,7 +1119,7 @@ function vernieuwHud(ik) {
   }
   if (!teKiezen) { laatsteKlasseAanbod = ''; klassePopupGesloten = false; }
 
-  if (ik.statPunten > 0 || (ik.klasseAanbod && ik.klasseAanbod.length)) {
+  if ((ik.statPunten > 0 && statpuntenMogenZichtbaar()) || (ik.klasseAanbod && ik.klasseAanbod.length)) {
     statChip.classList.remove('verborgen');
     statChip.textContent = ik.klasseAanbod && ik.klasseAanbod.length
       ? '⬆️ Nieuwe klasse beschikbaar!'
@@ -1117,6 +1145,7 @@ const elStap = {
   probleem: document.getElementById('stap-probleem'),
   ontdekking: document.getElementById('stap-ontdekking'),
   doel: document.getElementById('stap-doel'),
+  voorbeeld: document.getElementById('stap-voorbeeld'),
   structuur: document.getElementById('check-structuur'),
   gedrag: document.getElementById('check-gedrag'),
   breek: document.getElementById('stap-breek'),
@@ -1167,6 +1196,21 @@ function doelHtml(tekst) {
   return `<ol class="doel-stapjes">${regels.map((r) => `<li>${blokHtml(r)}</li>`).join('')}</ol>`;
 }
 
+/*
+ * Sommige stappen vragen iets dat een kind nog nooit gedaan heeft. Stap 7 is de
+ * ergste: daar moet je voor het eerst zelf een variabele AANMAKEN, en die knop
+ * zit verstopt bovenaan een categorie die ze nog niet kennen. De les mag dus
+ * aanwijzen: we klappen de juiste lade open en laten de knop knipperen tot ze
+ * erop geklikt hebben.
+ */
+function wijsDeWegAan(stap) {
+  const wijs = stap && stap.wijsAan;
+  document.body.classList.toggle('wijs-variabeleknop', !!(wijs && wijs.knop));
+  if (!wijs || !wijs.categorie || !window.openCategorie) return;
+  // even wachten tot de toolbox de blokken van deze stap heeft bijgewerkt
+  setTimeout(() => { try { window.openCategorie(wijs.categorie); } catch { } }, 260);
+}
+
 let lesKlaar = false;   // slotscherm getoond? dan geen stapchecks meer draaien
 
 /*
@@ -1196,6 +1240,10 @@ function toonStap() {
   elStap.probleem.innerHTML = `❓ ${blokHtml(s.probleem)}`;
   elStap.ontdekking.innerHTML = blokHtml(s.ontdekking);
   elStap.doel.innerHTML = `🎯 ${doelHtml(s.doel)}`;
+  // sommige stappen laten zien hoe de stapel eruit hoort te zien
+  elStap.voorbeeld.innerHTML = blokHtml(s.voorbeeld || '');
+  elStap.voorbeeld.classList.toggle('verborgen', !s.voorbeeld);
+  wijsDeWegAan(s);
   elStap.hint.innerHTML = `💡 ${blokHtml(s.hint)}`;
   elStap.hint.classList.add('verborgen');
   elStap.breek.innerHTML = blokHtml(s.breek || '');
@@ -1218,13 +1266,27 @@ setInterval(() => {
   let programma = [];
   try { programma = window.compileerProject ? compileerProject() : []; } catch { /* editor nog niet klaar */ }
 
+  /* Zodra de leerling zijn variabele gemaakt heeft, stopt het knipperen: de
+     knop heeft zijn werk gedaan en blijft anders de aandacht opeisen. */
+  if (document.body.classList.contains('wijs-variabeleknop')) {
+    try {
+      if (blocklyWerkruimte.getAllVariables().length > 0) {
+        document.body.classList.remove('wijs-variabeleknop');
+      }
+    } catch { /* editor nog niet klaar */ }
+  }
   const structuurOk = !!s.check.structuur(programma);
   laatsteChecks.structuur = structuurOk;
   // wat je al bewezen hebt, hoef je niet opnieuw te bewijzen: de waarnemer
   // begint bij elke stap op nul, maar een behaald vinkje blijft staan
   const gedragOk = gehaaldeStappen.has(s.nr) || !!s.check.gedrag(stapWaarnemer);
   laatsteChecks.gedrag = gedragOk;
-  elStap.structuur.innerHTML = `${structuurOk ? '✓' : '○'} ${blokHtml(s.check.structuurTekst)}`;
+  /* De tekst bij het vinkje mag meekijken naar wat er staat: bij stap 5 zegt
+     hij "bijna! je richt-blok staat er wel in, maar niet bovenaan". Zo weet een
+     kind meteen wat het nog moet doen in plaats van te blijven zoeken. */
+  const sTekst = typeof s.check.structuurTekst === 'function'
+    ? s.check.structuurTekst(programma) : s.check.structuurTekst;
+  elStap.structuur.innerHTML = `${structuurOk ? '✓' : '○'} ${blokHtml(sTekst)}`;
   elStap.structuur.classList.toggle('gelukt', structuurOk);
   elStap.gedrag.innerHTML = `${gedragOk ? '✓' : '○'} ${blokHtml(s.check.gedragTekst)}`;
   elStap.gedrag.classList.toggle('gelukt', gedragOk);
@@ -1306,17 +1368,35 @@ socket.on('lesStuur', (d) => {
       Blockly.renderManagement.triggerQueuedRenders();
       toast('🧹 De lesgever heeft je blokken netjes onder elkaar gezet.');
     } catch { /* editor nog niet klaar */ }
+  } else if (d.type === 'werkruimte' && d.werkruimte) {
+    /*
+     * De lesgever heeft je blokken aangepast. We bewaren eerst wat er stond,
+     * zodat je met één klik terug kan — ingrijpen mag nooit betekenen dat het
+     * werk van een kind zomaar verdwijnt.
+     */
+    try {
+      werkbladVoorIngreep = Blockly.serialization.workspaces.save(blocklyWerkruimte);
+      Blockly.serialization.workspaces.load(d.werkruimte, blocklyWerkruimte);
+      Blockly.renderManagement.triggerQueuedRenders();
+      toonIngreepMelding();
+    } catch { /* editor nog niet klaar */ }
   } else if (d.type === 'hulpKlaar') {
     zetHulpVraag(false);
     toast('✋ Je hulpvraag is afgevinkt.');
   } else if (d.type === 'naarArena') {
     if (modus !== 'samen') { startLes2(d.teams || 0); toast('🎮 De lesgever brengt iedereen naar de arena!'); }
   } else if (d.type === 'stuurCode') {
+    /* We sturen niet alleen de tekst mee maar het hele werkblad. Zo ziet de
+       lesgever exact dezelfde blokken als de leerling — en kan hij ze
+       aanpassen en terugsturen. */
     let tekst = '(nog geen blokken)';
+    let werkruimte = null;
     try { tekst = programmaAlsTekst(compileerProject()); } catch { /* editor nog niet klaar */ }
+    try { werkruimte = Blockly.serialization.workspaces.save(blocklyWerkruimte); } catch { /* idem */ }
     socket.emit('mijnCode', {
       naam: document.getElementById('naam').value.trim() || 'Naamloos',
       tekst,
+      werkruimte,
     });
   }
 });
@@ -1367,9 +1447,30 @@ document.getElementById('hulp-knop').addEventListener('click', () => {
   toast(hulpGevraagd ? '✋ De lesgever ziet je vraag staan — werk gerust verder!' : 'Hulpvraag ingetrokken.');
 });
 
+/* De lesgever paste je blokken aan — met één klik zet je het terug. */
+let werkbladVoorIngreep = null;
+function toonIngreepMelding() {
+  const vak = document.getElementById('lesgever-bericht');
+  vak.querySelector('.lb-kop').textContent = '👩‍🏫 De lesgever heeft je blokken aangepast';
+  vak.querySelector('.lb-tekst').textContent = 'Kijk maar eens wat er veranderd is. Liever je eigen versie terug?';
+  vak.classList.remove('verborgen');
+  document.getElementById('lb-terug').classList.remove('verborgen');
+  speelGeluid('tada');
+}
+document.getElementById('lb-terug').addEventListener('click', () => {
+  if (!werkbladVoorIngreep) return;
+  try {
+    Blockly.serialization.workspaces.load(werkbladVoorIngreep, blocklyWerkruimte);
+    Blockly.renderManagement.triggerQueuedRenders();
+    toast('↩ Je eigen blokken staan er weer.');
+  } catch { /* editor nog niet klaar */ }
+  document.getElementById('lesgever-bericht').classList.add('verborgen');
+});
+
 /* Een bericht van de lesgever: blijft staan tot je het wegklikt. */
 function toonLesgeverBericht(tekst, naarDeKlas) {
   const vak = document.getElementById('lesgever-bericht');
+  document.getElementById('lb-terug').classList.add('verborgen');
   vak.querySelector('.lb-kop').textContent = naarDeKlas ? '👩‍🏫 Bericht aan de klas' : '👩‍🏫 Bericht voor jou';
   vak.querySelector('.lb-tekst').textContent = tekst;
   vak.classList.remove('verborgen');

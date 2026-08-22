@@ -1187,6 +1187,11 @@ io.on('connection', (socket) => {
     } else if (d.type === 'stapVoor' && Number.isFinite(d.stap) && d.id) {
       // één leerling verzetten zonder de rest mee te sleuren
       io.to(d.id).emit('lesStuur', { type: 'stap', stap: klem(d.stap, 1, 20), alleenJij: true });
+    } else if (d.type === 'zetWerkruimte' && d.id && d.werkruimte) {
+      // de lesgever grijpt in: zijn versie van de blokken gaat naar de leerling
+      if (JSON.stringify(d.werkruimte).length < 200000) {
+        io.to(d.id).emit('lesStuur', { type: 'werkruimte', werkruimte: d.werkruimte });
+      }
     } else if (d.type === 'opruimen' && d.id) {
       io.to(d.id).emit('lesStuur', { type: 'opruimen' });
     } else if (d.type === 'hulpKlaar' && d.id) {
@@ -1209,6 +1214,8 @@ io.on('connection', (socket) => {
       id: socket.id,
       naam: saneNaam(d && d.naam),
       tekst: String((d && d.tekst) || '').slice(0, 4000),
+      // het hele werkblad, zodat de lesgever dezelfde blokken ziet als de leerling
+      werkruimte: d && d.werkruimte && JSON.stringify(d.werkruimte).length < 200000 ? d.werkruimte : null,
     });
   });
 

@@ -63,6 +63,19 @@ function alleCmdsVanProject(p) {
     het oude blok dat we nog herkennen zodat oude projecten blijven kloppen. */
 const isRijden = (c) => c.t === 'neemStappen' || c.t === 'beweeg' || c.t === 'beweegStappen';
 
+/**
+ * Wat is het EERSTE blok in de herhaal-lus? Voor stap 5 maakt dat uit: richten
+ * hoort bovenaan, nog voor de als-blokken.
+ */
+function eersteInLus(p) {
+  for (const s of p || []) {
+    for (const c of alleCmds(s.body)) {
+      if (c.t === 'forever') return (c.body && c.body[0]) || null;
+    }
+  }
+  return null;
+}
+
 /** Zit er een commando van dit type ergens BINNEN een 'forever'-lus? */
 function inLus(p, test) {
   for (const s of p || []) {
@@ -173,11 +186,32 @@ const STAPPEN = [
     concept: 'Invoer → verwerking → uitvoer',
     probleem: 'Je geschut wijst altijd dezelfde kant op, ook als de vijand ergens anders staat.',
     ontdekking: 'De computer moet uitrékenen welke kant je geschut op moet: hij leest waar je muis staat (invoer), berekent de hoek (verwerking) en draait het geschut (uitvoer).',
-    doel: 'Zet {{bew|richt het geschut naar de muis}} bovenaan in je {{bes|herhaal}}.',
-    hint: 'Het blok staat in de blauwe categorie {{bew|Beweging}}. Zet het bínnen het herhaal-blok, anders richt hij maar één keer.',
+    doel: [
+      'Zoek {{bew|richt het geschut naar de muis}} in de blauwe categorie {{bew|Beweging}}.',
+      'Sleep het IN je {{bes|herhaal}}, als ALLEREERSTE blok — dus BOVEN je {{bes|als}}-blokken.',
+      'Klik op 🚩 en beweeg je muis rond je tank.',
+    ].join('\n'),
+    /* Kinderen lezen "bovenaan" makkelijk over. Een plaatje van de juiste
+       stapel laat in een oogopslag zien waar het blok hoort. */
+    voorbeeld: '{{bes|herhaal}}\n    {{bew|richt het geschut naar de muis}}  ← hier! als eerste\n    {{bes|als toets ↑ ingedrukt}} …\n    {{bes|als toets → ingedrukt}} …',
+    wijsAan: { categorie: 'Beweging' },
+    hint: 'Het blok staat in de blauwe categorie {{bew|Beweging}}, bij de richt-blokken.\n\nSleep het tot het vastklikt ONDER het woord {{bes|herhaal}} en BOVEN je eerste {{bes|als}}-blok. Zie je daar een schaduwlijn verschijnen, dan mag je loslaten.\n\nStaat het buiten de herhaal? Dan richt je tank maar een keer, bij de start.',
     check: {
-      structuur: (p) => inLus(p, (c) => c.t === 'richtMuis' || c.t === 'richtNaar'),
-      structuurTekst: 'een {{bew|richt-blok}} binnen je {{bes|herhaal}}',
+      /* Streng op de plek: het richt-blok moet het eerste blok in de lus zijn.
+         Dat mag, want de tekst hieronder zegt precies wat er nog schort — het
+         scheelt een sleepbeweging en ze leren dat volgorde uitmaakt. */
+      structuur: (p) => {
+        const eerste = eersteInLus(p);
+        return !!eerste && (eerste.t === 'richtMuis' || eerste.t === 'richtNaar');
+      },
+      structuurTekst: (p) => {
+        const eerste = eersteInLus(p);
+        const goed = !!eerste && (eerste.t === 'richtMuis' || eerste.t === 'richtNaar');
+        if (!goed && inLus(p, (c) => c.t === 'richtMuis' || c.t === 'richtNaar')) {
+          return 'bijna! je {{bew|richt-blok}} staat in de {{bes|herhaal}}, maar niet bovenaan — sleep het BOVEN je {{bes|als}}-blokken';
+        }
+        return 'een {{bew|richt-blok}} als EERSTE blok in je {{bes|herhaal}}';
+      },
       gedrag: (w) => w.gedraaid > 0.5,
       gedragTekst: 'je geschut draait mee',
     },
@@ -213,8 +247,17 @@ const STAPPEN = [
     concept: 'Variabelen',
     probleem: 'Het spel weet hoeveel levens je hebt, maar jouw programma niet. Jij wil dat getal zélf bijhouden.',
     ontdekking: 'Een variabele is een doosje met een naam waar een getal in zit. Je vult het doosje bij de start, en verandert het onderweg.',
-    doel: 'Maak een variabele "Levens". Zet onder je {{geb|🚩}}-blok: {{vrb|maak Levens}} = {{vrb|max levens}}. Je teller verschijnt meteen op je speelveld.',
-    hint: 'Klik links op de oranje bol {{vrb|Variabelen}}. Bovenaan staat een paarse knop ➕ Maak een variabele — dat is een échte knop, geen blok: je klikt erop en typt de naam. {{vrb|max levens}} vind je onderaan diezelfde categorie, bij de blokken die het spel zelf bijhoudt.',
+    doel: [
+      'Klik links op de oranje bol {{vrb|Variabelen}}. Bovenaan KNIPPERT de knop ➕ Maak een variabele — klik daarop.',
+      'Typ als naam: Levens. Klik op OK.',
+      'Sleep je nieuwe blok {{vrb|maak Levens}} onder je {{geb|🚩}}-blok, BOVEN de {{bes|herhaal}}.',
+      'Sleep {{vrb|max levens}} (onderaan dezelfde categorie) in het witte rondje.',
+    ].join('\n'),
+    /* "Variabele" is hier een gloednieuw woord en de eerste keer dat ze zelf
+       iets moeten aanmaken. Plaatje erbij, en de knop knippert. */
+    voorbeeld: '{{geb|wanneer op groene vlag wordt geklikt}}\n    {{vrb|maak Levens}} = {{vrb|max levens}}   ← hier, voor de herhaal\n    {{bes|herhaal}} …',
+    wijsAan: { categorie: 'Variabelen', knop: true },
+    hint: '➕ Maak een variabele is een echte KNOP, geen blok — je sleept hem niet, je klikt erop. Er komt dan een venster waarin je een naam typt.\n\nNoem hem Levens en klik op OK. Daarna staan er nieuwe oranje blokken in de lade die er eerst niet waren: die heb jij net gemaakt.\n\n{{vrb|max levens}} is iets anders: dat blok houdt het SPEL bij, en staat onderaan dezelfde categorie. Dat sleep je in het witte rondje van je {{vrb|maak Levens}}-blok.',
     check: {
       structuur: (p) => alleCmdsVanProject(p).some((c) => c.t === 'zetVar'),
       structuurTekst: 'een {{vrb|maak Levens}}-blok onder je {{geb|🚩}}',
@@ -275,7 +318,11 @@ const STAPPEN = [
       'Zet {{vrb|mijn levens}} in het linkervakje en typ 30 in het rechtervakje.',
       'Zet in het als-blok: {{uit|zeg [help!]}}.',
     ].join('\n'),
-    hint: 'Lees je blokken hardop, dan hoor je of het klopt: "als mijn levens kleiner is dan 30, zeg dan help!". Het {{ope|<}}-blok staat in de groene {{ope|Operators}} en heeft twee lege vakjes. {{vrb|mijn levens}} vind je helemaal onderaan de oranje {{vrb|Variabelen}}, bij de blokken die het spel zelf bijhoudt.',
+    /* Zes losse stapjes zijn veel om te onthouden. Het plaatje laat de hele
+       stapel in een keer zien: wat hangt onder wat, en wat gaat in welk gaatje. */
+    voorbeeld: '{{geb|wanneer op groene vlag wordt geklikt}}\n    {{bes|herhaal}}\n        {{bes|als}} ( {{vrb|mijn levens}} {{ope|<}} 30 ) {{bes|dan}}   ← het groene <-blok, met twee vakjes\n            {{uit|zeg [help!]}}',
+    wijsAan: { categorie: 'Operators' },
+    hint: 'Lees je blokken hardop, dan hoor je of het klopt: "als mijn levens kleiner is dan 30, zeg dan help!".\n\nHet {{ope|<}}-blok staat in de groene {{ope|Operators}}. Het heeft twee lege vakjes en past precies in het zeshoekige gaatje van je {{bes|als}}-blok. Sleep eerst het groene blok in dat gaatje, en vul het daarna pas.\n\n{{vrb|mijn levens}} vind je helemaal onderaan de oranje {{vrb|Variabelen}}, bij de blokken die het spel zelf bijhoudt. Dat is iets anders dan je eigen teller {{vrb|Levens}} van stap 7.',
     check: {
       structuur: (p) => alleCmdsVanProject(p).some((c) => c.t === 'als' && c.c && c.c.e === 'vergelijk'
         && JSON.stringify(c.c).includes('levens') && alleCmds(c.dan).length > 0),
@@ -366,7 +413,7 @@ const STAPPEN = [
     nr: 14,
     titel: 'Ik moet elke keer zelf kiezen',
     concept: 'Beslisboom',
-    probleem: 'Elke keer als je een level omhoog gaat, verschijnt er een keuzevenster: waar steek je je statpunt in? Middenin een gevecht heb je daar geen tijd voor, en dan kies je maar wat.',
+    probleem: 'Vanaf nu staan er linksonder acht balkjes in beeld: je statpunten. Elke keer als je een level omhoog gaat, mag je er eentje uitdelen. Middenin een gevecht heb je daar geen tijd voor, en dan klik je maar wat.',
     ontdekking: 'Je kan je keuze op voorhand opschrijven als een regel: "heb ik nog weinig kogelschade? Dan daarin. Zo niet, dan snelheid." De computer volgt die regel voortaan zelf.',
     doel: [
       'Sleep {{geb|wanneer ik een statpunt krijg}} op een lege plek.',

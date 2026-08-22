@@ -75,6 +75,13 @@
     #rechts { width: 40%; min-width: 340px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
     #code-kop { padding: 9px 13px; background: #232736; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     #code-weergave { flex: 1; background: #f9f9f9; overflow: auto; }
+    #blok-paneel { flex: 1; position: relative; background: #f9f9f9; min-height: 0; }
+    #blocklyDiv { position: absolute; inset: 0; }
+    #blok-leeg { position: absolute; inset: 0; background: #f9f9f9; }
+    #blok-paneel.bezig #blok-leeg { display: none; }
+    /* de stukjes van de leerlingeditor die editor.js verwacht maar die wij
+       hier niet tonen */
+    #stubs { display: none; }
     #code-weergave pre { padding: 14px; font-size: 1rem; line-height: 1.5; color: #2d3436; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; }
 
     /* tipvak: hiermee help je vanachter je eigen scherm */
@@ -136,8 +143,19 @@
     </div>
 
     <div id="rechts">
-      <div id="code-kop">🔍 Blokken van een leerling</div>
-      <div id="code-weergave"><div class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te lezen.</div></div>
+      <div id="code-kop">
+        <span id="code-titel">🔍 Blokken van een leerling</span>
+        <span class="rek" style="margin-left:auto"></span>
+        <button id="stuur-blokken" class="knop-primair" disabled title="Jouw versie naar deze leerling sturen">📤 stuur terug</button>
+        <button id="wissel-weergave" class="knop-hint" title="Blokken of platte tekst">📄</button>
+      </div>
+      <!-- Hier staat een échte blokkeneditor: dezelfde blokken die de leerling
+           ziet. Je kan er zelf in slepen en het resultaat terugsturen. -->
+      <div id="blok-paneel">
+        <div id="blocklyDiv"></div>
+        <div id="blok-leeg" class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te openen.</div>
+      </div>
+      <div id="code-weergave" style="display:none"><div class="leeg">—</div></div>
       <div id="tipvak">
         <div class="kop">💬 Tip sturen <span id="tip-doel">— naar de hele klas</span></div>
         <textarea id="tiptekst" placeholder="Typ een tip… (verschijnt op hun scherm tot ze hem wegklikken)"></textarea>
@@ -163,8 +181,22 @@
     </div>
   </div>
 
+  <!-- editor.js verwacht deze knopjes uit het leerlingscherm; hier staan ze
+       verstopt zodat we exact dezelfde blokkeneditor kunnen gebruiken -->
+  <div id="stubs">
+    <button id="modus-starter"></button><button id="modus-expert"></button>
+    <button id="knop-opruimen"></button><button id="knop-inklappen"><span id="label-inklappen"></span></button>
+    <div id="blok-uitleg"></div>
+    <div id="var-overlay"><input id="var-naam"></div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/stappen.js"></script>
+  <script src="js/klassen.js"></script>
+  <script src="/blockly/blockly_compressed.js"></script>
+  <script src="/blockly/blocks_compressed.js"></script>
+  <script src="/blockly/msg/nl.js"></script>
+  <script src="js/editor.js"></script>
   <script>
     const socket = io();
     // bij elke (her)verbinding opnieuw aanmelden, anders werkt het dashboard
@@ -379,11 +411,80 @@
       document.getElementById('spreiding').innerHTML = html;
     }
 
-    /* Blokken van een leerling projecteren — als grote leesbare tekst. */
+    /* ---------------- de blokken van een leerling ----------------
+     * Rechts staat een échte blokkeneditor met dezelfde blokken als op het
+     * scherm van de leerling. Platte tekst zei te weinig: je zag niet wat er
+     * ín een herhaal-blok hing en je kon er niets aan doen. Nu sleep je zelf
+     * een blok op zijn plek en stuur je het resultaat terug.
+     */
+    let getoondeLeerling = null;
+    let zelfAangepast = false;     // niet overschrijven terwijl jij bezig bent
+    const blokPaneel = document.getElementById('blok-paneel');
+
+    // alle blokken in de lade, niet alleen die van stap 1
+    setTimeout(() => { try { window.zetLesStap(17, true); } catch { } }, 300);
+    /*
+     * Zodra jij het werkblad aanraakt, stoppen we met live bijwerken — anders
+     * schuift de volgende update van de leerling jouw sleepwerk zo weer weg.
+     * We kijken naar de muis op het paneel zelf en niet naar Blockly-events:
+     * die kwamen bij programmatisch verwijderen niet altijd door, en dit werkt
+     * voor elke manier van aanpassen.
+     */
+    document.getElementById('blok-paneel').addEventListener('mousedown', () => {
+      if (!getoondeLeerling || bezigMetLaden) return;
+      zelfAangepast = true;
+      zetTitel();
+    });
+
+    let bezigMetLaden = false;
+    function zetTitel() {
+      const live = getoondeLeerling && gevolgd.has(getoondeLeerling.id) && !zelfAangepast ? ' · live' : '';
+      const bewerkt = zelfAangepast ? ' · jouw aanpassing' : '';
+      document.getElementById('code-titel').textContent = getoondeLeerling
+        ? `🔍 Blokken van ${getoondeLeerling.naam}${live}${bewerkt}` : '🔍 Blokken van een leerling';
+    }
+
     socket.on('leerlingCode', (d) => {
-      const live = gevolgd.has(d.id) ? ' · live' : '';
-      document.getElementById('code-kop').textContent = `🔍 Blokken van ${d.naam}${live}`;
+      const anders = !getoondeLeerling || getoondeLeerling.id !== d.id;
+      if (anders) zelfAangepast = false;
+      getoondeLeerling = { id: d.id, naam: d.naam };
+      // vanaf nu kan je terugsturen: je hoeft niet per se iets aangepast te hebben
+      document.getElementById('stuur-blokken').disabled = false;
       document.getElementById('code-weergave').innerHTML = `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
+      // jouw eigen sleepwerk niet overschrijven met de volgende live-update
+      if (d.werkruimte && window.blocklyWerkruimte && (anders || !zelfAangepast)) {
+        bezigMetLaden = true;
+        try {
+          Blockly.serialization.workspaces.load(d.werkruimte, window.blocklyWerkruimte);
+          Blockly.renderManagement.triggerQueuedRenders();
+          blokPaneel.classList.add('bezig');
+        } catch { /* kapot werkblad: dan blijft de tekst staan */ }
+        setTimeout(() => { bezigMetLaden = false; }, 80);
+      }
+      zetTitel();
+    });
+
+    /* Jouw versie terugsturen naar de leerling. */
+    document.getElementById('stuur-blokken').addEventListener('click', () => {
+      if (!getoondeLeerling || !window.blocklyWerkruimte) return;
+      const werkruimte = Blockly.serialization.workspaces.save(window.blocklyWerkruimte);
+      socket.emit('lesCommando', { type: 'zetWerkruimte', id: getoondeLeerling.id, werkruimte });
+      zelfAangepast = false;
+      const k = document.getElementById('stuur-blokken');
+      k.textContent = '✓ verstuurd';
+      k.disabled = true;
+      setTimeout(() => { k.textContent = '📤 stuur terug'; k.disabled = !getoondeLeerling; }, 1600);
+      zetTitel();
+    });
+
+    /* Blokken of platte tekst — tekst leest soms prettiger op een beamer. */
+    document.getElementById('wissel-weergave').addEventListener('click', () => {
+      const tekst = document.getElementById('code-weergave');
+      const alsTekst = tekst.style.display === 'none';
+      tekst.style.display = alsTekst ? '' : 'none';
+      blokPaneel.style.display = alsTekst ? 'none' : '';
+      document.getElementById('wissel-weergave').textContent = alsTekst ? '🧱' : '📄';
+      if (!alsTekst) setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     });
 
     /* ---------------- klasrapport ---------------- */
