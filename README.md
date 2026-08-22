@@ -8,7 +8,7 @@ Een diep.io-geïnspireerd workshopspel voor leerlingen van 8–13 jaar. Leerling
 2. Dubbelklik **start.bat** (installeert de eerste keer automatisch de pakketten).
 3. De console toont het adres voor de leerlingen, bv. `http://192.168.68.102:3000`.
 4. Beamer: `http://localhost:3000/beamer` — hele arena, scorebord, speeladres én de teamknoppen (uit/2/4) voor les 2.
-5. **Lesgeversdashboard: `http://localhost:3000/lesgever`** — klasoverzicht (wie is klaar, wie zit vast), de klas centraal een stap vooruit zetten, ⏸ alle speelvelden bevriezen, en de code van een leerling groot projecteren.
+5. **Lesgeversdashboard: `http://localhost:3000/lesgever`** — klasoverzicht (wie is klaar, wie zit vast, welk vinkje nog ontbreekt), leerlingen die ✋ hun hand opsteken, tips sturen naar één leerling of de hele klas, iemand apart een stap vooruit of terug zetten, zijn werkblad opruimen, de klas centraal sturen, ⏸ alles bevriezen, teams instellen, de blokken van een leerling live volgen en 📋 een klasrapport achteraf. Het adres staat ook in het opstartvenster van de server en als knop op de beamer.
 
 Geen internet, geen accounts nodig: alles (ook Blockly) wordt lokaal geserveerd.
 

@@ -2100,6 +2100,7 @@ server.listen(PORT, () => {
   console.log('   Leerlingen spelen mee via:');
   for (const ip of lanIps()) console.log(`     http://${ip}:${PORT}`);
   console.log('');
+  console.log(`   Jouw dashboard:        http://localhost:${PORT}/lesgever`);
   console.log(`   Beamer (groot scherm): http://localhost:${PORT}/beamer`);
   console.log('');
 });
