@@ -304,17 +304,25 @@ const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
  * De maten schalen mee met de arena, zodat een base in de grotere gedeelde
  * arena niet ineens een postzegel is. https://diepio.fandom.com/wiki/2_Teams
  */
+/*
+ * De veilige zones zijn smalle stroken aan de rand, zoals de bases in diep.io.
+ * Ze waren 20% van de breedte per team: bij twee teams was dus bijna de helft
+ * van het speelveld beschermd gebied waar niemand elkaar kon raken. Nu is het
+ * een strook van 6% — ruim genoeg om te spawnen, bij te komen en te farmen,
+ * maar het gevecht speelt zich af op het veld.
+ */
 function teamZones(room) {
   const a = room.arena;
   if (room.teamModus === 2) {
-    const breed = Math.round(a.w * 0.2);
+    const breed = Math.round(a.w * 0.06);
     return [
       { team: 0, x: 0, y: 0, w: breed, h: a.h },
       { team: 1, x: a.w - breed, y: 0, w: breed, h: a.h },
     ];
   }
   if (room.teamModus === 4) {
-    const z = Math.round(Math.min(a.w, a.h) * 0.3);
+    // vier hoekjes: even groot, en samen ongeveer een tiende van het veld
+    const z = Math.round(Math.min(a.w, a.h) * 0.16);
     return [
       { team: 0, x: 0, y: 0, w: z, h: z },
       { team: 1, x: a.w - z, y: 0, w: z, h: z },
