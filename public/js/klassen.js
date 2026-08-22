@@ -188,17 +188,21 @@
   };
 
   /*
-   * Hoe ver je van de arena ziet. Twee dingen maken je blik ruimer, net als
-   * in diep.io:
-   *   1. je klasse — de sluipschuttertak kijkt verder (Assassin 1,3x,
-   *      Ranger zelfs 1,6x). Dat hoort bij het lange kanon: je schiet ver,
-   *      dus je moet ook ver kunnen kijken.
-   *   2. je level — je tank groeit mee, dus de camera gaat langzaam een
-   *      stukje achteruit zodat het speelveld even groot blijft aanvoelen.
+   * Hoe ver je van de arena ziet (https://diepio.fandom.com/wiki/Stats).
+   * Twee dingen maken je blik ruimer, precies zoals in diep.io:
+   *
+   *   1. je LEVEL — elk level 1% meer zicht (1,01^level). Als beginner kijk je
+   *      dus maar een klein stukje rond je tank; op level 45 zie je ruim
+   *      anderhalf keer zoveel veld. Je tank groeit met exact dezelfde factor,
+   *      dus hij blijft even groot in beeld: je ziet niet je tank krimpen, je
+   *      ziet de wereld groeien. Dat is meteen de beloning van upgraden.
+   *   2. je KLASSE — de sluipschuttertak kijkt nog verder (Assassin 1,3x,
+   *      Ranger zelfs 1,6x). Dat hoort bij het lange kanon: je schiet ver, dus
+   *      je moet ook ver kunnen kijken.
    */
   function zichtVan(klasse, level) {
     const kl = KLASSEN[klasse] || KLASSEN.basis;
-    const perLevel = 1 + Math.max(0, (level || 1) - 1) * 0.0022;  // lvl 45 = 1,10x
+    const perLevel = Math.pow(1.01, Math.max(0, (level || 1) - 1));  // lvl 45 = 1,55x
     return (kl.zicht || 1) * perLevel;
   }
 

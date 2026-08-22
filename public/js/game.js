@@ -22,7 +22,7 @@ let tekenOffset = { x: 0, y: 0 };
  * eigen tank nog ruim groot genoeg blijft. In diep.io zie je nog véél meer,
  * maar dan worden de tanks op ons kleine podium onherkenbaar.
  */
-const ZOOM = 0.72;
+const ZOOM = 0.85;
 /*
  * Niet elke tank ziet even ver. In diep.io kijkt de sluipschuttertak verder
  * dan de rest — daarom kan een Assassin je van buiten je eigen beeld
@@ -702,10 +702,10 @@ setInterval(() => {
    * dan centreren we hem gewoon.
    */
   // het zichtbare stuk wereld is groter dan het canvas doordat we uitzoomen
-  /* Ondergrens: op een klein podium (11-inch chromebook, speelveld op "klein")
-     zou een Ranger zo ver uitzoomen dat je je eigen tank nauwelijks nog ziet.
-     Bij 0.42 is de romp nog altijd ruim 9 pixels groot. */
-  zoomDoel = ik ? Math.max(0.42, ZOOM / zichtVan(ik.klasse, ik.level)) : ZOOM;
+  /* Ondergrens: een Ranger op level 45 zoomt zo ver uit dat je op een klein
+     podium je eigen tank nauwelijks nog ziet. Bij 0.30 is de romp nog altijd
+     een pixel of tien groot. */
+  zoomDoel = ik ? Math.max(0.30, ZOOM / zichtVan(ik.klasse, ik.level)) : ZOOM;
   zoom += (zoomDoel - zoom) * 0.06;
   const zichtB = canvas.width / zoom, zichtH = canvas.height / zoom;
   /* De server stuurt alleen wat je kan zien, dus moet hij weten hoe groot je
@@ -1219,9 +1219,11 @@ setInterval(() => {
   try { programma = window.compileerProject ? compileerProject() : []; } catch { /* editor nog niet klaar */ }
 
   const structuurOk = !!s.check.structuur(programma);
+  laatsteChecks.structuur = structuurOk;
   // wat je al bewezen hebt, hoef je niet opnieuw te bewijzen: de waarnemer
   // begint bij elke stap op nul, maar een behaald vinkje blijft staan
   const gedragOk = gehaaldeStappen.has(s.nr) || !!s.check.gedrag(stapWaarnemer);
+  laatsteChecks.gedrag = gedragOk;
   elStap.structuur.innerHTML = `${structuurOk ? '✓' : '○'} ${blokHtml(s.check.structuurTekst)}`;
   elStap.structuur.classList.toggle('gelukt', structuurOk);
   elStap.gedrag.innerHTML = `${gedragOk ? '✓' : '○'} ${blokHtml(s.check.gedragTekst)}`;
@@ -1284,12 +1286,31 @@ socket.on('lesStuur', (d) => {
   if (!d) return;
   if (d.type === 'stap') {
     const i = stappen().findIndex((s) => s.nr === d.stap);
-    if (i >= 0 && i !== stapIndex) { stapIndex = i; toonStap(); toast(`📘 De klas gaat naar stap ${d.stap}`); }
+    if (i >= 0 && i !== stapIndex) {
+      stapIndex = i; toonStap();
+      toast(d.alleenJij ? `📘 De lesgever zet jou op stap ${d.stap}` : `📘 De klas gaat naar stap ${d.stap}`);
+    }
   } else if (d.type === 'bevries') {
     document.getElementById('bevroren-melding').classList.toggle('verborgen', !d.aan);
     document.body.classList.toggle('gepauzeerd', !!d.aan);
     window.runtime.bevroren = !!d.aan;   // ook de pijltjes doen even niets meer
     if (d.aan) window.runtimeStop();
+  } else if (d.type === 'bericht') {
+    /* Een tip van de lesgever, vanachter zijn eigen scherm. Blijft staan tot
+       de leerling hem wegklikt — een toast die na drie seconden verdwijnt
+       leest een kind van tien nooit op tijd. */
+    toonLesgeverBericht(d.tekst, d.aan === 'klas');
+  } else if (d.type === 'opruimen') {
+    try {
+      blocklyWerkruimte.cleanUp();
+      Blockly.renderManagement.triggerQueuedRenders();
+      toast('🧹 De lesgever heeft je blokken netjes onder elkaar gezet.');
+    } catch { /* editor nog niet klaar */ }
+  } else if (d.type === 'hulpKlaar') {
+    zetHulpVraag(false);
+    toast('✋ Je hulpvraag is afgevinkt.');
+  } else if (d.type === 'naarArena') {
+    if (modus !== 'samen') { startLes2(d.teams || 0); toast('🎮 De lesgever brengt iedereen naar de arena!'); }
   } else if (d.type === 'stuurCode') {
     let tekst = '(nog geen blokken)';
     try { tekst = programmaAlsTekst(compileerProject()); } catch { /* editor nog niet klaar */ }
@@ -1325,6 +1346,41 @@ function vingerafdrukVanWerkblad() {
   } catch { return ''; }
 }
 
+/* ---------------- hulp vragen aan de lesgever ----------------
+ * Een kind dat vastzit steekt zijn hand op. Die "hand" is deze knop: hij zet
+ * de leerling boven aan de lijst van de lesgever, met een belletje erbij. Zo
+ * hoeft niemand te roepen of stil af te wachten tot er iemand langskomt.
+ */
+let hulpGevraagd = false;
+function zetHulpVraag(aan) {
+  hulpGevraagd = !!aan;
+  const k = document.getElementById('hulp-knop');
+  if (k) {
+    k.classList.toggle('aan', hulpGevraagd);
+    k.textContent = hulpGevraagd ? '✋ hulp gevraagd' : '✋ Hulp';
+    k.title = hulpGevraagd ? 'Klik nog eens als je toch verder kan' : 'Roep de lesgever erbij';
+  }
+  socket.emit('hulpVraag', hulpGevraagd);
+}
+document.getElementById('hulp-knop').addEventListener('click', () => {
+  zetHulpVraag(!hulpGevraagd);
+  toast(hulpGevraagd ? '✋ De lesgever ziet je vraag staan — werk gerust verder!' : 'Hulpvraag ingetrokken.');
+});
+
+/* Een bericht van de lesgever: blijft staan tot je het wegklikt. */
+function toonLesgeverBericht(tekst, naarDeKlas) {
+  const vak = document.getElementById('lesgever-bericht');
+  vak.querySelector('.lb-kop').textContent = naarDeKlas ? '👩‍🏫 Bericht aan de klas' : '👩‍🏫 Bericht voor jou';
+  vak.querySelector('.lb-tekst').textContent = tekst;
+  vak.classList.remove('verborgen');
+  speelGeluid('tada');
+}
+document.getElementById('lb-sluit').addEventListener('click', () => {
+  document.getElementById('lesgever-bericht').classList.add('verborgen');
+});
+
+const laatsteChecks = { structuur: false, gedrag: false };
+
 function meldStatusAanLesgever(status) {
   if (!lesGestart) return;
   let blokken = 0;
@@ -1337,6 +1393,11 @@ function meldStatusAanLesgever(status) {
     status,
     blokken,
     stilMs: Date.now() - laatsteWijziging,
+    /* Welke vinkjes staan al groen, en welke projectcode heeft hij? Daarmee
+       ziet de lesgever waar het misloopt zonder eerst te moeten vragen. */
+    checkS: laatsteChecks.structuur,
+    checkG: laatsteChecks.gedrag,
+    code: projectCode || '',
   });
 }
 setInterval(() => meldStatusAanLesgever(stapKlaar ? 'klaar' : 'bezig'), 4000);

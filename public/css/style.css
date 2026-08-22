@@ -726,6 +726,47 @@ body.speelmodus #podium { flex: 1 1 auto; }
 #startmenu button.uitgeschakeld { background: #47506b; color: #aeb6cc; }
 #startmenu button.uitgeschakeld small { font-weight: 400; }
 
+/* ---------- hulp vragen + bericht van de lesgever ---------- */
+/* Zelfde vorm en maat als de andere knoppen in de balk; hij mag pas opvallen
+   als je hem écht ingedrukt hebt. Daarvoor sprong hij er als los geel blokje
+   tussenuit. */
+#hulp-knop {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  font-size: .95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#hulp-knop:hover { background: rgba(255,255,255,.32); }
+#hulp-knop.aan { background: #ffd54f; color: #5b4400; font-weight: 700; animation: pulse 1.4s infinite; }
+
+/* Het bericht valt middenin het speelveld: dat is met opzet. Een tip van de
+   lesgever mag je niet missen omdat je net naar je blokken keek. */
+#lesgever-bericht {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  width: min(420px, 86%);
+  background: #fffdf5;
+  color: #2d3436;
+  border: 3px solid #ffd54f;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 34px rgba(0,0,0,.45);
+  z-index: 40;
+  text-align: center;
+}
+#lesgever-bericht .lb-kop { font-weight: 700; color: #7a5c00; margin-bottom: 6px; }
+#lesgever-bericht .lb-tekst { font-size: 1.05rem; line-height: 1.4; margin-bottom: 10px; }
+#lesgever-bericht button {
+  background: #ffd54f; color: #5b4400; border: none; border-radius: 8px;
+  padding: 7px 18px; font-weight: 700; cursor: pointer;
+}
+
 /* ---------- popups ---------- */
 .popup {
   position: absolute;

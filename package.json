@@ -5,7 +5,8 @@
   "main": "server.js",
   "engines": { "node": ">=18" },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "blockly": "^11.2.1",

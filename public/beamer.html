@@ -62,6 +62,10 @@
        in de statuspakketjes zit daarna alleen nog wat verandert. */
     let vormSoorten = {};
     socket.on('vormSoorten', (d) => { vormSoorten = d || {}; });
+    /* De server stuurt de vormen maar een paar keer per seconde mee (het zijn
+       er duizenden en ze staan toch bijna stil). Komt er niets, dan houden we
+       gewoon de vorige. */
+    let vormenCache = [];
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let staat = null;
@@ -115,7 +119,8 @@
       drawArena(ctx, arena, 1 / s);
       drawZones(ctx, staat.zones);
 
-      for (const v of staat.vormen || []) {
+      if (staat.vormen) vormenCache = staat.vormen;
+      for (const v of vormenCache) {
         const info = vormSoorten[v.type];
         if (info) {
           v.r = info.r; v.kleur = info.kleur; v.maxHp = info.maxHp; v.jaagt = info.jaagt;

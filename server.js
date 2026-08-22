@@ -66,7 +66,14 @@ const ARENA = { w: 3200, h: 2000 };            // solo
  * het speelveld — en juist dáár, in het nest, liggen de vijfhoeken die het
  * meeste opleveren. Nu moet je er echt naartoe rijden, langs de crashers.
  */
-const GEDEELDE_ARENA = { w: 11000, h: 5200 };   // samen spelen (2 of 4 teams)
+/*
+ * De gedeelde arena is vier keer zo groot als daarvoor (11000x5200). Met twaalf
+ * tanks in een kleiner veld liep je binnen tien seconden weer tegen dezelfde
+ * tegenstander aan en was er nergens rust om te groeien. Het aantal vormen
+ * schaalt mee met de oppervlakte, dus er valt ook vier keer zoveel te schieten.
+ * Elkaar terugvinden doe je met de minikaart.
+ */
+const GEDEELDE_ARENA = { w: 22000, h: 10400 };   // samen spelen (2 of 4 teams)
 const TANK_RADIUS = 22;
 const TANKS_IN_ARENA = 12;  // samen spelen: altijd 12 tanks in het veld (6 per team)
 const RECOIL_KRACHT = 26;   // hoe hard één 'recoil-eenheid' van de wiki duwt
@@ -380,7 +387,12 @@ function vulVormenAan(room) {
    * beeld). https://diepwiki.io/#/shapes/
    */
   const opp = room.arena.w * room.arena.h;
-  const per = (px2, min) => Math.max(min || 1, Math.round(opp / px2));
+  /* In je eigen oefenarena (les 1) leggen we het dubbel zo dicht. Daar kijk je
+     door een klein venster naast je blokken, en moet er altijd iets binnen
+     handbereik staan om op te schieten — anders staat een leerling te wachten
+     tot er toevallig een vierkant voorbijkomt. */
+  const dicht = room.solo ? 0.5 : 1;
+  const per = (px2, min) => Math.max(min || 1, Math.round(opp / (px2 * dicht)));
   const quota = {
     vierkant: per(90000),          // het voer van elke beginner
     driehoek: per(260000),         // vlot te vinden, meer punten
@@ -1107,16 +1119,43 @@ io.on('connection', (socket) => {
   /* ---------------- de les: klasoverzicht voor de lesgever ---------------- */
   socket.on('lesStatus', (d) => {
     if (!d) return;
+    const oud = klas.get(socket.id) || {};
+    const stap = klem(d.stap, 1, 20);
+    const t = vindTank(socket);
     klas.set(socket.id, {
       naam: saneNaam(d.naam),
-      stap: klem(d.stap, 1, 20),
+      stap,
       status: ['bezig', 'klaar', 'vast'].includes(d.status) ? d.status : 'bezig',
       // hoeveel blokken staan er, en hoe lang is er al niets veranderd?
       blokken: klem(Number(d.blokken) || 0, 0, 999),
       stilMs: klem(Number(d.stilMs) || 0, 0, 99 * 60000),
-      sinds: (klas.get(socket.id) || {}).stap === d.stap ? (klas.get(socket.id) || {}).sinds || Date.now() : Date.now(),
+      /* Welke van de twee vinkjes staat al groen? Daarmee zie je als lesgever
+         meteen of het aan de blokken ligt (structuur) of aan het uitproberen
+         (gedrag) — je weet wat je moet zeggen nog voor je bij de tafel bent. */
+      checkS: !!d.checkS,
+      checkG: !!d.checkG,
+      code: String(d.code || '').slice(0, 12),
+      // hoe staat hij ervoor in het spel zelf?
+      lvl: t ? t.level : 0,
+      punten: t ? t.score : 0,
+      hp: t ? Math.round((t.hp / t.maxHp) * 100) : 0,
+      klasse: t ? t.klasse : null,
+      speelt: !!t,
+      hulp: !!oud.hulp,
+      hulpSinds: oud.hulpSinds || 0,
+      sinds: oud.stap === stap ? oud.sinds || Date.now() : Date.now(),
       bijgewerkt: Date.now(),
     });
+    // voor het klasrapport achteraf: hoe ver kwam iedereen, en wanneer?
+    noteerVoortgang(socket.id, saneNaam(d.naam), stap);
+  });
+
+  /* De leerling steekt zijn hand op (of doet hem weer omlaag). */
+  socket.on('hulpVraag', (aan) => {
+    const l = klas.get(socket.id);
+    if (!l) return;
+    l.hulp = !!aan;
+    l.hulpSinds = aan ? Date.now() : 0;
   });
 
   /* De lesgever kijkt mee en stuurt de klas. */
@@ -1137,6 +1176,30 @@ io.on('connection', (socket) => {
     } else if (d.type === 'volg') {
       // live meekijken: zolang dit aanstaat vragen we de blokken elke 2 sec op
       if (d.aan) gevolgd.add(d.id); else gevolgd.delete(d.id);
+    } else if (d.type === 'bericht') {
+      /* Een tip sturen vanachter je eigen scherm: naar één leerling of naar de
+         hele klas. Precies waarvoor de lesgever anders door het lokaal moet. */
+      const tekst = String(d.tekst || '').slice(0, 300);
+      if (!tekst) return;
+      const pakket = { type: 'bericht', tekst, aan: d.id ? 'jou' : 'klas' };
+      if (d.id) io.to(d.id).emit('lesStuur', pakket);
+      else io.emit('lesStuur', pakket);
+    } else if (d.type === 'stapVoor' && Number.isFinite(d.stap) && d.id) {
+      // één leerling verzetten zonder de rest mee te sleuren
+      io.to(d.id).emit('lesStuur', { type: 'stap', stap: klem(d.stap, 1, 20), alleenJij: true });
+    } else if (d.type === 'opruimen' && d.id) {
+      io.to(d.id).emit('lesStuur', { type: 'opruimen' });
+    } else if (d.type === 'hulpKlaar' && d.id) {
+      const l = klas.get(d.id);
+      if (l) { l.hulp = false; l.hulpSinds = 0; }
+      io.to(d.id).emit('lesStuur', { type: 'hulpKlaar' });
+    } else if (d.type === 'teams' && [0, 2, 4].includes(Number(d.n))) {
+      if (!rooms.has('arena')) maakRoom('arena', false);
+      zetTeamModus(rooms.get('arena'), Number(d.n));
+    } else if (d.type === 'naarArena') {
+      io.emit('lesStuur', { type: 'naarArena', teams: [0, 2, 4].includes(Number(d.teams)) ? Number(d.teams) : 0 });
+    } else if (d.type === 'rapport') {
+      socket.emit('klasrapport', maakRapport());
     }
   });
 
@@ -1153,6 +1216,36 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => { klas.delete(socket.id); beamers.delete(socket.id); verlaatRoom(socket); });
 });
 
+/*
+ * "Waarom zie ik mijn wijziging niet?" — omdat node de code alleen bij het
+ * STARTEN inleest. Pas je iets aan (of haal je een nieuwe versie op) terwijl
+ * de server draait, dan speelt de klas verder met de oude regels: oude
+ * aantallen vormen, oude snelheden, oude tanks. De browser verversen helpt
+ * niet, want dat is de andere helft.
+ *
+ * Daarom kijkt de server zelf of zijn eigen bestanden nieuwer zijn dan het
+ * moment waarop hij begon. Zo ja, dan zegt het lesgeversscherm en de beamer
+ * het gewoon: herstarten.
+ */
+const GESTART_OM = Date.now();
+const BRONBESTANDEN = [
+  path.join(__dirname, 'server.js'),
+  path.join(__dirname, 'public', 'js'),
+  path.join(__dirname, 'public', 'index.html'),
+];
+function codeGewijzigdNaStart() {
+  let nieuwste = 0;
+  const kijk = (pad) => {
+    try {
+      const st = fs.statSync(pad);
+      if (st.isDirectory()) { for (const f of fs.readdirSync(pad)) kijk(path.join(pad, f)); return; }
+      nieuwste = Math.max(nieuwste, st.mtimeMs);
+    } catch { /* bestand bestaat niet meer */ }
+  };
+  BRONBESTANDEN.forEach(kijk);
+  return nieuwste > GESTART_OM + 1000 ? Math.round((nieuwste - GESTART_OM) / 60000) : 0;
+}
+
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
 const klas = new Map();
 /* Leerlingen waarvan de lesgever live meekijkt met de blokken. */
@@ -1165,14 +1258,68 @@ setInterval(() => {
 }, 2000);
 let bevroren = false;
 
+/*
+ * Het klasrapport: hoe ver kwam elke leerling, en hoe lang deed de klas over
+ * elke stap? We houden per leerling de hoogste stap bij en wanneer hij die
+ * bereikte. Zo kan je na de les zien waar het spaak liep — en waar je de
+ * volgende keer meer tijd voor uittrekt.
+ */
+const rapport = new Map();   // naam -> { naam, maxStap, begonnen, stapTijden }
+
+function noteerVoortgang(id, naam, stap) {
+  let r = rapport.get(naam);
+  if (!r) { r = { naam, maxStap: stap, begonnen: Date.now(), stapTijden: {}, laatst: Date.now() }; rapport.set(naam, r); }
+  r.laatst = Date.now();
+  if (stap > r.maxStap) r.maxStap = stap;
+  if (!r.stapTijden[stap]) r.stapTijden[stap] = Date.now();
+}
+
+function maakRapport() {
+  const nu = Date.now();
+  const leerlingen = [...rapport.values()].map((r) => {
+    const stappen = Object.keys(r.stapTijden).map(Number).sort((a, b) => a - b);
+    const duur = {};
+    stappen.forEach((nr, i) => {
+      const eind = i + 1 < stappen.length ? r.stapTijden[stappen[i + 1]] : r.laatst;
+      duur[nr] = Math.max(0, Math.round((eind - r.stapTijden[nr]) / 1000));
+    });
+    return { naam: r.naam, maxStap: r.maxStap, minuten: Math.round((r.laatst - r.begonnen) / 60000), duur };
+  }).sort((a, b) => b.maxStap - a.maxStap || a.naam.localeCompare(b.naam));
+  // gemiddelde tijd per stap over de hele klas
+  const perStap = {};
+  for (const l of leerlingen) {
+    for (const [nr, sec] of Object.entries(l.duur)) {
+      (perStap[nr] || (perStap[nr] = [])).push(sec);
+    }
+  }
+  const gemiddeld = Object.fromEntries(Object.entries(perStap).map(([nr, lijst]) => [
+    nr, Math.round(lijst.reduce((a, b) => a + b, 0) / lijst.length),
+  ]));
+  return { gemaakt: nu, leerlingen, gemiddeld };
+}
+
 /* Klasoverzicht naar de lesgever(s) sturen. */
 setInterval(() => {
   const nu = Date.now();
   const lijst = [...klas.entries()]
     .filter(([, l]) => nu - l.bijgewerkt < 15000)
-    .map(([id, l]) => ({ id, naam: l.naam, stap: l.stap, status: l.status, blokken: l.blokken || 0, stilMs: l.stilMs || 0, minuten: Math.floor((nu - l.sinds) / 60000) }))
+    .map(([id, l]) => ({
+      id, naam: l.naam, stap: l.stap, status: l.status,
+      blokken: l.blokken || 0, stilMs: l.stilMs || 0,
+      minuten: Math.floor((nu - l.sinds) / 60000),
+      checkS: !!l.checkS, checkG: !!l.checkG, code: l.code || '',
+      lvl: l.lvl || 0, punten: l.punten || 0, hp: l.hp || 0, klasse: l.klasse, speelt: !!l.speelt,
+      hulp: !!l.hulp, hulpMin: l.hulp && l.hulpSinds ? Math.floor((nu - l.hulpSinds) / 60000) : 0,
+    }))
     .sort((a, b) => a.naam.localeCompare(b.naam));
-  io.to('lesgevers').emit('klasoverzicht', { leerlingen: lijst, bevroren });
+  const arena = rooms.get('arena');
+  io.to('lesgevers').emit('klasoverzicht', {
+    leerlingen: lijst,
+    bevroren,
+    teamModus: arena ? arena.teamModus : 0,
+    inArena: arena ? [...arena.tanks.values()].filter((t) => !t.ai).length : 0,
+    verouderd: codeGewijzigdNaStart(),   // code aangepast sinds het starten?
+  });
 }, 1500);
 
 function vindTank(socket) {
@@ -1819,8 +1966,10 @@ const beamers = new Set();
  */
 const ZICHT_RAND = 300;   // extra wereld buiten je scherm
 
+let tikTeller = 0;
 setInterval(() => {
   const nu = Date.now();
+  tikTeller++;
   for (const room of rooms.values()) {
     const gedeeld = {
       arena: room.arena,
@@ -1848,41 +1997,74 @@ setInterval(() => {
         xpVolgend: xpVoorLevel(t.level + 1),
         xpDit: xpVoorLevel(t.level),
       })),
-      bullets: room.bullets.map((b) => ({
-        id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel',
-        x: Math.round(b.x), y: Math.round(b.y), kleur: b.kleur, r: b.r,
-        hoek: b.hoek ? Math.round(b.hoek * 100) / 100 : 0,
-        tl: b.dood === Infinity ? 9999 : Math.max(0, b.dood - nu),
-      })),
-      /* Alleen wat verandert: plaats, draaiing, en levens/flits als de vorm
-         geraakt is. Kleur, grootte en max levens kent de browser al uit
-         VORM_INFO (meegestuurd bij het welkom). */
-      vormen: room.vormen.map((v) => {
-        const o = {
-          id: v.id, type: v.type, x: Math.round(v.x), y: Math.round(v.y),
-          hoek: Math.round(v.hoek * 100) / 100,
-        };
-        if (v.hp < v.maxHp) o.hp = Math.round(v.hp);
-        if (nu < (v.hitUntil || 0)) o.hit = true;
-        return o;
-      }),
+      bullets: null,   // per speler ingevuld: enkel wat hij kan zien
+      vormen: null,
     };
 
-    // de beamer kijkt over de hele arena mee
+    /*
+     * Vroeger maakten we van ALLE vormen een pakketje en filterden we dat per
+     * speler. In een arena van 229 miljoen pixels zijn dat bijna vierduizend
+     * objecten, twintig keer per seconde — puur weggegooid werk, want elke
+     * speler ziet er maar een vijftigtal. Nu filteren we eerst op wat je kan
+     * zien en maken we pas daarna het pakketje.
+     */
+    const pakVorm = (v) => {
+      const o = {
+        id: v.id, type: v.type, x: Math.round(v.x), y: Math.round(v.y),
+        hoek: Math.round(v.hoek * 100) / 100,
+      };
+      if (v.hp < v.maxHp) o.hp = Math.round(v.hp);
+      if (nu < (v.hitUntil || 0)) o.hit = true;
+      return o;
+    };
+    const pakKogel = (b) => ({
+      id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel',
+      x: Math.round(b.x), y: Math.round(b.y), kleur: b.kleur, r: b.r,
+      hoek: b.hoek ? Math.round(b.hoek * 100) / 100 : 0,
+      tl: b.dood === Infinity ? 9999 : Math.max(0, b.dood - nu),
+    });
+
+    /*
+     * De beamer toont de hele arena op één scherm: daar is een vierkantje nog
+     * geen twee pixels groot. Alles opsturen kostte 238 KB per pakketje —
+     * bijna vijf megabyte per seconde voor een handvol stipjes. Hij krijgt nu
+     * een greep uit de vormen (hooguit 600), en die maar vier keer per
+     * seconde. De tanks komen wél elke keer mee: die moet je vlot zien lopen.
+     */
+    let beamerPakket = null;
     for (const id of beamers) {
-      if (room.tanks.has(id) || room.id === 'arena') io.to(id).emit('state', gedeeld);
+      if (!room.tanks.has(id) && room.id !== 'arena') continue;
+      if (!beamerPakket) {
+        const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
+        const vormen = [];
+        if (tikTeller % 5 === 0) {
+          for (let i = 0; i < room.vormen.length; i += stap) vormen.push(pakVorm(room.vormen[i]));
+        }
+        beamerPakket = Object.assign({}, gedeeld, {
+          vormen: tikTeller % 5 === 0 ? vormen : null,   // null = houd wat je had
+          bullets: room.bullets.map(pakKogel),
+        });
+      }
+      io.to(id).emit('state', beamerPakket);
     }
 
     for (const t of room.tanks.values()) {
       if (t.ai) continue;
       const kijk = t.kijk || { w: 2600, h: 1600 };
       const hw = kijk.w / 2 + ZICHT_RAND, hh = kijk.h / 2 + ZICHT_RAND;
-      const inBeeld = (o) => Math.abs(o.x - t.x) <= hw + (o.r || 0)
-                          && Math.abs(o.y - t.y) <= hh + (o.r || 0);
-      io.to(t.id).emit('state', Object.assign({}, gedeeld, {
-        vormen: gedeeld.vormen.filter(inBeeld),
-        bullets: gedeeld.bullets.filter(inBeeld),
-      }));
+      const vormen = [];
+      for (const v of room.vormen) {
+        const dx = v.x - t.x, dy = v.y - t.y;
+        if (dx > hw || dx < -hw || dy > hh || dy < -hh) continue;
+        vormen.push(pakVorm(v));
+      }
+      const bullets = [];
+      for (const b of room.bullets) {
+        const dx = b.x - t.x, dy = b.y - t.y;
+        if (dx > hw || dx < -hw || dy > hh || dy < -hh) continue;
+        bullets.push(pakKogel(b));
+      }
+      io.to(t.id).emit('state', Object.assign({}, gedeeld, { vormen, bullets }));
     }
   }
 }, 1000 / 20);

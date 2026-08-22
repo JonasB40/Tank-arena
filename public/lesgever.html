@@ -7,65 +7,161 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1d27; color: #eef0f6; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-    header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: #855cd6; }
-    header h1 { font-size: 1.15rem; }
+    button { border: none; border-radius: 8px; padding: 7px 13px; font-size: .9rem; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: .4; cursor: default; }
+
+    /* ---------- bovenbalk ---------- */
+    header { display: flex; align-items: center; gap: 12px; padding: 9px 16px; background: #855cd6; flex-wrap: wrap; }
+    header h1 { font-size: 1.1rem; }
     header .rek { margin-left: auto; }
-    button { border: none; border-radius: 8px; padding: 8px 14px; font-size: .92rem; cursor: pointer; font-weight: 600; }
+    #joinurl { background: rgba(0,0,0,.22); padding: 4px 10px; border-radius: 7px; font-size: .88rem; }
     .knop-bevries { background: #ffd54f; color: #5b4400; }
-    .bouw { font-size: .82rem; color: #9aa3bb; min-width: 150px; }
-    .bouw.alarm { color: #ffd54f; font-weight: 700; }
-    .knop-volg.aan { background: #2ecc71; color: #06321a; }
     .knop-bevries.aan { background: #e74c3c; color: #fff; }
-    #stapbalk { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: #232736; border-bottom: 2px solid #343a52; }
-    #stapbalk b { font-size: 1.05rem; }
+    .knop-licht { background: rgba(255,255,255,.18); color: #fff; }
+    /* De server leest zijn code alleen bij het starten: als er intussen iets
+       veranderde, zegt hij dat hier. Anders zoek je je blauw naar een
+       verbetering die wel in het bestand staat maar niet in het spel. */
+    #verouderd { background: #e74c3c; color: #fff; padding: 4px 10px; border-radius: 7px; font-size: .85rem; font-weight: 700; }
+
+    /* ---------- stuurbalk ---------- */
+    #stuurbalk { display: flex; align-items: center; gap: 10px; padding: 9px 16px; background: #232736; border-bottom: 2px solid #343a52; flex-wrap: wrap; }
+    #stuurbalk b { font-size: 1rem; }
     .knop-stap { background: #4fc3f7; color: #06283d; }
+    .scheiding { width: 1px; height: 26px; background: #3d4560; }
+    .kop { font-size: .78rem; color: #9aa3bd; text-transform: uppercase; letter-spacing: .04em; }
+    .team-knop { background: #47506b; color: #eef0f6; font-size: .82rem; padding: 5px 10px; }
+    .team-knop.aan { background: #2ecc71; color: #06321a; }
+
+    /* spreidingsbalkje: waar zit de klas? */
+    #spreiding { display: flex; gap: 2px; align-items: flex-end; height: 30px; margin-left: 6px; }
+    #spreiding .staaf { width: 13px; background: #3d4560; border-radius: 3px 3px 0 0; position: relative; }
+    #spreiding .staaf.hier { background: #4fc3f7; }
+    #spreiding .staaf span { position: absolute; top: -13px; left: 0; right: 0; text-align: center; font-size: .62rem; color: #9aa3bd; }
+
+    /* ---------- hulpwachtrij ---------- */
+    #hulpbalk { display: none; gap: 10px; align-items: center; padding: 9px 16px; background: #4a2b18; border-bottom: 2px solid #a5642a; flex-wrap: wrap; }
+    #hulpbalk.aan { display: flex; }
+    .hulp-chip { background: #ffd54f; color: #4a3200; border-radius: 20px; padding: 5px 8px 5px 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .hulp-chip button { background: #4a3200; color: #ffd54f; font-size: .75rem; padding: 3px 9px; }
+
+    /* ---------- hoofdvlak ---------- */
     main { flex: 1; display: flex; min-height: 0; }
-    #klas { flex: 1; overflow-y: auto; padding: 14px 18px; }
-    #klas h2 { font-size: .95rem; color: #9aa3bd; margin-bottom: 10px; }
-    .rij { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; background: #232736; margin-bottom: 6px; }
-    .rij .naam { font-weight: 700; min-width: 140px; }
-    .rij .stap { background: #343a52; border-radius: 6px; padding: 2px 9px; font-size: .82rem; }
-    .rij .status { font-size: .85rem; margin-left: auto; }
-    .rij.klaar { border-left: 5px solid #2ecc71; }
-    .rij.bezig { border-left: 5px solid #ffd54f; }
-    .rij.vast { border-left: 5px solid #e74c3c; background: #3a2430; }
-    .knop-toon { background: #47506b; color: #eef0f6; font-size: .8rem; padding: 5px 10px; }
-    #samenvatting { padding: 10px 18px; background: #232736; border-top: 2px solid #343a52; font-size: .92rem; }
-    #code-paneel { width: 40%; min-width: 320px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
-    #code-kop { padding: 10px 14px; background: #232736; font-weight: 700; }
+    #klas { flex: 1; overflow-y: auto; padding: 12px 16px; }
+    #rooster { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 9px; }
+
+    .kaart { background: #232736; border-radius: 11px; padding: 10px 11px; border-left: 5px solid #3d4560; }
+    .kaart.klaar { border-left-color: #2ecc71; }
+    .kaart.bezig { border-left-color: #ffd54f; }
+    .kaart.vast { border-left-color: #e74c3c; background: #3a2430; }
+    .kaart.hulp { border-left-color: #ffd54f; background: #4a3a18; box-shadow: 0 0 0 2px #ffd54f inset; }
+    .kaart .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .kaart .naam { font-weight: 700; font-size: 1rem; }
+    .kaart .stap { background: #343a52; border-radius: 6px; padding: 1px 8px; font-size: .78rem; margin-left: auto; }
+    .kaart .code { font-size: .72rem; color: #7d87a4; font-family: monospace; }
+
+    /* de twee vinkjes van de stap: hier zie je waar het misloopt */
+    .vinkjes { display: flex; gap: 6px; margin-bottom: 6px; }
+    .vink { font-size: .74rem; padding: 2px 7px; border-radius: 6px; background: #2c3247; color: #8b93ad; }
+    .vink.ok { background: #1d4230; color: #7ee2a8; }
+
+    .regel { font-size: .78rem; color: #9aa3bb; display: flex; gap: 10px; margin-bottom: 7px; }
+    .regel .alarm { color: #ffb74d; font-weight: 700; }
+    .knoppen { display: flex; gap: 5px; flex-wrap: wrap; }
+    .knoppen button { font-size: .76rem; padding: 4px 9px; background: #47506b; color: #eef0f6; }
+    .knoppen .knop-volg.aan { background: #2ecc71; color: #06321a; }
+    .knoppen .knop-tip { background: #ffd54f; color: #5b4400; }
+
+    /* ---------- rechterkolom ---------- */
+    #rechts { width: 40%; min-width: 340px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
+    #code-kop { padding: 9px 13px; background: #232736; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     #code-weergave { flex: 1; background: #f9f9f9; overflow: auto; }
-    #code-weergave pre { padding: 16px; font-size: 1.05rem; line-height: 1.55; color: #2d3436; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; }
-    .leeg { color: #6b7490; padding: 20px; font-style: italic; }
+    #code-weergave pre { padding: 14px; font-size: 1rem; line-height: 1.5; color: #2d3436; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* tipvak: hiermee help je vanachter je eigen scherm */
+    #tipvak { border-top: 2px solid #343a52; background: #232736; padding: 10px 13px; }
+    #tipvak .kop { margin-bottom: 6px; }
+    #tiptekst { width: 100%; height: 58px; resize: none; border-radius: 8px; border: 1px solid #3d4560; background: #1a1d27; color: #eef0f6; padding: 7px 9px; font-family: inherit; font-size: .9rem; }
+    #tipknoppen { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+    #tipknoppen button { font-size: .8rem; }
+    .knop-primair { background: #4fc3f7; color: #06283d; }
+    .knop-hint { background: #47506b; color: #eef0f6; }
+
+    #samenvatting { padding: 8px 16px; background: #232736; border-top: 2px solid #343a52; font-size: .9rem; }
+    .leeg { color: #6b7490; padding: 18px; font-style: italic; }
+
+    /* ---------- rapport ---------- */
+    #rapport { position: fixed; inset: 0; background: rgba(10,12,18,.88); display: none; align-items: center; justify-content: center; z-index: 50; }
+    #rapport.aan { display: flex; }
+    #rapport-vak { background: #232736; border-radius: 14px; padding: 18px 20px; width: min(760px, 92%); max-height: 86vh; overflow: auto; }
+    #rapport h2 { font-size: 1.1rem; margin-bottom: 12px; }
+    #rapport table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    #rapport th, #rapport td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #343a52; }
+    #rapport th { color: #9aa3bd; font-weight: 600; }
+    #rapport .traag { color: #ffb74d; }
   </style>
 </head>
 <body>
   <header>
     <h1>👩‍🏫 Tank Arena — lesgever</h1>
     <span id="joinurl"></span>
+    <span id="verouderd" style="display:none"></span>
     <span class="rek"></span>
+    <button id="rapport-knop" class="knop-licht">📋 Rapport</button>
     <button id="bevries" class="knop-bevries">⏸ Ogen op mij</button>
   </header>
 
-  <div id="stapbalk">
-    <span>De klas zit op</span>
+  <div id="stuurbalk">
+    <span class="kop">Klas</span>
     <b id="klasstap">stap 1</b>
-    <button id="vorige" class="knop-stap">◀ vorige</button>
-    <button id="volgende" class="knop-stap">volgende ▶</button>
-    <span style="opacity:.7;font-size:.85rem;">(leerlingen springen mee)</span>
+    <button id="vorige" class="knop-stap">◀</button>
+    <button id="volgende" class="knop-stap">▶</button>
+    <div id="spreiding" title="Hoeveel leerlingen zitten op welke stap?"></div>
+    <span class="scheiding"></span>
+    <span class="kop">Arena</span>
+    <button class="team-knop" data-teams="0">geen teams</button>
+    <button class="team-knop" data-teams="2">2 teams</button>
+    <button class="team-knop" data-teams="4">4 teams</button>
+    <button id="naar-arena" class="knop-stap">🎮 iedereen naar de arena</button>
+    <span id="arena-info" class="kop"></span>
+  </div>
+
+  <div id="hulpbalk">
+    <span>✋ <b>Wie steekt zijn hand op:</b></span>
+    <div id="hulplijst" style="display:flex;gap:8px;flex-wrap:wrap"></div>
   </div>
 
   <main>
     <div id="klas">
-      <h2>Klasoverzicht</h2>
-      <div id="lijst"><div class="leeg">Nog geen leerlingen verbonden…</div></div>
+      <div id="rooster"><div class="leeg">Nog geen leerlingen verbonden…</div></div>
     </div>
-    <div id="code-paneel">
+
+    <div id="rechts">
       <div id="code-kop">🔍 Blokken van een leerling</div>
-      <div id="code-weergave"><div class="leeg">Klik op "toon" bij een leerling om zijn blokken hier te projecteren.</div></div>
+      <div id="code-weergave"><div class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te lezen.</div></div>
+      <div id="tipvak">
+        <div class="kop">💬 Tip sturen <span id="tip-doel">— naar de hele klas</span></div>
+        <textarea id="tiptekst" placeholder="Typ een tip… (verschijnt op hun scherm tot ze hem wegklikken)"></textarea>
+        <div id="tipknoppen">
+          <button id="tip-stuur" class="knop-primair">Stuur</button>
+          <button id="tip-hint" class="knop-hint">💡 hint van deze stap</button>
+          <button id="tip-klas" class="knop-hint">naar hele klas</button>
+        </div>
+      </div>
     </div>
   </main>
 
   <div id="samenvatting">—</div>
+
+  <div id="rapport">
+    <div id="rapport-vak">
+      <h2>📋 Klasrapport</h2>
+      <div id="rapport-inhoud"></div>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button id="rapport-kopieer" class="knop-primair">📄 Kopieer als tekst</button>
+        <button id="rapport-sluit" class="knop-hint">Sluiten</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/stappen.js"></script>
@@ -80,11 +176,32 @@
       document.getElementById('joinurl').textContent = ip ? `Leerlingen: http://${ip}:${d.port}` : '';
     });
 
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    /* De lesteksten staan vol met {{bew|blokjes}} zodat de leerling ze gekleurd
+       ziet. Hier willen we gewoon de woorden. */
+    const zonderOpmaak = (s) => String(s || '').replace(/\{\{[a-z]+\|([^}]*)\}\}/g, '$1');
+
+    /* Een kort piepje: je hoort dat er iemand vastzit terwijl je bij een andere
+       tafel staat. Geen bestand nodig, de browser maakt het toontje zelf. */
+    let audio = null;
+    function piep(hoog) {
+      try {
+        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = hoog ? 880 : 520;
+        g.gain.value = 0.07;
+        o.connect(g); g.connect(audio.destination);
+        o.start(); o.stop(audio.currentTime + 0.16);
+      } catch { /* geluid mag mislukken */ }
+    }
+
+    /* ---------------- de klas door de les sturen ---------------- */
     let klasStap = 1;
-    const maxStap = (window.STAPPEN || []).length || 7;
+    const alleStappen = window.STAPPEN || [];
+    const maxStap = alleStappen.length || 15;
 
     function toonKlasStap() {
-      const s = (window.STAPPEN || []).find(x => x.nr === klasStap);
+      const s = alleStappen.find(x => x.nr === klasStap);
       document.getElementById('klasstap').textContent = `stap ${klasStap}${s ? ' — ' + s.titel : ''}`;
     }
     toonKlasStap();
@@ -98,7 +215,6 @@
     document.getElementById('volgende').addEventListener('click', () => stuurStap(klasStap + 1));
 
     let bevroren = false;
-    const gevolgd = new Set();   // wie we live volgen
     document.getElementById('bevries').addEventListener('click', () => {
       bevroren = !bevroren;
       socket.emit('lesCommando', { type: 'bevries', aan: bevroren });
@@ -107,61 +223,198 @@
       k.textContent = bevroren ? '▶ Ga verder' : '⏸ Ogen op mij';
     });
 
-    socket.on('klasoverzicht', (d) => {
-      const lijst = document.getElementById('lijst');
-      if (!d.leerlingen.length) { lijst.innerHTML = '<div class="leeg">Nog geen leerlingen verbonden…</div>'; return; }
-      lijst.innerHTML = d.leerlingen.map(l => {
-        const tekst = l.status === 'klaar' ? '✓ klaar'
-          : l.status === 'vast' ? `⚠ zit vast (${l.minuten} min)`
-            : `⏳ bezig (${l.minuten} min)`;
-        /*
-         * Wie is er écht aan het bouwen? Het aantal blokken plus hoe lang er
-         * niets veranderde vertelt dat in één oogopslag. Meer dan een minuut
-         * stil terwijl de stap nog niet af is: daar ga je als eerste kijken.
-         */
-        const stil = Math.round((l.stilMs || 0) / 1000);
-        const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${stil}s stil` : `${Math.floor(stil / 60)} min stil`;
-        const alarm = stil >= 60 && l.status !== 'klaar' ? ' alarm' : '';
-        return `<div class="rij ${l.status}">
-          <span class="naam">${esc(l.naam)}</span>
-          <span class="stap">stap ${l.stap}</span>
-          <span class="status">${tekst}</span>
-          <span class="bouw${alarm}">${l.blokken || 0} blokken · ${stilTekst}</span>
-          <button class="knop-volg ${gevolgd.has(l.id) ? 'aan' : ''}" data-id="${l.id}">${gevolgd.has(l.id) ? '👁 volgt' : '👁 volg'}</button>
-          <button class="knop-toon" data-id="${l.id}">toon blokken</button>
-        </div>`;
-      }).join('');
-      for (const k of lijst.querySelectorAll('.knop-toon')) {
-        k.addEventListener('click', () => socket.emit('lesCommando', { type: 'toonCode', id: k.dataset.id }));
-      }
-      /* Live meekijken: zolang dit aanstaat komen de blokken elke 2 seconden
-         binnen, zodat je ziet hoe een leerling zijn programma opbouwt. */
-      for (const k of lijst.querySelectorAll('.knop-volg')) {
-        k.addEventListener('click', () => {
-          const id = k.dataset.id;
-          const aan = !gevolgd.has(id);
-          gevolgd.clear();                 // één leerling tegelijk volgen
-          if (aan) gevolgd.add(id);
-          socket.emit('lesCommando', { type: 'volg', id, aan });
-          socket.emit('lesCommando', { type: 'toonCode', id });   // meteen tonen
-        });
-      }
-      const klaar = d.leerlingen.filter(l => l.status === 'klaar').length;
-      const vast = d.leerlingen.filter(l => l.status === 'vast').length;
-      document.getElementById('samenvatting').textContent =
-        `${klaar}/${d.leerlingen.length} klaar met hun stap · ${vast} zitten vast` +
-        (klaar === d.leerlingen.length && d.leerlingen.length ? ' — iedereen mee, je kan door! 🎉' : '');
+    for (const k of document.querySelectorAll('.team-knop')) {
+      k.addEventListener('click', () => socket.emit('lesCommando', { type: 'teams', n: Number(k.dataset.teams) }));
+    }
+    document.getElementById('naar-arena').addEventListener('click', () => {
+      const aan = document.querySelector('.team-knop.aan');
+      socket.emit('lesCommando', { type: 'naarArena', teams: aan ? Number(aan.dataset.teams) : 0 });
     });
 
-    /* Code van een leerling projecteren — als grote leesbare tekst. */
+    /* ---------------- tips sturen ---------------- */
+    let gekozen = null;         // naar wie gaat de tip? (null = hele klas)
+    let gekozenNaam = '';
+    let gekozenStap = 1;
+
+    function zetTipDoel(id, naam, stap) {
+      gekozen = id; gekozenNaam = naam || ''; gekozenStap = stap || 1;
+      document.getElementById('tip-doel').textContent = id ? `— naar ${naam}` : '— naar de hele klas';
+    }
+    document.getElementById('tip-klas').addEventListener('click', () => zetTipDoel(null));
+    document.getElementById('tip-hint').addEventListener('click', () => {
+      const s = alleStappen.find(x => x.nr === (gekozen ? gekozenStap : klasStap));
+      document.getElementById('tiptekst').value = s ? zonderOpmaak(s.hint) : '';
+      document.getElementById('tiptekst').focus();
+    });
+    function stuurTip() {
+      const vak = document.getElementById('tiptekst');
+      const tekst = vak.value.trim();
+      if (!tekst) return;
+      socket.emit('lesCommando', { type: 'bericht', id: gekozen, tekst });
+      vak.value = '';
+      const knop = document.getElementById('tip-stuur');
+      knop.textContent = '✓ verstuurd';
+      setTimeout(() => { knop.textContent = 'Stuur'; }, 1400);
+    }
+    document.getElementById('tip-stuur').addEventListener('click', stuurTip);
+    document.getElementById('tiptekst').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) stuurTip();
+    });
+
+    /* ---------------- klasoverzicht ---------------- */
+    const gevolgd = new Set();
+    let vorigeHulp = new Set();   // om te horen wanneer er een hand omhoog gaat
+
+    socket.on('klasoverzicht', (d) => {
+      const rooster = document.getElementById('rooster');
+      const leerlingen = d.leerlingen || [];
+
+      // ---- herstartwaarschuwing ----
+      const ver = document.getElementById('verouderd');
+      ver.style.display = d.verouderd ? '' : 'none';
+      if (d.verouderd) ver.textContent = `⚠ code aangepast ná het starten — herstart de server`;
+
+      // ---- teamknoppen en arena ----
+      for (const k of document.querySelectorAll('.team-knop')) {
+        k.classList.toggle('aan', Number(k.dataset.teams) === (d.teamModus || 0));
+      }
+      document.getElementById('arena-info').textContent = d.inArena ? `${d.inArena} in de arena` : '';
+
+      if (!leerlingen.length) {
+        rooster.innerHTML = '<div class="leeg">Nog geen leerlingen verbonden…</div>';
+        document.getElementById('hulpbalk').classList.remove('aan');
+        document.getElementById('samenvatting').textContent = '—';
+        tekenSpreiding([]);
+        return;
+      }
+
+      // ---- hulpwachtrij: wie steekt zijn hand op? ----
+      const hulp = leerlingen.filter(l => l.hulp);
+      const nuHulp = new Set(hulp.map(l => l.id));
+      for (const id of nuHulp) if (!vorigeHulp.has(id)) piep(true);   // nieuwe hand omhoog
+      vorigeHulp = nuHulp;
+      document.getElementById('hulpbalk').classList.toggle('aan', hulp.length > 0);
+      document.getElementById('hulplijst').innerHTML = hulp.map(l =>
+        `<span class="hulp-chip">${esc(l.naam)} · stap ${l.stap}${l.hulpMin ? ' · ' + l.hulpMin + ' min' : ''}
+           <button data-klaar="${l.id}">geholpen ✓</button></span>`).join('');
+      for (const k of document.querySelectorAll('#hulplijst button')) {
+        k.addEventListener('click', () => socket.emit('lesCommando', { type: 'hulpKlaar', id: k.dataset.klaar }));
+      }
+
+      /* Volgorde: wie zijn hand opsteekt eerst, dan wie vastzit, dan wie lang
+         stilstaat. Zo staat bovenaan altijd degene die jou nodig heeft. */
+      const gewicht = (l) => (l.hulp ? 0 : l.status === 'vast' ? 1 : l.stilMs > 60000 ? 2 : l.status === 'klaar' ? 4 : 3);
+      const gesorteerd = [...leerlingen].sort((a, b) => gewicht(a) - gewicht(b) || a.naam.localeCompare(b.naam));
+
+      rooster.innerHTML = gesorteerd.map(l => {
+        const stil = Math.round((l.stilMs || 0) / 1000);
+        const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${stil}s stil` : `${Math.floor(stil / 60)} min stil`;
+        const alarm = stil >= 120 && l.status !== 'klaar' ? ' alarm' : '';
+        const spel = l.speelt ? `lvl ${l.lvl} · ${l.punten} ptn · ❤️ ${l.hp}%` : 'nog niet in het spel';
+        return `<div class="kaart ${l.hulp ? 'hulp' : l.status}">
+          <div class="top">
+            <span class="naam">${l.hulp ? '✋ ' : ''}${esc(l.naam)}</span>
+            <span class="code">${esc(l.code || '')}</span>
+            <span class="stap">stap ${l.stap}</span>
+          </div>
+          <div class="vinkjes">
+            <span class="vink ${l.checkS ? 'ok' : ''}">${l.checkS ? '✓' : '○'} blokken</span>
+            <span class="vink ${l.checkG ? 'ok' : ''}">${l.checkG ? '✓' : '○'} uitgeprobeerd</span>
+          </div>
+          <div class="regel">
+            <span>${l.blokken || 0} blokken</span>
+            <span class="${alarm.trim()}">${stilTekst}</span>
+            <span style="margin-left:auto">${spel}</span>
+          </div>
+          <div class="knoppen">
+            <button class="knop-volg ${gevolgd.has(l.id) ? 'aan' : ''}" data-volg="${l.id}">${gevolgd.has(l.id) ? '👁 volgt' : '👁 volg'}</button>
+            <button data-toon="${l.id}">blokken</button>
+            <button class="knop-tip" data-tip="${l.id}" data-naam="${esc(l.naam)}" data-stap="${l.stap}">💬 tip</button>
+            <button data-stap-min="${l.id}" data-nr="${l.stap - 1}" title="Zet alleen deze leerling een stap terug">◀</button>
+            <button data-stap-plus="${l.id}" data-nr="${l.stap + 1}" title="Zet alleen deze leerling een stap verder">▶</button>
+            <button data-opruimen="${l.id}" title="Zet zijn blokken netjes onder elkaar">🧹</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      const klik = (kies, fn) => { for (const k of rooster.querySelectorAll(`[${kies}]`)) k.addEventListener('click', () => fn(k)); };
+      klik('data-toon', k => socket.emit('lesCommando', { type: 'toonCode', id: k.dataset.toon }));
+      klik('data-opruimen', k => socket.emit('lesCommando', { type: 'opruimen', id: k.dataset.opruimen }));
+      klik('data-stap-min', k => socket.emit('lesCommando', { type: 'stapVoor', id: k.dataset.stapMin, stap: Number(k.dataset.nr) }));
+      klik('data-stap-plus', k => socket.emit('lesCommando', { type: 'stapVoor', id: k.dataset.stapPlus, stap: Number(k.dataset.nr) }));
+      klik('data-tip', k => {
+        zetTipDoel(k.dataset.tip, k.dataset.naam, Number(k.dataset.stap));
+        document.getElementById('tiptekst').focus();
+      });
+      klik('data-volg', k => {
+        const id = k.dataset.volg;
+        const aan = !gevolgd.has(id);
+        gevolgd.clear();                 // één leerling tegelijk volgen
+        if (aan) gevolgd.add(id);
+        socket.emit('lesCommando', { type: 'volg', id, aan });
+        socket.emit('lesCommando', { type: 'toonCode', id });
+      });
+
+      tekenSpreiding(leerlingen);
+
+      const klaar = leerlingen.filter(l => l.status === 'klaar').length;
+      const vast = leerlingen.filter(l => l.status === 'vast' || l.stilMs > 120000).length;
+      document.getElementById('samenvatting').textContent =
+        `${klaar}/${leerlingen.length} klaar met hun stap · ${vast} ${vast === 1 ? 'zit' : 'zitten'} vast` +
+        (klaar === leerlingen.length ? ' — iedereen mee, je kan door! 🎉' : '');
+    });
+
+    /* Waar zit de klas? Eén staafje per stap, blauw = waar jij de klas hebt. */
+    function tekenSpreiding(leerlingen) {
+      const perStap = {};
+      for (const l of leerlingen) perStap[l.stap] = (perStap[l.stap] || 0) + 1;
+      const hoogste = Math.max(1, ...Object.values(perStap));
+      let html = '';
+      for (let n = 1; n <= maxStap; n++) {
+        const aantal = perStap[n] || 0;
+        const h = aantal ? 6 + Math.round((aantal / hoogste) * 22) : 3;
+        html += `<div class="staaf ${n === klasStap ? 'hier' : ''}" style="height:${h}px" title="stap ${n}: ${aantal} leerling(en)">
+                   ${aantal ? `<span>${aantal}</span>` : ''}</div>`;
+      }
+      document.getElementById('spreiding').innerHTML = html;
+    }
+
+    /* Blokken van een leerling projecteren — als grote leesbare tekst. */
     socket.on('leerlingCode', (d) => {
       const live = gevolgd.has(d.id) ? ' · live' : '';
       document.getElementById('code-kop').textContent = `🔍 Blokken van ${d.naam}${live}`;
-      document.getElementById('code-weergave').innerHTML =
-        `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
+      document.getElementById('code-weergave').innerHTML = `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
     });
 
-    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    /* ---------------- klasrapport ---------------- */
+    let laatsteRapport = null;
+    document.getElementById('rapport-knop').addEventListener('click', () => socket.emit('lesCommando', { type: 'rapport' }));
+    document.getElementById('rapport-sluit').addEventListener('click', () => document.getElementById('rapport').classList.remove('aan'));
+    document.getElementById('rapport-kopieer').addEventListener('click', () => {
+      if (!laatsteRapport) return;
+      const regels = laatsteRapport.leerlingen.map(l => `${l.naam}\tstap ${l.maxStap}\t${l.minuten} min`);
+      navigator.clipboard.writeText(['naam\tver gekomen\ttijd', ...regels].join('\n'))
+        .then(() => { document.getElementById('rapport-kopieer').textContent = '✓ gekopieerd'; });
+    });
+
+    socket.on('klasrapport', (r) => {
+      laatsteRapport = r;
+      const vak = document.getElementById('rapport-inhoud');
+      if (!r.leerlingen.length) { vak.innerHTML = '<div class="leeg">Nog geen gegevens — er heeft nog niemand meegedaan.</div>'; }
+      else {
+        const traagste = Object.entries(r.gemiddeld).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        vak.innerHTML = `
+          <table>
+            <tr><th>Naam</th><th>Ver gekomen</th><th>Tijd</th></tr>
+            ${r.leerlingen.map(l => `<tr><td>${esc(l.naam)}</td><td>stap ${l.maxStap}</td><td>${l.minuten} min</td></tr>`).join('')}
+          </table>
+          <p style="margin-top:14px;font-size:.9rem;color:#9aa3bd">
+            Waar bleef de klas het langst hangen?
+            ${traagste.map(([nr, sec]) => `<br>· <b class="traag">stap ${nr}</b> — gemiddeld ${Math.round(sec / 60) || '<1'} min`).join('')}
+          </p>`;
+      }
+      document.getElementById('rapport').classList.add('aan');
+    });
   </script>
 </body>
 </html>
