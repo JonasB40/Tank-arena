@@ -603,7 +603,7 @@ function meetTankStraal(klasse, kleur) {
   const g = doek.getContext('2d');
   g.translate(M / 2, M / 2);
   drawTank(g, {
-    klasse, vorm: 'cirkel', kleur, angle: 0, naam: '', hp: 1, maxHp: 1,
+    klasse, vorm: (KLASSEN[klasse] && KLASSEN[klasse].vorm) || 'cirkel', kleur, angle: 0, naam: '', hp: 1, maxHp: 1,
     zeg: null, flits: null, schild: false, onzichtbaar: false, alleenVorm: true,
   }, false);
   const d = g.getImageData(0, 0, M, M).data;
@@ -651,7 +651,8 @@ function toonKlassePopup(ik) {
     if (def && def.sluip) g.globalAlpha = 0.45;
     g.scale(schaal, schaal);
     drawTank(g, {
-      klasse: k, vorm: 'cirkel', kleur: ik.kleur, angle: Math.PI * 0.75, naam: '',
+      // de Necromancer heeft een vierkante romp: die hoort ook op zijn kaartje
+      klasse: k, vorm: (def && def.vorm) || 'cirkel', kleur: ik.kleur, angle: Math.PI * 0.75, naam: '',
       hp: 1, maxHp: 1, zeg: null, flits: null, schild: false, onzichtbaar: false,
       alleenVorm: true,
     }, false);

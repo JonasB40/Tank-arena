@@ -57,7 +57,10 @@ function cannonPad(c, l, type, terug) {
     const b = hw * 1.25, t = hw * 0.85;
     pts = [[x0, -b], [x1, -t], [x1, t], [x0, b]];
   } else if (type === 'spawner') {
-    const b = hw * 0.7, t = hw * 1.3; // dronefabriek: wijd open aan het uiteinde
+    /* Dronefabriek: een trechter die naar buiten openwaaiert. De schuinte was
+       zo sterk dat het bij kleine tanks een driehoekige klodder werd; nu leest
+       het als een arm met een mond eraan. */
+    const b = hw * 0.82, t = hw * 1.22;
     pts = [[x0, -b], [x1, -t], [x1, t], [x0, b]];
   } else if (type === 'stuw') {
     // stuwpijp van de Driehoekstank/Booster: smal aan de romp, wijd naar achter
@@ -280,8 +283,10 @@ function drawMunitie(c, b, schaal) {
   c.save();
   c.translate(b.x, b.y);
   c.lineJoin = 'round';
-  c.strokeStyle = donkerder(b.kleur);
-  c.lineWidth = RAND * 2;
+  /* Een drone van de Necromancer is een omgetoverd vierkant: die houdt zijn
+     eigen gele kleur, met de teamkleur als rand zodat je ziet van wie hij is. */
+  c.strokeStyle = b.rand ? b.rand : donkerder(b.kleur);
+  c.lineWidth = RAND * (b.rand ? 3 : 2);
   c.fillStyle = b.kleur;
 
   // basisdrones zien eruit als gewone drones (driehoekjes in teamkleur)

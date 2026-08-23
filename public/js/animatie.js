@@ -280,28 +280,43 @@
     c.restore();
   }
 
-  /* Het als-blok: een C-vorm met een gaatje voor de vraag. */
+  /*
+   * Een C-blok (als … dan, herhaal): ÉÉN doorlopende omtrek, zoals in Scratch.
+   * Eerst tekenden we de kop, de staart en het linkerbalkje als drie losse
+   * vormen; dan zie je de naden ertussen en valt het blok in stukken uiteen.
+   */
   function alsBlok(c, x, y, b, kleur, opties = {}) {
     const kop = opties.kop || 22, binnen = opties.binnen || 20, staart = opties.staart || 12;
+    const L = 13, r = 4;
+    const y2 = y + kop, y3 = y2 + binnen, y4 = y3 + staart;
     c.save();
     c.beginPath();
-    c.roundRect(x, y, b, kop, 4);
-    c.roundRect(x, y + kop + binnen, b * 0.72, staart, 4);
-    c.rect(x, y + kop, 13, binnen);
+    c.moveTo(x + r, y);
+    c.arcTo(x + b, y, x + b, y + r, r);           // rechtsboven
+    c.arcTo(x + b, y2, x + b - r, y2, r);         // rechts van de kop
+    c.arcTo(x + L, y2, x + L, y2 + r, r);         // de mond in
+    c.lineTo(x + L, y3 - r);
+    c.arcTo(x + L, y3, x + L + r, y3, r);         // onderkant van de mond
+    c.arcTo(x + b, y3, x + b, y3 + r, r);         // naar de staart
+    c.arcTo(x + b, y4, x + b - r, y4, r);         // rechtsonder
+    c.arcTo(x, y4, x, y4 - r, r);                 // linksonder
+    c.arcTo(x, y, x + r, y, r);                   // helemaal terug omhoog
+    c.closePath();
     c.fillStyle = kleur;
     c.fill();
     c.strokeStyle = RAND(kleur);
     c.lineWidth = 1.5;
+    c.lineJoin = 'round';
     c.stroke();
     c.fillStyle = '#fff';
     c.font = '600 10.5px Segoe UI, sans-serif';
     c.textBaseline = 'middle';
     c.fillText(opties.links || 'als', x + 8, y + kop / 2);
     if (opties.rechts !== null) c.fillText(opties.rechts || 'dan', x + b - 26, y + kop / 2);
-    // het rondje-pijltje van een herhaal-blok
+    // het rondje-pijltje van een herhaal-blok, in de staart
     if (opties.lus) {
       c.save();
-      c.translate(x + 13, y + kop + binnen + staart / 2);
+      c.translate(x + 13, y3 + staart / 2);
       c.strokeStyle = '#fff';
       c.lineWidth = 1.6;
       c.beginPath();
@@ -314,7 +329,7 @@
       c.restore();
     }
     c.restore();
-    return { gatX: x + 26, gatY: y + 4, kop, binnen, mondX: x + 13, mondY: y + kop };
+    return { gatX: x + 26, gatY: y + 4, kop, binnen, mondX: x + L, mondY: y2 };
   }
 
   /* Het tekenhandje dat de blokken versleept (zoals in LEGO Spike). */

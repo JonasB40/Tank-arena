@@ -477,6 +477,31 @@ function vormenRondom(room, x, y, uit) {
   return uit;
 }
 
+/*
+ * NECROMANCER: een kapotte vorm staat weer op als drone in zijn zwerm. In
+ * diep.io is dat zijn hele wezen — hij schiet niet, hij verzamelt. De drone
+ * houdt de kleur van de vorm (een geel vierkant blijft geel), met de teamkleur
+ * als rand, zodat je van ver ziet van wie de zwerm is.
+ * https://diepio.fandom.com/wiki/Necromancer
+ */
+function toverVormOmTotDrone(room, baas, v) {
+  if (!baas || !klasseVan(baas).necro) return;
+  if (v.type !== 'vierkant' && v.type !== 'driehoek') return;
+  const kl = klasseVan(baas);
+  const nu = room.bullets.filter((x) => x.soort === 'drone' && !x.weg && x.eigenaar === baas.id).length;
+  if (nu >= (kl.droneMax || 8)) return;
+  room.bullets.push({
+    id: room.volgendKogelId++, soort: 'drone',
+    x: v.x, y: v.y, vx: 0, vy: 0, hoek: v.hoek || 0,
+    eigenaar: baas.id, kleur: v.kleur, rand: baas.kleur, team: baas.team,
+    vorm: v.type === 'driehoek' ? 'driehoek' : 'vierkant',
+    r: Math.max(7, v.r * 0.55),
+    schade: bulletSchadeVan(baas) * 0.55,
+    leven: (3 + bulletPierce(baas)) * (kl.kogelLeven || 1),
+    dood: Infinity,
+  });
+}
+
 /* Kapotgeschoten vormen worden gemarkeerd en pas na de lussen opgeruimd:
    tijdens het rekenen mag de lijst niet onder je handen veranderen. */
 function ruimKapotteVormenOp(room) {
@@ -848,9 +873,15 @@ function isVeilig(room, t, nu) {
   return false;
 }
 
-/* Bij dood: respawn als zwakkere versie (zoals diep.io). */
+/*
+ * Bij dood kom je zwakker terug. In diep.io ben je álles kwijt — terug naar
+ * level 1 met nul punten. Voor een les van tweeënhalf uur is dat te hard: een
+ * leerling die net level 30 haalde begint dan weer helemaal opnieuw. We houden
+ * een derde van je punten over. Doodgaan doet dus pijn (level 45 wordt 28),
+ * maar je staat niet weer aan de start.
+ */
 function respawnZwakker(room, t) {
-  t.score = Math.floor(t.score / 2);
+  t.score = Math.floor(t.score / 3);
   t.level = levelVan(t.score);
   t.stats = legeStats();
   t.statPunten = Math.max(0, t.level - 1);
@@ -1722,6 +1753,7 @@ function tickRoom(room, nu, dt) {
       v.hitUntil = nu + 150;
       if (v.hp <= 0) {
         v.weg = true;
+        toverVormOmTotDrone(room, t, v);
         if (!t.ai) {
           geefPunten(room, t, v.punten);
           stuurEvent(t, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
@@ -2039,23 +2071,7 @@ function tickRoom(room, nu, dt) {
         if (v.hp <= 0) {
           v.weg = true;
           const schutter = room.tanks.get(b.eigenaar);
-          /* Necromancer: het kapotte vierkant staat weer op als drone. Dat is
-             zijn hele truc — hij schiet niet, hij verzamelt. */
-          if (schutter && klasseVan(schutter).necro && (v.type === 'vierkant' || v.type === 'driehoek')) {
-            const kl2 = klasseVan(schutter);
-            const nu2 = room.bullets.filter((x) => x.soort === 'drone' && !x.weg && x.eigenaar === schutter.id).length;
-            if (nu2 < (kl2.droneMax || 8)) {
-              room.bullets.push({
-                id: room.volgendKogelId++, soort: 'drone',
-                x: v.x, y: v.y, vx: 0, vy: 0, hoek: 0,
-                eigenaar: schutter.id, kleur: schutter.kleur, team: schutter.team,
-                vorm: kl2.droneVorm || 'vierkant',
-                r: 8, schade: bulletSchadeVan(schutter) * 0.55,
-                leven: (3 + bulletPierce(schutter)) * (kl2.kogelLeven || 1),
-                dood: Infinity,
-              });
-            }
-          }
+          toverVormOmTotDrone(room, schutter, v);
           if (schutter && !schutter.ai) {
             geefPunten(room, schutter, v.punten);
             stuurEvent(schutter, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
@@ -2329,6 +2345,7 @@ setInterval(() => {
     };
     const pakKogel = (b) => ({
       id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel', vorm: b.vorm || null,
+      rand: b.rand || null,   // Necromancer-drones houden de kleur van hun vorm
       x: Math.round(b.x), y: Math.round(b.y), kleur: b.kleur, r: b.r,
       // een raket wijst de kant op waarheen hij vliegt, zodat zijn uitlaat klopt
       hoek: b.soort === 'raket' ? Math.round(Math.atan2(b.vy, b.vx) * 100) / 100

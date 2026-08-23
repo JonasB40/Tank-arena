@@ -110,7 +110,7 @@
       /* Een dronefabriek is bij diep.io kort en breed (70 lang, 84 breed op een
          romp van 100): een luik waar de drones uit komen, geen loop. Bij ons
          waren het twee stokjes die langer waren dan breed. */
-      lopen: [L(-PI / 2, 0, 24, 25), L(PI / 2, 0, 24, 25)],
+      lopen: [L(-PI / 2, 0, 27, 19), L(PI / 2, 0, 27, 19)],
       herlaad: 2.4, schade: 1, kogelSnelheid: 1, kogelR: 7, spreiding: 0,
     },
     trapper: {
@@ -175,7 +175,7 @@
     vechter: { naam: 'Vechter (Fighter)', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(-PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI - 0.6, 0, 26, 8, { schade: 0.2, r: 4 }), L(PI + 0.6, 0, 26, 8, { schade: 0.2, r: 4 })], herlaad: 1.1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 45 },
     overheer: {
       naam: 'Overheer (Overlord)', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 12,
-      lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 24, 25)),
+      lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 27, 19)),
       herlaad: 2.1, schade: 1.15, kogelSnelheid: 1.1, kogelR: 7, spreiding: 0,
     },
     /* Auto 5: hetzelfde idee als de Auto 3, maar met vijf lopen. */
@@ -227,7 +227,7 @@
        wél zichtbaar — die verraden waar hij zit. */
     manager: {
       naam: 'Manager', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 9,
-      lopen: [L(-PI / 2, 0, 24, 25), L(PI / 2, 0, 24, 25)],
+      lopen: [L(-PI / 2, 0, 27, 19), L(PI / 2, 0, 27, 19)],
       herlaad: 2.2, schade: 1.05, kogelSnelheid: 1, kogelR: 7, spreiding: 0, sluip: true,
     },
 
@@ -235,7 +235,7 @@
        eigen zwerm. Elk vierkant dat hij stukmaakt wordt een drone. */
     necromancer: {
       naam: 'Necromancer', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 18,
-      lopen: [L(-PI / 2, 0, 20, 22), L(PI / 2, 0, 20, 22)],
+      lopen: [L(-PI / 2, 0, 25, 20), L(PI / 2, 0, 25, 20)],
       herlaad: 3.2, schade: 0.85, kogelSnelheid: 1, kogelR: 7, spreiding: 0,
       necro: true, droneVorm: 'vierkant', vorm: 'vierkant',
     },
@@ -243,14 +243,14 @@
     /* Battleship: vier dronebays, dus drones van alle kanten. */
     battleship: {
       naam: 'Battleship', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 12,
-      lopen: [PI / 2 - 0.5, PI / 2 + 0.5, -PI / 2 - 0.5, -PI / 2 + 0.5].map((h) => L(h, 0, 20, 18)),
+      lopen: [PI / 2 - 0.55, PI / 2 + 0.55, -PI / 2 - 0.55, -PI / 2 + 0.55].map((h) => L(h, 0, 25, 15)),
       herlaad: 1.9, schade: 0.75, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
     },
 
     /* Factory: maakt geen drones maar kleine TANKJES die voor je vechten. */
     fabriek: {
       naam: 'Fabriek (Factory)', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 6,
-      lopen: [L(0, 0, 26, 28)],
+      lopen: [L(0, 0, 30, 24)],
       herlaad: 2.6, schade: 1.1, kogelSnelheid: 1, kogelR: 9, spreiding: 0,
       droneVorm: 'tank',
     },
@@ -259,7 +259,7 @@
     overtrapper: {
       naam: 'Overtrapper', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 6,
       lopen: [
-        L(-PI / 2, 0, 22, 22), L(PI / 2, 0, 22, 22),
+        L(-PI / 2, 0, 26, 19), L(PI / 2, 0, 26, 19),
         L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher' }),
       ],
       herlaad: 2.3, schade: 0.9, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0,
@@ -280,7 +280,7 @@
       naam: 'Hybride (Hybrid)', tier: 4, cannon: 'destroyer',
       lopen: [
         L(0, 0, 34, 21),
-        L(PI, 0, 20, 20, { munitie: 'drone', vorm: 'spawner' }),
+        L(PI, 0, 24, 18, { munitie: 'drone', vorm: 'spawner' }),
       ],
       herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.18,
       recoil: 14, spreiding: 0, droneMax: 4,
