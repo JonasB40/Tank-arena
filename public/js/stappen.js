@@ -251,13 +251,14 @@ const STAPPEN = [
       'Klik links op de oranje bol {{vrb|Variabelen}}. Bovenaan KNIPPERT de knop ➕ Maak een variabele — klik daarop.',
       'Typ als naam: Levens. Klik op OK.',
       'Sleep je nieuwe blok {{vrb|maak Levens}} onder je {{geb|🚩}}-blok, BOVEN de {{bes|herhaal}}.',
-      'Sleep {{vrb|max levens}} (onderaan dezelfde categorie) in het witte rondje.',
+      'Sleep het oranje blok {{vrb|mijn levens ❤️}} in het witte rondje.',
+      'Klik op het pijltje ▾ in dat blok en kies {{vrb|max levens ❤️}}.',
     ].join('\n'),
     /* "Variabele" is hier een gloednieuw woord en de eerste keer dat ze zelf
        iets moeten aanmaken. Plaatje erbij, en de knop knippert. */
     voorbeeld: '{{geb|wanneer op groene vlag wordt geklikt}}\n    {{vrb|maak Levens}} = {{vrb|max levens}}   ← hier, voor de herhaal\n    {{bes|herhaal}} …',
     wijsAan: { categorie: 'Variabelen', knop: true },
-    hint: '➕ Maak een variabele is een echte KNOP, geen blok — je sleept hem niet, je klikt erop. Er komt dan een venster waarin je een naam typt.\n\nNoem hem Levens en klik op OK. Daarna staan er nieuwe oranje blokken in de lade die er eerst niet waren: die heb jij net gemaakt.\n\n{{vrb|max levens}} is iets anders: dat blok houdt het SPEL bij, en staat onderaan dezelfde categorie. Dat sleep je in het witte rondje van je {{vrb|maak Levens}}-blok.',
+    hint: '➕ Maak een variabele is een echte KNOP, geen blok — je sleept hem niet, je klikt erop. Er komt dan een venster waarin je een naam typt.\n\nNoem hem Levens en klik op OK. Daarna staan er nieuwe oranje blokken in de lade die er eerst niet waren: die heb jij net gemaakt.\n\n{{vrb|max levens}} is geen apart blok! Sleep {{vrb|mijn levens ❤️}} in het witte rondje en klik dan op het pijltje ▾ erin: er klapt een lijstje open waarin {{vrb|max levens ❤️}} de tweede keuze is. Eén blok, meerdere getallen — dat pijltje zie je vaker.',
     check: {
       structuur: (p) => alleCmdsVanProject(p).some((c) => c.t === 'zetVar'),
       structuurTekst: 'een {{vrb|maak Levens}}-blok onder je {{geb|🚩}}',

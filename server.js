@@ -308,13 +308,14 @@ const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
  * De veilige zones zijn smalle stroken aan de rand, zoals de bases in diep.io.
  * Ze waren 20% van de breedte per team: bij twee teams was dus bijna de helft
  * van het speelveld beschermd gebied waar niemand elkaar kon raken. Nu is het
- * een strook van 6% — ruim genoeg om te spawnen, bij te komen en te farmen,
- * maar het gevecht speelt zich af op het veld.
+ * een strook van 3,5% — met het strakkere zichtveld vulde 6% nog altijd je
+ * halve scherm. Ruim genoeg om te spawnen en bij te komen, maar het gevecht
+ * speelt zich af op het veld.
  */
 function teamZones(room) {
   const a = room.arena;
   if (room.teamModus === 2) {
-    const breed = Math.round(a.w * 0.06);
+    const breed = Math.round(a.w * 0.035);
     return [
       { team: 0, x: 0, y: 0, w: breed, h: a.h },
       { team: 1, x: a.w - breed, y: 0, w: breed, h: a.h },
@@ -503,14 +504,13 @@ function vulVormenAan(room) {
   const per = (px2, min) => Math.max(min || 1, Math.round(opp / (px2 * dicht)));
   /*
    * Nagerekend op een schermafdruk van diep.io: daar liggen er zo'n 28 vormen
-   * in beeld op een scherm waar ongeveer 37 vierkanten naast elkaar passen.
-   * Met een vierkant per 40.000 pixels komen we op hetzelfde uit. Dat kan pas
-   * sinds de vormen in een raster hangen (zie bouwVormRaster) — anders werd
-   * elke kogel tegen duizenden vormen vergeleken.
+   * in beeld. Op één vierkant per 40.000 pixels kwamen we daar ruim boven en
+   * werd het veld een tapijt van blokjes; op 65.000 blijft er altijd iets in
+   * de buurt om op te schieten zonder dat je er doorheen moet ploegen.
    */
   const quota = {
-    vierkant: per(40000),          // het voer van elke beginner
-    driehoek: per(115000),         // vlot te vinden, meer punten
+    vierkant: per(65000),          // het voer van elke beginner
+    driehoek: per(170000),         // vlot te vinden, meer punten
     vijfhoek: per(2400000, 4),     // schaars, buiten het nest
     nestVijfhoek: per(2800000, 5), // in het nest, achter de crashers
     alfa: room.solo ? 2 : 3,       // de dikke blauwe: écht zeldzaam
