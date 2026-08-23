@@ -97,9 +97,9 @@
      */
     auto3: {
       naam: 'Auto 3', tier: 3, cannon: 'normaal',
-      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 32, 11)),
+      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 34, 12)),
       herlaad: 1.25, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
-      auto: { bereik: 620, herlaadMs: 700, schade: 0.45, len: 20, w: 9, straal: 11 },
+      auto: { bereik: 900, herlaadMs: 700, schade: 0.45, len: 17, w: 8, straal: 10 },
     },
 
     /* Drone- en trap-klassen: schieten geen kogels maar sturen "helpertjes"
@@ -181,9 +181,9 @@
     /* Auto 5: hetzelfde idee als de Auto 3, maar met vijf lopen. */
     auto5: {
       naam: 'Auto 5', tier: 4, cannon: 'normaal',
-      lopen: [0, 1, 2, 3, 4].map((i) => L((i * 2 * PI) / 5, 0, 30, 10)),
+      lopen: [0, 1, 2, 3, 4].map((i) => L((i * 2 * PI) / 5, 0, 32, 12)),
       herlaad: 1.35, schade: 0.5, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
-      auto: { bereik: 660, herlaadMs: 640, schade: 0.5, len: 20, w: 9, straal: 11 },
+      auto: { bereik: 940, herlaadMs: 640, schade: 0.5, len: 17, w: 8, straal: 10 },
     },
 
 
@@ -196,7 +196,7 @@
       naam: 'Auto Gunner', tier: 4, cannon: 'gunner',
       lopen: [L(0, -14, 40, 8), L(0, -4.6, 49, 8), L(0, 4.6, 49, 8), L(0, 14, 40, 8)],
       herlaad: 0.5, schade: 0.35, kogelSnelheid: 1.2, kogelR: 4, spreiding: 0.05,
-      auto: { bereik: 640, herlaadMs: 620, schade: 0.45, len: 20, w: 9, straal: 11 },
+      auto: { bereik: 920, herlaadMs: 620, schade: 0.45, len: 20, w: 9, straal: 11 },
     },
 
     /* Auto Trapper: legt valstrikken én heeft een torentje dat zelf schiet. */
@@ -204,7 +204,7 @@
       naam: 'Auto Trapper', tier: 4, cannon: 'launcher', munitie: 'trap',
       lopen: [L(0, 0, 28, 13)],
       herlaad: 1.5, schade: 1.2, kogelSnelheid: 0.9, kogelR: 8, spreiding: 0,
-      auto: { bereik: 620, herlaadMs: 700, schade: 0.45, len: 20, w: 9, straal: 11 },
+      auto: { bereik: 900, herlaadMs: 700, schade: 0.45, len: 20, w: 9, straal: 11 },
     },
 
     /* Auto Smasher: rammen én een torentje dat ondertussen zelf schiet. */
@@ -212,7 +212,7 @@
       naam: 'Auto Smasher', tier: 4, cannon: 'normaal', lopen: [],
       herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
       ram: true, ramSchade: 3, snelheidBonus: 24,
-      auto: { bereik: 600, herlaadMs: 680, schade: 0.5, len: 20, w: 10, straal: 12 },
+      auto: { bereik: 880, herlaadMs: 680, schade: 0.5, len: 20, w: 10, straal: 12 },
     },
 
     /* Landmine: een Rammer die onzichtbaar wordt zodra hij stilstaat. Ga er

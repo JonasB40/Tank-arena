@@ -702,6 +702,27 @@ const STAT_META = {
   herladen: ['🔄', 'Herladen'],
   snelheid: ['🏎️', 'Snelheid'],
 };
+/*
+ * Kies je een dronetank of een valstrikker, dan gaan je punten niet meer over
+ * kógels. In diep.io heten die drie balkjes dan ook anders: Drone Damage,
+ * Drone Speed en Drone Health. Wij doen hetzelfde — anders zit een leerling
+ * punten in "kogelschade" te steken terwijl hij geen enkele kogel schiet.
+ * (https://diepio.fandom.com/wiki/Overseer)
+ */
+const STAT_NAAM_PER_MUNITIE = {
+  drone: { kogelschade: ['💥', 'Droneschade'], kogelsnelheid: ['🚀', 'Dronesnelheid'], kogelpantser: ['🛡️', 'Dronelevens'] },
+  trap: { kogelschade: ['💥', 'Valstrikschade'], kogelsnelheid: ['🚀', 'Werpafstand'], kogelpantser: ['🛡️', 'Valstriklevens'] },
+  raket: { kogelschade: ['💥', 'Raketschade'], kogelsnelheid: ['🚀', 'Raketsnelheid'], kogelpantser: ['🛡️', 'Raketpantser'] },
+};
+
+/* Welk label hoort er bij deze stat, voor de klasse die je nú bent? */
+function statLabel(stat) {
+  const ik = spel.mijnTank();
+  const kl = ik && KLASSEN[ik.klasse];
+  const per = kl && STAT_NAAM_PER_MUNITIE[kl.munitie];
+  return (per && per[stat]) || STAT_META[stat] || ['•', stat];
+}
+
 function statMaxVan() {
   const ik = spel.mijnTank();          // Smashers mogen 10 punten per stat
   return (ik && ik.statMax) || (staat && staat.statMax) || 7;
@@ -723,9 +744,9 @@ window.addEventListener('keydown', (e) => {
   const stat = statVolgorde()[n - 1];
   if (!ik || !stat) return;
   if (ik.statPunten <= 0) { toast('Geen statpunten over — verdien eerst meer punten! 🏆'); return; }
-  if ((ik.stats[stat] || 0) >= statMaxVan()) { toast(`${STAT_META[stat][1]} is al maximaal! ⭐`); return; }
+  if ((ik.stats[stat] || 0) >= statMaxVan()) { toast(`${statLabel(stat)[1]} is al maximaal! ⭐`); return; }
   socket.emit('kiesStat', { stat });
-  const [, label] = STAT_META[stat] || ['', stat];
+  const [, label] = statLabel(stat);
   toast(`⬆️ ${label} verbeterd! (toets ${n})`);
 });
 
@@ -753,9 +774,11 @@ function bouwStatBalken() {
   el.dataset.gebouwd = '1';
   el.innerHTML = '';
   statVolgorde().forEach((stat, i) => {
-    const [icoon, label] = STAT_META[stat] || ['•', stat];
+    const [icoon, label] = statLabel(stat);
     const rij = document.createElement('div');
     rij.className = 'stat-balk-rij';
+    rij.dataset.stat = stat;
+    rij.dataset.toets = i + 1;
     rij.style.setProperty('--kleur', STAT_KLEUR[stat] || '#9aa4b8');
     rij.innerHTML =
       '<div class="sb-balk"><span class="sb-vul"></span>'
@@ -799,6 +822,11 @@ function vernieuwStatOverzicht(ik) {
   el.classList.toggle('heeft-punten', kan);
   el.querySelectorAll('.stat-balk-rij').forEach((rij, i) => {
     const stat = statVolgorde()[i];
+    /* Van klasse gewisseld? Dan kunnen de namen veranderd zijn (kogel -> drone). */
+    const [icoon, label] = statLabel(stat);
+    const tekst = rij.querySelector('.sb-tekst');
+    const nieuw = `${icoon} ${label} <b class="sb-toets">[${i + 1}]</b>`;
+    if (tekst && tekst.innerHTML !== nieuw) tekst.innerHTML = nieuw;
     const nu = ik.stats[stat] || 0;
     const vol = nu >= max;
     rij.querySelector('.sb-vul').style.width = Math.round((nu / max) * 100) + '%';

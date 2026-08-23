@@ -504,14 +504,16 @@ function vulVormenAan(room) {
   const dicht = room.solo ? 0.5 : 1;
   const per = (px2, min) => Math.max(min || 1, Math.round(opp / (px2 * dicht)));
   /*
-   * Nagerekend op een schermafdruk van diep.io: daar liggen er zo'n 28 vormen
-   * in beeld. Op één vierkant per 40.000 pixels kwamen we daar ruim boven en
-   * werd het veld een tapijt van blokjes; op 65.000 blijft er altijd iets in
-   * de buurt om op te schieten zonder dat je er doorheen moet ploegen.
+   * Hoeveel vormen je in beeld hebt hangt óók van je level af: je zichtveld
+   * groeit met 1% per level, dus op level 45 zie je twee keer zoveel veld —
+   * en dus twee keer zoveel blokjes — als een beginner. Op één vierkant per
+   * 65.000 pixels werd dat bij een hoog level een tapijt (70 stuks in beeld).
+   * Met 100.000 blijft het rustig: een beginner ziet er een stuk of veertien,
+   * een tank van level 40 een stuk of veertig.
    */
   const quota = {
-    vierkant: per(65000),          // het voer van elke beginner
-    driehoek: per(170000),         // vlot te vinden, meer punten
+    vierkant: per(100000),         // het voer van elke beginner
+    driehoek: per(260000),         // vlot te vinden, meer punten
     vijfhoek: per(2400000, 4),     // schaars, buiten het nest
     nestVijfhoek: per(2800000, 5), // in het nest, achter de crashers
     alfa: room.solo ? 2 : 3,       // de dikke blauwe: écht zeldzaam
@@ -1033,14 +1035,26 @@ function maakAiTank(room, n) {
 function stuurAI(room, t, nu) {
   const a = t.ai;
 
-  // dichtstbijzijnde speler zoeken
+  /*
+   * Wie is de vijand? Een robot mag NOOIT zijn eigen team aanvallen — dat ging
+   * mis: in een spel met twee teams schoten blauwe robots op hun eigen blauwe
+   * klasgenoten. Zonder teams (les 1, vrij spel) is iedereen behalve andere
+   * robots een doelwit.
+   *
+   * Met teams jaagt hij ook op vijandelijke ROBOTS, anders staan twaalf tanks
+   * elkaar te negeren tot er toevallig een leerling langsrijdt. Spelers wegen
+   * wel zwaarder: die zoekt hij liever op.
+   */
   let speler = null, dSpeler = Infinity;
+  const inTeams = t.team !== null && t.team !== undefined;
   for (const ander of room.tanks.values()) {
-    if (ander.ai || nu < ander.deadUntil) continue;
-    if (isVeilig(room, ander, nu)) continue; // veilige spelers negeren
-    const d = Math.hypot(ander.x - t.x, ander.y - t.y);
+    if (ander.id === t.id || nu < ander.deadUntil) continue;
+    if (inTeams ? ander.team === t.team : ander.ai) continue;
+    if (isVeilig(room, ander, nu)) continue; // veilige tanks negeren
+    const d = Math.hypot(ander.x - t.x, ander.y - t.y) * (ander.ai ? 1.6 : 1);
     if (d < dSpeler) { dSpeler = d; speler = ander; }
   }
+  if (speler) dSpeler = Math.hypot(speler.x - t.x, speler.y - t.y);
 
   // aggro aan/uit
   if (a.modus !== 'chase') {
@@ -1163,7 +1177,10 @@ io.on('connection', (socket) => {
   socket.on('kiesKlasse', (data) => {
     const t = vindTank(socket);
     if (!t || !data) return;
-    if (klasseAanbod(t).includes(data.klasse)) {
+    // testmodus: dan mag elke klasse, zodat je ze kan uitproberen zonder eerst
+    // naar level 45 te moeten spelen (staat uit zonder omgevingsvariabele)
+    const magAlles = !!process.env.TESTVRIJEKLASSE && !!KLASSEN[data.klasse];
+    if (magAlles || klasseAanbod(t).includes(data.klasse)) {
       t.klasse = data.klasse;
       // sommige klassen hebben een eigen romp (de Necromancer is een vierkant)
       const kl = KLASSEN[t.klasse];
@@ -1755,9 +1772,21 @@ function tickRoom(room, nu, dt) {
       let doel = null, best = kl.auto.bereik;
       for (const ander of room.tanks.values()) {
         if (ander.id === t.id || nu < ander.deadUntil || ander.onzichtbaar) continue;
-        if (t.team !== null && ander.team === t.team) continue;
+        if (t.team !== null && t.team !== undefined && ander.team === t.team) continue;
         const d = Math.hypot(ander.x - t.x, ander.y - t.y);
         if (d < best) { best = d; doel = ander; }
+      }
+      /* Geen vijand in de buurt? Dan mikt het torentje op een vorm. Zonder dit
+         stond het stil zolang je aan het farmen was, en leek het alsof het
+         ding niet werkte. In diep.io schiet hij ook gewoon op de polygons. */
+      if (!doel) {
+        let vBest = kl.auto.bereik * 0.75;
+        const buurt = vormenRondom(room, t.x, t.y, buurVormen);
+        for (const v of buurt) {
+          if (v.weg || v.type === 'muur') continue;
+          const d = Math.hypot(v.x - t.x, v.y - t.y);
+          if (d < vBest) { vBest = d; doel = v; }
+        }
       }
       if (doel) {
         t.autoHoek = Math.atan2(doel.y - t.y, doel.x - t.x);
@@ -2032,8 +2061,14 @@ function tickRoom(room, nu, dt) {
             stuurEvent(schutter, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
           }
         }
-        b.leven -= 1;
-        if (b.leven <= 0) dood = true;
+        /* Een drone die tegen een vierkant botst gaat NIET stuk: hij duwt door
+           en blijft rondvliegen, net als in diep.io. Alleen kogels en traps
+           slijten op vormen. Zonder dit smolt een zwerm weg tegen de polygons
+           en waren alle drone-klassen half zo sterk als de rest. */
+        if (b.soort !== 'drone' && b.soort !== 'basisdrone') {
+          b.leven -= 1;
+          if (b.leven <= 0) dood = true;
+        }
         break; // hooguit één vorm per tik
       }
     }
@@ -2043,8 +2078,12 @@ function tickRoom(room, nu, dt) {
     const blijftRammen = b.soort === 'drone' || b.soort === 'basisdrone';
     for (const t of room.tanks.values()) {
       if (t.id === b.eigenaar || nu < t.deadUntil) continue;
-      // basisdrones hebben geen eigenaar-tank; zij gaan op teamkleur af
-      if (b.soort === 'basisdrone' && t.team === b.team) continue;
+      /* Munitie van je eigen team vliegt DWARS DOOR je heen. Schade deed het al
+         niets (zie beschadigTank), maar de kogel bleef wél in je hangen: hij
+         ging stuk op jou en een drone van een teammaat duwde je opzij. Dat
+         voelde als "mijn teamgenoten vallen me aan" — en het blokkeerde de
+         schoten van je maatje op de vijand. */
+      if (b.team !== null && b.team !== undefined && t.team === b.team) continue;
       // Een kogel raakt elke tank hoogstens één keer. Een drone blijft rammen:
       // die mag dezelfde tank opnieuw raken na een korte pauze, anders is hij
       // na één treffer nutteloos.
