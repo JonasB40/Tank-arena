@@ -58,8 +58,8 @@
     /* De drie lopen stonden bijna tegen elkaar (±20°) en vormden op het scherm
        één brede klomp. In diep.io waaieren ze duidelijk uit, met de middelste
        het langst — daaraan herken je een Triple Shot van een afstand. */
-    driedubbel: { naam: 'Driedubbel', tier: 3, cannon: 'normaal', lopen: [L(-0.62, 0, 30, 10), L(0, 0, 36, 11), L(0.62, 0, 30, 10)], herlaad: 1.2, schade: 0.65, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
-    viertank: { naam: 'Viertank', tier: 3, cannon: 'normaal', lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 32, 11)), herlaad: 1.15, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    driedubbel: { naam: 'Driedubbel', tier: 3, cannon: 'normaal', lopen: [L(-0.5, 0, 32, 12), L(0, 0, 34, 12), L(0.5, 0, 32, 12)], herlaad: 1.2, schade: 0.65, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    viertank: { naam: 'Viertank', tier: 3, cannon: 'normaal', lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 34, 12)), herlaad: 1.15, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
     /* Dubbelflank = een Twin die ook naar achter kijkt, dus hij vuurt net als de
        Twin AFWISSELEND: eerst de linkerkant (voor én achter samen), dan de
        rechterkant. Let op de zijkant achteraan: een loop op hoek PI staat
@@ -68,8 +68,8 @@
     dubbelflank: {
       naam: 'Dubbelflank', tier: 3, cannon: 'normaal', afwisselend: true,
       lopen: [
-        L(0, -9, 32, 10, { groep: 0 }), L(PI, 9, 28, 10, { groep: 0 }),
-        L(0, 9, 32, 10, { groep: 1 }), L(PI, -9, 28, 10, { groep: 1 }),
+        L(0, -10, 34, 11, { groep: 0 }), L(PI, 10, 30, 11, { groep: 0 }),
+        L(0, 10, 34, 11, { groep: 1 }), L(PI, -10, 30, 11, { groep: 1 }),
       ],
       herlaad: 0.6, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
     },
@@ -81,9 +81,12 @@
       /* De twee lopen lagen volledig over elkaar en dat gaf een rommelige naad
          in het midden. Nu staan ze áchter elkaar: een breed onderstuk tegen de
          romp, met daarvoor een smallere loop — de herkenbare trap van Hunter. */
+      /* Twee lopen vanaf het midden: eerst de smalle (die steekt er voorbij),
+         daarna de brede eroverheen. Samen geven ze de herkenbare trap van de
+         Hunter — 95 breed en 110 smal op een romp van 100 in diep.io. */
       lopen: [
-        L(0, 0, 26, 14, { schade: 0.9 }),
-        Object.assign(L(0, 0, 20, 9, { schade: 0.6, r: 4 }), { start: 24 }),
+        L(0, 0, 40, 12, { schade: 0.6, r: 5 }),
+        L(0, 0, 34, 16, { schade: 0.9 }),
       ],
       herlaad: 1.5, schade: 1.2, kogelSnelheid: 1.5, kogelR: 7, spreiding: 0, zicht: 1.15,
     },
@@ -92,13 +95,17 @@
        liggen (https://diepio.fandom.com/wiki/Traps). */
     opzichter: {
       naam: 'Opzichter (Overseer)', tier: 3, cannon: 'spawner', munitie: 'drone', droneMax: 8,
-      lopen: [L(-PI / 2, 0, 26, 16), L(PI / 2, 0, 26, 16)],
+      /* Een dronefabriek is bij diep.io kort en breed (70 lang, 84 breed op een
+         romp van 100): een luik waar de drones uit komen, geen loop. Bij ons
+         waren het twee stokjes die langer waren dan breed. */
+      lopen: [L(-PI / 2, 0, 24, 25), L(PI / 2, 0, 24, 25)],
       herlaad: 2.4, schade: 1, kogelSnelheid: 1, kogelR: 7, spreiding: 0,
     },
     trapper: {
       naam: 'Valstrikker (Trapper)', tier: 3, cannon: 'launcher', munitie: 'trap',
-      // iets langer, anders zit de trechter bijna tegen de romp geplakt
-      lopen: [L(0, 0, 36, 12)],
+      /* Kort en stevig, met de trechter duidelijk breder dan de loop — zo
+         ziet het eruit als een lanceerbuis en niet als een spies. */
+      lopen: [L(0, 0, 28, 13)],
       herlaad: 1.4, schade: 1.3, kogelSnelheid: 0.9, kogelR: 8, spreiding: 0,
     },
     assassin: { naam: 'Assassin', tier: 3, cannon: 'trapezium', lopen: [L(0, 0, 47, 12)], herlaad: 1.9, schade: 1.7, kogelSnelheid: 1.85, kogelR: 6, spreiding: 0, zicht: 1.30 },
@@ -143,7 +150,7 @@
     drietwin: { naam: 'Drietwin (Triple Twin)', tier: 4, cannon: 'normaal', lopen: [0, (2 * PI) / 3, (4 * PI) / 3].flatMap((h) => [L(h, -8, 30, 9), L(h, 8, 30, 9)]), herlaad: 1.25, schade: 0.55, kogelSnelheid: 1, kogelR: 5, spreiding: 0 },
     ranger: { naam: 'Ranger', tier: 4, cannon: 'trapezium', lopen: [L(0, 0, 50, 12)], herlaad: 2, schade: 1.8, kogelSnelheid: 1.9, kogelR: 6, spreiding: 0, zicht: 1.60 },
     sluiper: { naam: 'Sluiper (Stalker)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 40, 12)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0, sluip: true, zicht: 1.15 },
-    predator: { naam: 'Predator (Roofdier)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 44, 13, { schade: 0.8 }), L(0, 0, 38, 10, { schade: 0.6 }), L(0, 0, 32, 7, { schade: 0.5, r: 5 })], herlaad: 1.8, schade: 1.9, kogelSnelheid: 1.7, kogelR: 7, spreiding: 0, zicht: 1.15 },
+    predator: { naam: 'Predator (Roofdier)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 32, 16, { schade: 0.5, r: 5 }), L(0, 0, 38, 13, { schade: 0.6 }), L(0, 0, 44, 10, { schade: 0.8 })], herlaad: 1.8, schade: 1.9, kogelSnelheid: 1.7, kogelR: 7, spreiding: 0, zicht: 1.15 },
     /* Annihilator: dezelfde kogel als de Vernietiger, maar uit een nog bredere
        loop en met nog meer terugslag (17x). https://diepwiki.io/#/tanks/annihilator */
     annihilator: {
@@ -151,17 +158,17 @@
       herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.2, recoil: 17, spreiding: 0,
     },
     sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.48, schade: 0.6, kogelSnelheid: 1, kogelSchaal: 0.62, spreiding: 0.2 },
-    streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 40, 9), L(0, 0, 36, 9), L(0, 0, 31, 9), L(0, 0, 27, 9), L(0, 0, 23, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03, zicht: 1.15 },
+    streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 23, 15), L(0, 0, 27, 13), L(0, 0, 31, 11), L(0, 0, 36, 10), L(0, 0, 40, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03, zicht: 1.15 },
     booster: { naam: 'Booster', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI - 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI + 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI - 0.25, 0, 28, 8, { schade: 0.2, r: 4 }), L(PI + 0.25, 0, 28, 8, { schade: 0.2, r: 4 })], herlaad: 1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 65 },
     vechter: { naam: 'Vechter (Fighter)', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(-PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI - 0.6, 0, 26, 8, { schade: 0.2, r: 4 }), L(PI + 0.6, 0, 26, 8, { schade: 0.2, r: 4 })], herlaad: 1.1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 45 },
     overheer: {
       naam: 'Overheer (Overlord)', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 12,
-      lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 26, 16)),
+      lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 24, 25)),
       herlaad: 2.1, schade: 1.15, kogelSnelheid: 1.1, kogelR: 7, spreiding: 0,
     },
     dritrapper: {
       naam: 'Drievoudige valstrikker', tier: 4, cannon: 'launcher', munitie: 'trap',
-      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 28, 12)),
+      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 26, 13)),
       herlaad: 1.6, schade: 1, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0, trapLeven: 10000,
     },
     megatrapper: {

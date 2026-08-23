@@ -100,9 +100,22 @@ function drawLopen(c, lopen, type, terug) {
   // onderstuk met een smalle loop erop, en de Driehoekstank echte stuwpijpen —
   // in diep.io heeft één tank namelijk niet altijd overal hetzelfde kanon.
   const vormVan = (l) => l.vorm || type;
-  for (const l of lopen) { cannonPad(c, l, vormVan(l), terug); c.stroke(); }
   c.fillStyle = LOOP_KLEUR;
-  for (const l of lopen) { cannonPad(c, l, vormVan(l), terug); c.fill(); }
+  /*
+   * Elk kanon krijgt zijn eigen omtrek en wordt meteen ingekleurd, in de
+   * volgorde waarin ze in de klasse staan (breedste eerst). Zo dekt een
+   * smallere loop de bredere gedeeltelijk af en blijft het TRAPJE zichtbaar —
+   * precies waaraan je een Predator van een Ranger onderscheidt.
+   *
+   * Eerst tekenden we álle omtrekken en dán alle vullingen. Dat gaf één glad
+   * silhouet: mooi voor twee lopen naast elkaar, maar alle tanks van de
+   * sluipschuttertak zagen er daardoor identiek uit.
+   */
+  for (const l of lopen) {
+    cannonPad(c, l, vormVan(l), terug);
+    c.stroke();
+    c.fill();
+  }
 }
 
 /* Tekent één tank op (0,0) — de aanroeper doet translate/scale. */

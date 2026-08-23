@@ -594,6 +594,29 @@ const KAART_KLEUREN = [
   ['#f3b880', '#c1854d'],  // oranje
 ];
 
+/* Hoe ver reikt deze tank echt, van zijn middelpunt tot zijn verste punt? */
+const gemetenStralen = new Map();
+function meetTankStraal(klasse, kleur) {
+  if (gemetenStralen.has(klasse)) return gemetenStralen.get(klasse);
+  const M = 200, doek = document.createElement('canvas');
+  doek.width = M; doek.height = M;
+  const g = doek.getContext('2d');
+  g.translate(M / 2, M / 2);
+  drawTank(g, {
+    klasse, vorm: 'cirkel', kleur, angle: 0, naam: '', hp: 1, maxHp: 1,
+    zeg: null, flits: null, schild: false, onzichtbaar: false, alleenVorm: true,
+  }, false);
+  const d = g.getImageData(0, 0, M, M).data;
+  let straal = 22;
+  for (let y = 0; y < M; y++) {
+    for (let x = 0; x < M; x++) {
+      if (d[(y * M + x) * 4 + 3] > 20) straal = Math.max(straal, Math.hypot(x - M / 2, y - M / 2));
+    }
+  }
+  gemetenStralen.set(klasse, straal);
+  return straal;
+}
+
 function toonKlassePopup(ik) {
   const lijst = document.getElementById('klasse-lijst');
   lijst.innerHTML = '';
@@ -605,17 +628,27 @@ function toonKlassePopup(ik) {
     kaart.style.setProperty('--bg', bg);
     kaart.style.setProperty('--rand', rand);
 
-    /* De tank past zich aan het kaartje aan: een sluipschutter heeft een loop
-       van 60 pixels, die stak anders zo het kaartje uit. */
+    /* De tank past zich aan het kaartje aan. We rekenen de verste hoek van elk
+       kanon uit — niet alleen hoe LANG hij is, maar ook hoe breed en hoe ver
+       opzij. Anders viel een Overseer (twee brede dronebays opzij) half buiten
+       het kaartje, terwijl een sluipschutter juist piepklein stond. */
     const B = 74, H = 56, dpr = Math.min(2, window.devicePixelRatio || 1);
     const mini = document.createElement('canvas');
     mini.width = B * dpr; mini.height = H * dpr;
     mini.style.width = B + 'px'; mini.style.height = H + 'px';
-    const langste = (def && def.lopen || []).reduce((m, l) => Math.max(m, (l.start || 0) + l.len), 0);
-    const schaal = Math.min(0.95, 30 / Math.max(22, 22 + langste * 0.55));
+    /* Uitrekenen hoe groot een tank wórdt is lastig: een dronebay waaiert open,
+       een valstrikwerper heeft een trechter, een trapezium loopt taps. Daarom
+       tekenen we hem eerst één keer op een kladdoek, meten we op hoe ver hij
+       werkelijk reikt, en pas dán tekenen we hem passend op het kaartje. */
+    const schaal = Math.min(0.95, (Math.min(B, H) / 2 - 3) / meetTankStraal(k, ik.kleur));
     const g = mini.getContext('2d');
     g.scale(dpr, dpr);
     g.translate(B / 2, H / 2);
+    /* De Sluiper ziet er precies uit als de Sluipschutter — in diep.io is dat
+       ook zo, want het verschil zit in zijn kunstje: hij wordt onzichtbaar als
+       hij stilstaat. Op het kaartje tonen we hem daarom half doorschijnend,
+       anders kiest een leerling tussen twee identieke plaatjes. */
+    if (def && def.sluip) g.globalAlpha = 0.45;
     g.scale(schaal, schaal);
     drawTank(g, {
       klasse: k, vorm: 'cirkel', kleur: ik.kleur, angle: Math.PI * 0.75, naam: '',
