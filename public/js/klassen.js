@@ -302,7 +302,8 @@
       naam: 'Overtrapper', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 6,
       lopen: [
         L(-PI / 2, 0, 26, 19), L(PI / 2, 0, 26, 19),
-        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher' }),
+        // eigen ritme, anders spuwt hij valstrikken op het tempo van zijn drones
+        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher', herlaad: 1.2 }),
       ],
       herlaad: 2.3, schade: 0.9, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0,
     },

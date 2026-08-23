@@ -1236,6 +1236,12 @@ io.on('connection', (socket) => {
     // naar level 45 te moeten spelen (staat uit zonder omgevingsvariabele)
     const magAlles = !!process.env.TESTVRIJEKLASSE && !!KLASSEN[data.klasse];
     if (magAlles || klasseAanbod(t).includes(data.klasse)) {
+      /* Je oude drones gaan mee met je oude klasse. Anders hield een leerling
+         die van Necromancer naar Manager ging zijn zwerm van achttien, terwijl
+         een Manager er maar negen mag hebben — en met een gewone tank vlogen
+         er ineens drones rond die nergens meer bij hoorden. */
+      const room0 = rooms.get(socket.data.roomId);
+      if (room0) for (const b of room0.bullets) if (b.soort === 'drone' && b.eigenaar === t.id) b.weg = true;
       t.klasse = data.klasse;
       // sommige klassen hebben een eigen romp (de Necromancer is een vierkant)
       const kl = KLASSEN[t.klasse];
@@ -1897,8 +1903,15 @@ function tickRoom(room, nu, dt) {
       }
     }
 
-    if (t.intent.shoot && nu > t.reloadUntil && kl.lopen.length && kl.munitie !== 'drone') {
-      t.reloadUntil = nu + herlaadMsVan(t);
+    /* Ook een dronetank kan een gewone loop hebben: de Overtrapper heeft naast
+       zijn twee dronebays een valstrikwerper achterop. Dit stuk werd voor élke
+       dronetank overgeslagen, dus die werper deed helemaal niets. */
+    const kogelLopen = kl.lopen.some((l) => (l.munitie || kl.munitie) !== 'drone' && !l.schijn);
+    const droneKlasse = kl.munitie === 'drone';
+    if (t.intent.shoot && kogelLopen && (droneKlasse || nu > t.reloadUntil)) {
+      // bij een dronetank loopt de dronefabriek op t.reloadUntil; die laten we
+      // met rust, de losse loop heeft zijn eigen ritme (loop.herlaad)
+      if (!droneKlasse) t.reloadUntil = nu + herlaadMsVan(t);
       t.laatsteActie = nu;
       t.laatsteSchot = nu;           // pauzeert het genezen
       /*
@@ -1931,15 +1944,19 @@ function tickRoom(room, nu, dt) {
         teVuren = kl.lopen.filter((l, i) => (l.groep === undefined ? i : l.groep) === nu);
       }
       for (const loop of teVuren) {
-        if (loop.munitie === 'drone') continue;   // die loop maakt drones, geen kogels
+        // een dronebay maakt drones, geen kogels — let op: de meeste bays laten
+        // munitie leeg en erven 'drone' van de klasse, dus dát moet je testen
+        if ((loop.munitie || kl.munitie) === 'drone') continue;
         if (loop.schijn) continue;                // alleen om te zien (de trapjes van de Streamliner)
         /* Een loop mag een eigen ritme hebben. De valstrikwerper achterop de
            Gunner Trapper laadt bijvoorbeeld veel trager dan de loopjes
-           vooruit — anders spuwt hij valstrikken alsof het kogels zijn. */
-        if (loop.herlaad) {
+           vooruit — anders spuwt hij valstrikken alsof het kogels zijn. Bij een
+           dronetank is dat verplicht: die heeft geen gedeelde herlaadtijd voor
+           kogels, dus zonder eigen timer zou zo'n loop élke tik vuren. */
+        if (droneKlasse || loop.herlaad) {
           const sleutel = 'lh' + kl.lopen.indexOf(loop);
           if (nu < (t[sleutel] || 0)) continue;
-          t[sleutel] = nu + herlaadMsVan(t) * loop.herlaad;
+          t[sleutel] = nu + herlaadMsVan(t) * (loop.herlaad || 1);
         }
         const richting = t.angle + loop.hoek + (kl.spreiding ? (Math.random() - 0.5) * 2 * kl.spreiding : 0);
         const zijHoek = t.angle + loop.hoek + Math.PI / 2;
