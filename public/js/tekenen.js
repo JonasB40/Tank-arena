@@ -122,6 +122,36 @@ function drawLopen(c, lopen, type, terug) {
 }
 
 /* Tekent één tank op (0,0) — de aanroeper doet translate/scale. */
+/*
+ * Eén automatische geschutskoepel: een rond voetje met een loopje erop, dat
+ * los van de tank draait. Zo zie je dat het ding zelf mikt.
+ */
+function tekenKoepel(c, t, klasse, groei, montage) {
+  const a = klasse.auto;
+  const mik = (t.autoHoek === null || t.autoHoek === undefined) ? t.angle : t.autoHoek;
+  c.save();
+  c.scale(groei, groei);
+  // de voet zit vast op de romp; de koepel zelf draait naar het doel
+  c.translate(Math.cos(t.angle + montage) * (a.voet || 0), Math.sin(t.angle + montage) * (a.voet || 0));
+  c.rotate(mik);
+  c.lineJoin = 'round';
+  c.beginPath();
+  c.rect(a.straal - 3, -a.w / 2, a.len, a.w);
+  c.strokeStyle = LOOP_RAND;
+  c.lineWidth = RAND * 2;
+  c.stroke();
+  c.fillStyle = LOOP_KLEUR;
+  c.fill();
+  c.beginPath();
+  c.arc(0, 0, a.straal, 0, Math.PI * 2);
+  c.strokeStyle = LOOP_RAND;
+  c.lineWidth = RAND * 2;
+  c.stroke();
+  c.fillStyle = LOOP_KLEUR;
+  c.fill();
+  c.restore();
+}
+
 function drawTank(c, t, isIk) {
   const klasse = KLASSEN[t.klasse] || KLASSEN.basis;
   /* Tanks groeien met hun level (de server rekent het uit en stuurt t.r mee).
@@ -151,6 +181,10 @@ function drawTank(c, t, isIk) {
     c.restore();
   }
 
+  /* Auto 3 / Auto 5 bestaan uit koepels op de rand van de romp. Die horen
+     ACHTER de romp: net als in diep.io steekt alleen de kop eruit. */
+  if (klasse.torens) for (const montage of klasse.torens) tekenKoepel(c, t, klasse, groei, montage);
+
   // lopen (kanonnen) per klasse — vorm hangt af van het cannon-type (diep.io)
   c.save();
   c.rotate(t.angle);
@@ -178,31 +212,10 @@ function drawTank(c, t, isIk) {
   c.shadowBlur = 0;
   c.shadowColor = 'transparent';
 
-  /* Het automatische torentje van de Auto 3 / Auto 5: een klein kanonnetje op
-     een eigen rondje bovenop de romp, dat een andere kant op kan kijken dan de
-     tank zelf. Zo zie je meteen dat het ding zijn eigen doel uitzoekt. */
-  if (klasse.auto) {
-    const a = klasse.auto;
-    c.save();
-    c.rotate(t.autoHoek === null || t.autoHoek === undefined ? t.angle : t.autoHoek);
-    c.scale(groei, groei);
-    c.lineJoin = 'round';
-    c.beginPath();
-    c.rect(a.straal - 2, -a.w / 2, a.len, a.w);
-    c.strokeStyle = LOOP_RAND;
-    c.lineWidth = RAND * 2;
-    c.stroke();
-    c.fillStyle = LOOP_KLEUR;
-    c.fill();
-    c.beginPath();
-    c.arc(0, 0, a.straal, 0, Math.PI * 2);
-    c.strokeStyle = donkerder(lijf);
-    c.lineWidth = RAND * 2;
-    c.stroke();
-    c.fillStyle = lijf;
-    c.fill();
-    c.restore();
-  }
+  /* De koepel bovenop (Auto Gunner, Auto Trapper, Auto Smasher) staat op de
+     romp en wordt er dus ná getekend. De koepels van een Auto 3 / Auto 5 staan
+     op de rand en gaan er juist achter — zie hierboven. */
+  if (klasse.auto && !klasse.torens) tekenKoepel(c, t, klasse, groei, 0);
 
   /* Naam + levensbalk horen bij het spel, niet bij een plaatje. In het
      keuzevenster voor je nieuwe tankklasse stond boven elk voorbeeld een

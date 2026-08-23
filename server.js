@@ -1846,6 +1846,9 @@ function tickRoom(room, nu, dt) {
      * niets voor te doen — dat is het hele idee van deze klasse.
      */
     if (kl.auto) {
+      /* Zoek één doel voor alle koepels samen: eerst de dichtstbijzijnde
+         vijand, en is die er niet, dan een vorm in de buurt. Alle koepels
+         draaien mee en vuren tegelijk — zoals in diep.io. */
       let doel = null, best = kl.auto.bereik;
       for (const ander of room.tanks.values()) {
         if (ander.id === t.id || nu < ander.deadUntil || ander.onzichtbaar) continue;
@@ -1853,11 +1856,8 @@ function tickRoom(room, nu, dt) {
         const d = Math.hypot(ander.x - t.x, ander.y - t.y);
         if (d < best) { best = d; doel = ander; }
       }
-      /* Geen vijand in de buurt? Dan mikt het torentje op een vorm. Zonder dit
-         stond het stil zolang je aan het farmen was, en leek het alsof het
-         ding niet werkte. In diep.io schiet hij ook gewoon op de polygons. */
       if (!doel) {
-        let vBest = kl.auto.bereik * 0.75;
+        let vBest = kl.auto.bereik * 0.8;
         const buurt = vormenRondom(room, t.x, t.y, buurVormen);
         for (const v of buurt) {
           if (v.weg || v.type === 'muur') continue;
@@ -1869,21 +1869,30 @@ function tickRoom(room, nu, dt) {
         t.autoHoek = Math.atan2(doel.y - t.y, doel.x - t.x);
         if (nu > (t.autoHerlaadTot || 0)) {
           t.autoHerlaadTot = nu + kl.auto.herlaadMs;
-          const snelheidA = BULLET_SPEED * bulletSnelheidFactor(t);
-          room.bullets.push({
-            id: room.volgendKogelId++, soort: 'kogel',
-            x: t.x + Math.cos(t.autoHoek) * (kl.auto.len + 8),
-            y: t.y + Math.sin(t.autoHoek) * (kl.auto.len + 8),
-            vx: Math.cos(t.autoHoek) * snelheidA,
-            vy: Math.sin(t.autoHoek) * snelheidA,
-            eigenaar: t.id, kleur: t.kleur, team: t.team,
-            r: kl.auto.w * 0.42 * 1.5,
-            schade: bulletSchadeVan(t) * kl.auto.schade,
-            leven: 1 + bulletPierce(t),
-            dood: nu + BULLET_LIFE,
-          });
+          const snelheidA = BULLET_SPEED * bulletSnelheidFactor(t) * (kl.auto.kogelSnelheid || 1);
+          const voet = kl.auto.voet || 0;
+          // elke koepel vuurt: bij een Auto 3 zijn dat er drie tegelijk
+          for (const montage of (kl.torens || [0])) {
+            const groei = straalVan(t) / TANK_RADIUS;
+            const mx = Math.cos(t.angle + montage) * voet * groei;
+            const my = Math.sin(t.angle + montage) * voet * groei;
+            room.bullets.push({
+              id: room.volgendKogelId++, soort: 'kogel',
+              x: t.x + mx + Math.cos(t.autoHoek) * (kl.auto.len + kl.auto.straal) * groei,
+              y: t.y + my + Math.sin(t.autoHoek) * (kl.auto.len + kl.auto.straal) * groei,
+              vx: Math.cos(t.autoHoek) * snelheidA,
+              vy: Math.sin(t.autoHoek) * snelheidA,
+              eigenaar: t.id, kleur: t.kleur, team: t.team,
+              r: kl.auto.kogelR || kl.auto.w * 0.42 * 1.5,
+              schade: bulletSchadeVan(t) * kl.auto.schade,
+              leven: 1 + bulletPierce(t),
+              dood: nu + BULLET_LIFE,
+            });
+          }
+          t.laatsteSchot = nu;
         }
-      } else if (t.autoHoek === undefined) {
+      } else {
+        // geen doel: de koepels kijken weer voor zich uit
         t.autoHoek = t.angle;
       }
     }

@@ -91,15 +91,23 @@
       herlaad: 1.5, schade: 1.2, kogelSnelheid: 1.5, kogelR: 7, spreiding: 0, zicht: 1.15,
     },
     /*
-     * Auto 3: drie lopen rondom, én bovenop een torentje dat helemaal ZELF
-     * mikt en schiet op wie er in de buurt komt. Je hoeft er niets voor te
-     * doen — daarom heet hij "auto". (https://diepio.fandom.com/wiki/Auto_3)
+     * Auto 3 (https://diepio.fandom.com/wiki/Auto_3). Let op: dit is GEEN tank
+     * met drie gewone lopen. Hij heeft drie geschutskoepels rond zijn romp die
+     * helemaal zélf hun doel zoeken — de dichtstbijzijnde vijand of vorm — en
+     * daar samen op vuren. Jij hoeft niet te richten en niet te schieten; jij
+     * rijdt alleen. Daarom staat `lopen` hier leeg: er is niets wat jij zelf
+     * afvuurt. `torens` zegt waar de koepels op de romp staan.
      */
     auto3: {
       naam: 'Auto 3', tier: 3, cannon: 'normaal',
-      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 34, 12)),
-      herlaad: 1.25, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
-      auto: { bereik: 900, herlaadMs: 700, schade: 0.45, len: 17, w: 8, straal: 10 },
+      lopen: [],
+      torens: [0, (2 * PI) / 3, (4 * PI) / 3],
+      /* De basisstats van de wiki: de koepels schieten SNELLE maar KLEINE en
+         ZWAKKE kogels (bullet speed hoger dan gemiddeld, bullet damage en
+         bullet size duidelijk lager), met een gewone herlaadtijd. */
+      auto: { bereik: 900, herlaadMs: 600, schade: 0.55, kogelSnelheid: 1.15, kogelR: 5.3,
+        len: 22, w: 11, straal: 11, voet: 15 },
+      herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
     },
 
     /* Drone- en trap-klassen: schieten geen kogels maar sturen "helpertjes"
@@ -185,12 +193,14 @@
       lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 27, 19)),
       herlaad: 2.1, schade: 1.15, kogelSnelheid: 1.1, kogelR: 7, spreiding: 0,
     },
-    /* Auto 5: hetzelfde idee als de Auto 3, maar met vijf lopen. */
+    /* Auto 5: hetzelfde idee als de Auto 3, maar met vijf koepels. */
     auto5: {
       naam: 'Auto 5', tier: 4, cannon: 'normaal',
-      lopen: [0, 1, 2, 3, 4].map((i) => L((i * 2 * PI) / 5, 0, 32, 12)),
-      herlaad: 1.35, schade: 0.5, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
-      auto: { bereik: 940, herlaadMs: 640, schade: 0.5, len: 17, w: 8, straal: 10 },
+      lopen: [],
+      torens: [0, 1, 2, 3, 4].map((i) => (i * 2 * PI) / 5),
+      auto: { bereik: 940, herlaadMs: 600, schade: 0.45, kogelSnelheid: 1.15, kogelR: 5.1,
+        len: 21, w: 10, straal: 10.5, voet: 15 },
+      herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
     },
 
 
@@ -336,7 +346,10 @@
     trapper: { 45: ['dritrapper', 'megatrapper', 'autotrapper', 'gunnertrapper'] },
     machinegeweer: { 30: ['vernietiger', 'gunner'], 45: ['sprayer'] },
     flankwacht: { 30: ['driehoekstank', 'viertank', 'dubbelflank', 'auto3'] },
-    auto3: { 45: ['auto5'] },
+    /* De Auto 3 gaat verder als Auto 5 (nog twee koepels erbij) of als Auto
+       Gunner: die ruilt zijn koepels in voor vier snelle loopjes vooruit, met
+       één koepel bovenop. https://diepwiki.io/#/tanks/auto-gunner */
+    auto3: { 45: ['auto5', 'autogunner'] },
     driedubbel: { 45: ['triplet', 'vijfschot', 'waaierschot'] },
     viertank: { 45: ['octotank'] },
     dubbelflank: { 45: ['drietwin'] },
