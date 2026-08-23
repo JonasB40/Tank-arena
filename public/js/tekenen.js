@@ -175,6 +175,32 @@ function drawTank(c, t, isIk) {
   c.shadowBlur = 0;
   c.shadowColor = 'transparent';
 
+  /* Het automatische torentje van de Auto 3 / Auto 5: een klein kanonnetje op
+     een eigen rondje bovenop de romp, dat een andere kant op kan kijken dan de
+     tank zelf. Zo zie je meteen dat het ding zijn eigen doel uitzoekt. */
+  if (klasse.auto) {
+    const a = klasse.auto;
+    c.save();
+    c.rotate(t.autoHoek === null || t.autoHoek === undefined ? t.angle : t.autoHoek);
+    c.scale(groei, groei);
+    c.lineJoin = 'round';
+    c.beginPath();
+    c.rect(a.straal - 2, -a.w / 2, a.len, a.w);
+    c.strokeStyle = LOOP_RAND;
+    c.lineWidth = RAND * 2;
+    c.stroke();
+    c.fillStyle = LOOP_KLEUR;
+    c.fill();
+    c.beginPath();
+    c.arc(0, 0, a.straal, 0, Math.PI * 2);
+    c.strokeStyle = donkerder(lijf);
+    c.lineWidth = RAND * 2;
+    c.stroke();
+    c.fillStyle = lijf;
+    c.fill();
+    c.restore();
+  }
+
   /* Naam + levensbalk horen bij het spel, niet bij een plaatje. In het
      keuzevenster voor je nieuwe tankklasse stond boven elk voorbeeld een
      groen streepje dat daar niets betekende — daar tekenen we alleen de tank
@@ -261,12 +287,35 @@ function drawMunitie(c, b, schaal) {
   // basisdrones zien eruit als gewone drones (driehoekjes in teamkleur)
   if (b.soort === 'drone' || b.soort === 'basisdrone') {
     c.rotate(b.hoek || 0);
-    c.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const a = (i * 2 * Math.PI) / 3;
-      c[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * r * 1.35, Math.sin(a) * r * 1.35);
+    /* De Necromancer stuurt vierkanten de lucht in en de Fabriek kleine
+       tankjes — aan de vorm van de zwerm zie je met wie je te maken hebt. */
+    if (b.vorm === 'vierkant') {
+      c.beginPath();
+      c.rect(-r * 1.1, -r * 1.1, r * 2.2, r * 2.2);
+    } else if (b.vorm === 'tank') {
+      c.beginPath();
+      c.rect(r * 0.7, -r * 0.45, r * 1.1, r * 0.9);
+      c.stroke();
+      c.fill();
+      c.beginPath();
+      c.arc(0, 0, r, 0, Math.PI * 2);
+    } else {
+      c.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const a = (i * 2 * Math.PI) / 3;
+        c[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * r * 1.35, Math.sin(a) * r * 1.35);
+      }
+      c.closePath();
     }
-    c.closePath();
+  } else if (b.soort === 'raket') {
+    /* Een raket: een dikke kogel met een uitlaat aan de achterkant. */
+    c.rotate(b.hoek || 0);
+    c.beginPath();
+    c.rect(-r * 1.5, -r * 0.5, r * 0.7, r);
+    c.stroke();
+    c.fill();
+    c.beginPath();
+    c.arc(0, 0, r, 0, Math.PI * 2);
   } else if (b.soort === 'trap') {
     c.rotate(b.hoek || 0);
     c.beginPath();

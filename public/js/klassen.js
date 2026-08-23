@@ -59,7 +59,7 @@
        één brede klomp. In diep.io waaieren ze duidelijk uit, met de middelste
        het langst — daaraan herken je een Triple Shot van een afstand. */
     driedubbel: { naam: 'Driedubbel', tier: 3, cannon: 'normaal', lopen: [L(-0.5, 0, 32, 12), L(0, 0, 34, 12), L(0.5, 0, 32, 12)], herlaad: 1.2, schade: 0.65, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
-    viertank: { naam: 'Viertank', tier: 3, cannon: 'normaal', lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 34, 12)), herlaad: 1.15, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
+    viertank: { naam: 'Quad-tank', tier: 3, cannon: 'normaal', lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 34, 12)), herlaad: 1.15, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
     /* Dubbelflank = een Twin die ook naar achter kijkt, dus hij vuurt net als de
        Twin AFWISSELEND: eerst de linkerkant (voor én achter samen), dan de
        rechterkant. Let op de zijkant achteraan: een loop op hoek PI staat
@@ -90,6 +90,18 @@
       ],
       herlaad: 1.5, schade: 1.2, kogelSnelheid: 1.5, kogelR: 7, spreiding: 0, zicht: 1.15,
     },
+    /*
+     * Auto 3: drie lopen rondom, én bovenop een torentje dat helemaal ZELF
+     * mikt en schiet op wie er in de buurt komt. Je hoeft er niets voor te
+     * doen — daarom heet hij "auto". (https://diepio.fandom.com/wiki/Auto_3)
+     */
+    auto3: {
+      naam: 'Auto 3', tier: 3, cannon: 'normaal',
+      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 32, 11)),
+      herlaad: 1.25, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+      auto: { bereik: 620, herlaadMs: 700, schade: 0.45, len: 20, w: 9, straal: 11 },
+    },
+
     /* Drone- en trap-klassen: schieten geen kogels maar sturen "helpertjes"
        (https://diepio.fandom.com/wiki/Drones) of leggen mijnen die blijven
        liggen (https://diepio.fandom.com/wiki/Traps). */
@@ -132,7 +144,7 @@
        stuwpijpen die naar achter toe wijder worden. Met dezelfde rechthoek als
        de hoofdloop leken het drie gewone kanonnen. */
     driehoekstank: {
-      naam: 'Driehoekstank', tier: 3, cannon: 'normaal',
+      naam: 'Tri-Angle', tier: 3, cannon: 'normaal',
       lopen: [
         L(0, 0, 34, 12),
         L(PI - 0.62, 0, 27, 10, { schade: 0.25, r: 4, vorm: 'stuw' }),
@@ -166,6 +178,131 @@
       lopen: [0, PI / 2, PI, -PI / 2].map((h) => L(h, 0, 24, 25)),
       herlaad: 2.1, schade: 1.15, kogelSnelheid: 1.1, kogelR: 7, spreiding: 0,
     },
+    /* Auto 5: hetzelfde idee als de Auto 3, maar met vijf lopen. */
+    auto5: {
+      naam: 'Auto 5', tier: 4, cannon: 'normaal',
+      lopen: [0, 1, 2, 3, 4].map((i) => L((i * 2 * PI) / 5, 0, 30, 10)),
+      herlaad: 1.35, schade: 0.5, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+      auto: { bereik: 660, herlaadMs: 640, schade: 0.5, len: 20, w: 9, straal: 11 },
+    },
+
+
+    /* ---- Tier 4: de laatste dertien uit de klassenboom van diep.io ----
+       Sommige daarvan hebben een eigen kunstje; die staan in het commentaar
+       erbij. (https://diepwiki.io/#/tanks) */
+
+    /* Auto Gunner: de vier loopjes van de Gunner én een torentje dat zelf mikt. */
+    autogunner: {
+      naam: 'Auto Gunner', tier: 4, cannon: 'gunner',
+      lopen: [L(0, -14, 40, 8), L(0, -4.6, 49, 8), L(0, 4.6, 49, 8), L(0, 14, 40, 8)],
+      herlaad: 0.5, schade: 0.35, kogelSnelheid: 1.2, kogelR: 4, spreiding: 0.05,
+      auto: { bereik: 640, herlaadMs: 620, schade: 0.45, len: 20, w: 9, straal: 11 },
+    },
+
+    /* Auto Trapper: legt valstrikken én heeft een torentje dat zelf schiet. */
+    autotrapper: {
+      naam: 'Auto Trapper', tier: 4, cannon: 'launcher', munitie: 'trap',
+      lopen: [L(0, 0, 28, 13)],
+      herlaad: 1.5, schade: 1.2, kogelSnelheid: 0.9, kogelR: 8, spreiding: 0,
+      auto: { bereik: 620, herlaadMs: 700, schade: 0.45, len: 20, w: 9, straal: 11 },
+    },
+
+    /* Auto Smasher: rammen én een torentje dat ondertussen zelf schiet. */
+    autosmasher: {
+      naam: 'Auto Smasher', tier: 4, cannon: 'normaal', lopen: [],
+      herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+      ram: true, ramSchade: 3, snelheidBonus: 24,
+      auto: { bereik: 600, herlaadMs: 680, schade: 0.5, len: 20, w: 10, straal: 12 },
+    },
+
+    /* Landmine: een Rammer die onzichtbaar wordt zodra hij stilstaat. Ga er
+       maar eens overheen rijden. */
+    landmijn: {
+      naam: 'Landmijn (Landmine)', tier: 4, cannon: 'normaal', lopen: [],
+      herlaad: 1, schade: 1, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+      ram: true, ramSchade: 3.2, snelheidBonus: 18, sluip: true,
+    },
+
+    /* Manager: een Opzichter die zelf onzichtbaar wordt. Zijn drones blijven
+       wél zichtbaar — die verraden waar hij zit. */
+    manager: {
+      naam: 'Manager', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 9,
+      lopen: [L(-PI / 2, 0, 24, 25), L(PI / 2, 0, 24, 25)],
+      herlaad: 2.2, schade: 1.05, kogelSnelheid: 1, kogelR: 7, spreiding: 0, sluip: true,
+    },
+
+    /* Necromancer: schiet niet, maar TOVERT kapotte vierkanten om tot zijn
+       eigen zwerm. Elk vierkant dat hij stukmaakt wordt een drone. */
+    necromancer: {
+      naam: 'Necromancer', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 18,
+      lopen: [L(-PI / 2, 0, 20, 22), L(PI / 2, 0, 20, 22)],
+      herlaad: 3.2, schade: 0.85, kogelSnelheid: 1, kogelR: 7, spreiding: 0,
+      necro: true, droneVorm: 'vierkant', vorm: 'vierkant',
+    },
+
+    /* Battleship: vier dronebays, dus drones van alle kanten. */
+    battleship: {
+      naam: 'Battleship', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 12,
+      lopen: [PI / 2 - 0.5, PI / 2 + 0.5, -PI / 2 - 0.5, -PI / 2 + 0.5].map((h) => L(h, 0, 20, 18)),
+      herlaad: 1.9, schade: 0.75, kogelSnelheid: 1, kogelR: 6, spreiding: 0,
+    },
+
+    /* Factory: maakt geen drones maar kleine TANKJES die voor je vechten. */
+    fabriek: {
+      naam: 'Fabriek (Factory)', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 6,
+      lopen: [L(0, 0, 26, 28)],
+      herlaad: 2.6, schade: 1.1, kogelSnelheid: 1, kogelR: 9, spreiding: 0,
+      droneVorm: 'tank',
+    },
+
+    /* Overtrapper: dronebays opzij én een valstrikwerper naar achteren. */
+    overtrapper: {
+      naam: 'Overtrapper', tier: 4, cannon: 'spawner', munitie: 'drone', droneMax: 6,
+      lopen: [
+        L(-PI / 2, 0, 22, 22), L(PI / 2, 0, 22, 22),
+        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher' }),
+      ],
+      herlaad: 2.3, schade: 0.9, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0,
+    },
+
+    /* Gunner Trapper: de loopjes van de Gunner vooruit, een valstrik naar achter. */
+    gunnertrapper: {
+      naam: 'Gunner Trapper', tier: 4, cannon: 'gunner',
+      lopen: [
+        L(0, -7, 44, 9), L(0, 7, 44, 9),
+        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher' }),
+      ],
+      herlaad: 0.7, schade: 0.4, kogelSnelheid: 1.15, kogelR: 5, spreiding: 0.05,
+    },
+
+    /* Hybrid: het zware kanon van de Vernietiger, met achterop een dronebay. */
+    hybride: {
+      naam: 'Hybride (Hybrid)', tier: 4, cannon: 'destroyer',
+      lopen: [
+        L(0, 0, 34, 21),
+        L(PI, 0, 20, 20, { munitie: 'drone', vorm: 'spawner' }),
+      ],
+      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.18,
+      recoil: 14, spreiding: 0, droneMax: 4,
+    },
+
+    /* Skimmer: schiet RAKETTEN die onderweg zelf naar achteren blijven vuren. */
+    skimmer: {
+      naam: 'Skimmer', tier: 4, cannon: 'destroyer', munitie: 'raket',
+      lopen: [L(0, 0, 32, 19)],
+      herlaad: 3, schade: 1.6, kogelSnelheid: 0.75, kogelSchaal: 1.05, spreiding: 0,
+      raket: { herlaadMs: 190, schade: 0.28, achteruit: true },
+    },
+
+    /* Rocketeer: een raket met een stuwmotor — trager op gang, maar hij duwt
+       zichzelf steeds harder vooruit. */
+    rocketeer: {
+      naam: 'Rocketeer', tier: 4, cannon: 'destroyer', munitie: 'raket',
+      lopen: [L(0, 0, 30, 22)],
+      herlaad: 3.4, schade: 1.9, kogelSnelheid: 0.5, kogelSchaal: 1.15, spreiding: 0,
+      raket: { herlaadMs: 150, schade: 0.22, achteruit: true, stuw: 130 },
+    },
+
     dritrapper: {
       naam: 'Drievoudige valstrikker', tier: 4, cannon: 'launcher', munitie: 'trap',
       lopen: [0, (2 * PI) / 3, (4 * PI) / 3].map((h) => L(h, 0, 26, 13)),
@@ -186,19 +323,20 @@
     basis: { 15: ['twin', 'sluipschutter', 'machinegeweer', 'flankwacht'], 30: ['rammer'] },
     twin: { 30: ['driedubbel', 'viertank', 'dubbelflank'] },
     sluipschutter: { 30: ['jager', 'assassin', 'opzichter', 'trapper'] },
-    opzichter: { 45: ['overheer'] },
-    trapper: { 45: ['dritrapper', 'megatrapper'] },
+    opzichter: { 45: ['overheer', 'necromancer', 'manager', 'fabriek', 'overtrapper', 'battleship'] },
+    trapper: { 45: ['dritrapper', 'megatrapper', 'autotrapper', 'gunnertrapper'] },
     machinegeweer: { 30: ['vernietiger', 'gunner'], 45: ['sprayer'] },
-    flankwacht: { 30: ['driehoekstank', 'viertank', 'dubbelflank'] },
+    flankwacht: { 30: ['driehoekstank', 'viertank', 'dubbelflank', 'auto3'] },
+    auto3: { 45: ['auto5'] },
     driedubbel: { 45: ['triplet', 'vijfschot', 'waaierschot'] },
     viertank: { 45: ['octotank'] },
     dubbelflank: { 45: ['drietwin'] },
     jager: { 45: ['ranger', 'sluiper', 'streamliner', 'predator'] },
     assassin: { 45: ['ranger', 'sluiper', 'predator'] },
-    vernietiger: { 45: ['annihilator'] },
-    gunner: { 45: ['streamliner'] },
+    vernietiger: { 45: ['annihilator', 'hybride', 'skimmer', 'rocketeer'] },
+    gunner: { 45: ['streamliner', 'autogunner', 'gunnertrapper'] },
     driehoekstank: { 45: ['booster', 'vechter'] },
-    rammer: { 45: ['stekelbol'] },
+    rammer: { 45: ['stekelbol', 'autosmasher', 'landmijn'] },
   };
 
   /*

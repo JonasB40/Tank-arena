@@ -178,8 +178,9 @@ const NIVEAUS = {
  * soort vijand tegenkomt.
  */
 const ROBOT_KLASSEN = {
-  45: ['octotank', 'vernietiger', 'overheer', 'dritrapper', 'annihilator', 'drietwin'],
-  30: ['driedubbel', 'gunner', 'opzichter', 'trapper', 'jager'],
+  45: ['octotank', 'vernietiger', 'overheer', 'dritrapper', 'annihilator', 'drietwin', 'auto5',
+       'necromancer', 'autogunner', 'hybride', 'skimmer', 'battleship', 'autosmasher'],
+  30: ['driedubbel', 'gunner', 'opzichter', 'trapper', 'jager', 'auto3'],
   15: ['twin', 'machinegeweer', 'flankwacht', 'sluipschutter'],
 };
 const robotKlasseVoorLevel = (lvl) => {
@@ -1004,6 +1005,7 @@ function maakAiTank(room, n) {
   };
   t.level = lvl;
   t.klasse = robotKlasseVoorLevel(lvl);
+  if (KLASSEN[t.klasse] && KLASSEN[t.klasse].vorm) t.vorm = KLASSEN[t.klasse].vorm;
   /*
    * In teammodus vecht een robot mee voor een team: hij krijgt de teamkleur en
    * telt mee voor die kant. Zonder dit reden er grijze robots rond die iedereen
@@ -1095,6 +1097,16 @@ io.on('connection', (socket) => {
 
     const t = nieuweTank(socket.id, saneNaam(data && data.naam));
     t.kleur = KLEUREN[Math.floor(Math.random() * 8)];
+    /* Alleen om te testen: start meteen met een bepaalde klasse en een hoog
+       level, zodat je niet eerst een half uur moet spelen om te zien of een
+       nieuwe klasse klopt. Staat uit zolang de omgevingsvariabele leeg is. */
+    if (process.env.TESTSPELERKLASSE && KLASSEN[process.env.TESTSPELERKLASSE]) {
+      t.klasse = process.env.TESTSPELERKLASSE;
+      if (KLASSEN[t.klasse].vorm) t.vorm = KLASSEN[t.klasse].vorm;
+      t.level = Number(process.env.TESTLEVEL) || 30;
+      t.maxHp = maxHpVan(t);
+      t.hp = t.maxHp;
+    }
     room.tanks.set(socket.id, t);
     if (room.teamModus) wijsTeamToe(room, t);
     spawnTank(room, t);
@@ -1153,6 +1165,9 @@ io.on('connection', (socket) => {
     if (!t || !data) return;
     if (klasseAanbod(t).includes(data.klasse)) {
       t.klasse = data.klasse;
+      // sommige klassen hebben een eigen romp (de Necromancer is een vierkant)
+      const kl = KLASSEN[t.klasse];
+      if (kl && kl.vorm) t.vorm = kl.vorm;
       t.maxHp = maxHpVan(t);
       t.hp = Math.min(t.hp, t.maxHp);
     }
@@ -1703,22 +1718,67 @@ function tickRoom(room, nu, dt) {
     /* Drone-klassen (Opzichter/Overheer) maken vanzelf helpertjes aan tot hun
        maximum. Je hoeft er dus niet voor te schieten — schieten stuurt ze
        alleen wél op je doel af. Zie https://diepio.fandom.com/wiki/Drones */
-    if (kl.munitie === 'drone' && nu > t.reloadUntil && kl.lopen.length) {
+    /* Welke lopen maken drones? Bij een echte dronetank alle, maar de Hybride
+       heeft er maar één achterop (de rest schiet gewone kogels). */
+    const droneLopen = kl.munitie === 'drone'
+      ? kl.lopen.filter((l) => !l.munitie || l.munitie === 'drone')
+      : kl.lopen.filter((l) => l.munitie === 'drone');
+    if (droneLopen.length && nu > (kl.munitie === 'drone' ? t.reloadUntil : (t.droneHerlaadTot || 0))) {
       const mijn = room.bullets.filter((b) => b.soort === 'drone' && !b.weg && b.eigenaar === t.id).length;
       if (mijn < (kl.droneMax || 8)) {
-        t.reloadUntil = nu + herlaadMsVan(t);
-        const loop = kl.lopen[Math.floor(Math.random() * kl.lopen.length)];
+        if (kl.munitie === 'drone') t.reloadUntil = nu + herlaadMsVan(t);
+        else t.droneHerlaadTot = nu + herlaadMsVan(t) * 2;
+        const loop = droneLopen[Math.floor(Math.random() * droneLopen.length)];
         const hoek = t.angle + loop.hoek;
         room.bullets.push({
           id: room.volgendKogelId++, soort: 'drone',
           x: t.x + Math.cos(hoek) * loopLengte(loop), y: t.y + Math.sin(hoek) * loopLengte(loop),
           vx: Math.cos(hoek) * 90, vy: Math.sin(hoek) * 90,
           hoek, eigenaar: t.id, kleur: t.kleur, team: t.team,
+          // Necromancer stuurt vierkanten de lucht in, de Fabriek kleine tankjes
+          vorm: kl.droneVorm || 'driehoek',
           r: loop.w * 0.42 * (kl.kogelSchaal || 1),
           schade: bulletSchadeVan(t) * 0.55,
           leven: (3 + bulletPierce(t)) * (kl.kogelLeven || 1),
           dood: Infinity,           // drones blijven tot ze kapotgeschoten worden
         });
+      }
+    }
+
+    /*
+     * AUTOMATISCH GESCHUT (Auto 3, Auto 5). Bovenop de tank zit een torentje
+     * dat helemaal zelf mikt: het zoekt de dichtstbijzijnde vijand binnen zijn
+     * bereik, draait die kant op en schiet op eigen ritme. De speler hoeft er
+     * niets voor te doen — dat is het hele idee van deze klasse.
+     */
+    if (kl.auto) {
+      let doel = null, best = kl.auto.bereik;
+      for (const ander of room.tanks.values()) {
+        if (ander.id === t.id || nu < ander.deadUntil || ander.onzichtbaar) continue;
+        if (t.team !== null && ander.team === t.team) continue;
+        const d = Math.hypot(ander.x - t.x, ander.y - t.y);
+        if (d < best) { best = d; doel = ander; }
+      }
+      if (doel) {
+        t.autoHoek = Math.atan2(doel.y - t.y, doel.x - t.x);
+        if (nu > (t.autoHerlaadTot || 0)) {
+          t.autoHerlaadTot = nu + kl.auto.herlaadMs;
+          const snelheidA = BULLET_SPEED * bulletSnelheidFactor(t);
+          room.bullets.push({
+            id: room.volgendKogelId++, soort: 'kogel',
+            x: t.x + Math.cos(t.autoHoek) * (kl.auto.len + 8),
+            y: t.y + Math.sin(t.autoHoek) * (kl.auto.len + 8),
+            vx: Math.cos(t.autoHoek) * snelheidA,
+            vy: Math.sin(t.autoHoek) * snelheidA,
+            eigenaar: t.id, kleur: t.kleur, team: t.team,
+            r: kl.auto.w * 0.42 * 1.5,
+            schade: bulletSchadeVan(t) * kl.auto.schade,
+            leven: 1 + bulletPierce(t),
+            dood: nu + BULLET_LIFE,
+          });
+        }
+      } else if (t.autoHoek === undefined) {
+        t.autoHoek = t.angle;
       }
     }
 
@@ -1756,6 +1816,7 @@ function tickRoom(room, nu, dt) {
         teVuren = kl.lopen.filter((l, i) => (l.groep === undefined ? i : l.groep) === nu);
       }
       for (const loop of teVuren) {
+        if (loop.munitie === 'drone') continue;   // die loop maakt drones, geen kogels
         const richting = t.angle + loop.hoek + (kl.spreiding ? (Math.random() - 0.5) * 2 * kl.spreiding : 0);
         const zijHoek = t.angle + loop.hoek + Math.PI / 2;
         room.bullets.push({
@@ -1772,7 +1833,10 @@ function tickRoom(room, nu, dt) {
           // heeft een robot met hetzelfde kanon even grote kogels als jij.
           // Volgorde klopt met de wiki: gunner < basis < destroyer < annihilator.
           r: loop.w * 0.42 * (kl.kogelSchaal || 1),
-          soort: kl.munitie === 'trap' ? 'trap' : 'kogel',
+          soort: (loop.munitie || kl.munitie) === 'trap' ? 'trap'
+            : (loop.munitie || kl.munitie) === 'raket' ? 'raket' : 'kogel',
+          // raketten blijven onderweg zelf vuren (Skimmer, Rocketeer)
+          raket: (loop.munitie || kl.munitie) === 'raket' ? Object.assign({ vanaf: nu }, kl.raket) : null,
           hoek: richting,
           schade: bulletSchadeVan(t) * (loop.schade || 1),
           // kogelpantser = "bullet health": hoeveel keer de kogel iets mag raken
@@ -1807,6 +1871,33 @@ function tickRoom(room, nu, dt) {
 
   for (const b of room.bullets) {
     if (b.weg) continue;
+
+    /*
+     * RAKETTEN (Skimmer, Rocketeer). Een raket is een dikke trage kogel die
+     * onderweg zelf blijft vuren: de Skimmer schiet naar achteren, de
+     * Rocketeer gebruikt zijn uitlaat om steeds harder te gaan. Zo zijn ze
+     * meer dan alleen een grote kogel.
+     */
+    if (b.soort === 'raket' && b.raket) {
+      if (b.raket.stuw) {
+        const sn = Math.hypot(b.vx, b.vy) || 1;
+        b.vx += (b.vx / sn) * b.raket.stuw * dt;
+        b.vy += (b.vy / sn) * b.raket.stuw * dt;
+      }
+      if (nu > (b.raketTot || 0)) {
+        b.raketTot = nu + b.raket.herlaadMs;
+        const achter = Math.atan2(b.vy, b.vx) + Math.PI + (Math.random() - 0.5) * 0.5;
+        room.bullets.push({
+          id: room.volgendKogelId++, soort: 'kogel',
+          x: b.x + Math.cos(achter) * b.r, y: b.y + Math.sin(achter) * b.r,
+          vx: Math.cos(achter) * BULLET_SPEED * 0.55,
+          vy: Math.sin(achter) * BULLET_SPEED * 0.55,
+          eigenaar: b.eigenaar, kleur: b.kleur, team: b.team,
+          r: b.r * 0.42, schade: b.schade * b.raket.schade,
+          leven: 1, dood: nu + BULLET_LIFE * 0.5,
+        });
+      }
+    }
 
     /*
      * Basisdrones bewaken de teamzone. Ze cirkelen rustig rond in hun eigen
@@ -1919,6 +2010,23 @@ function tickRoom(room, nu, dt) {
         if (v.hp <= 0) {
           v.weg = true;
           const schutter = room.tanks.get(b.eigenaar);
+          /* Necromancer: het kapotte vierkant staat weer op als drone. Dat is
+             zijn hele truc — hij schiet niet, hij verzamelt. */
+          if (schutter && klasseVan(schutter).necro && (v.type === 'vierkant' || v.type === 'driehoek')) {
+            const kl2 = klasseVan(schutter);
+            const nu2 = room.bullets.filter((x) => x.soort === 'drone' && !x.weg && x.eigenaar === schutter.id).length;
+            if (nu2 < (kl2.droneMax || 8)) {
+              room.bullets.push({
+                id: room.volgendKogelId++, soort: 'drone',
+                x: v.x, y: v.y, vx: 0, vy: 0, hoek: 0,
+                eigenaar: schutter.id, kleur: schutter.kleur, team: schutter.team,
+                vorm: kl2.droneVorm || 'vierkant',
+                r: 8, schade: bulletSchadeVan(schutter) * 0.55,
+                leven: (3 + bulletPierce(schutter)) * (kl2.kogelLeven || 1),
+                dood: Infinity,
+              });
+            }
+          }
           if (schutter && !schutter.ai) {
             geefPunten(room, schutter, v.punten);
             stuurEvent(schutter, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
@@ -2145,6 +2253,8 @@ setInterval(() => {
         r: Math.round(straalVan(t) * 10) / 10,   // tanks groeien met hun level
         ai: !!t.ai, elite: !!(t.ai && t.ai.elite), level: t.level, team: t.team,
         x: Math.round(t.x), y: Math.round(t.y), angle: t.angle,
+        // waar kijkt het automatische torentje naartoe? (Auto 3 / Auto 5)
+        autoHoek: t.autoHoek === undefined ? null : Math.round(t.autoHoek * 100) / 100,
         hp: Math.max(0, Math.round(t.hp)), maxHp: Math.round(t.maxHp),
         score: t.score, rondePunten: t.rondePunten || 0,
         dood: nu < t.deadUntil, onzichtbaar: !!t.onzichtbaar,
@@ -2179,9 +2289,11 @@ setInterval(() => {
       return o;
     };
     const pakKogel = (b) => ({
-      id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel',
+      id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel', vorm: b.vorm || null,
       x: Math.round(b.x), y: Math.round(b.y), kleur: b.kleur, r: b.r,
-      hoek: b.hoek ? Math.round(b.hoek * 100) / 100 : 0,
+      // een raket wijst de kant op waarheen hij vliegt, zodat zijn uitlaat klopt
+      hoek: b.soort === 'raket' ? Math.round(Math.atan2(b.vy, b.vx) * 100) / 100
+        : (b.hoek ? Math.round(b.hoek * 100) / 100 : 0),
       tl: b.dood === Infinity ? 9999 : Math.max(0, b.dood - nu),
     });
 
