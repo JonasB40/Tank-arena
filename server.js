@@ -153,6 +153,26 @@ const VORM_INFO = Object.fromEntries(Object.entries(VORM_TYPES).map(([naam, d]) 
  * (snelheid, reactietijd, schietafstand). De KRACHT (hp, schade) hangt
  * af van het level van de robot — zie maakAiTank.
  */
+/*
+ * Namen voor de robots. Met "Rood makkelijk · lvl 21" was elke tegenstander een
+ * nummertje; met een naam wordt het een figuur waar je iets van vindt — en dat
+ * maakt samen spelen tegen de computer een stuk leuker. Het level staat er
+ * bewust niet bij: hoe gevaarlijk een robot is, zie je aan zijn vorm en klasse.
+ */
+const ROBOT_NAMEN = [
+  'Trumpie', 'Elon M', 'Bill Bytes', 'Mark Zuck', 'Kanye Tank',
+  'Pindakaas', 'Patatje Oorlog', 'Speculoos', 'Spruitje', 'Kroketje',
+  'Blikken Beer', 'Rammelkast', 'Turbo Truus', 'Professor Plof', 'Tankie McTankface',
+];
+
+/* Een naam die in deze arena nog vrij is (anders rijden er twee Trumpies rond). */
+function vrijeRobotNaam(room) {
+  const bezet = new Set([...room.tanks.values()].map((t) => t.robotNaam).filter(Boolean));
+  const vrij = ROBOT_NAMEN.filter((n) => !bezet.has(n));
+  const lijst = vrij.length ? vrij : ROBOT_NAMEN;
+  return lijst[Math.floor(Math.random() * lijst.length)];
+}
+
 const AI_PROFIELEN = {
   makkelijk: { snelheid: 110, reactieMs: 900, herlaadMs: 900, schietAfstand: 360, kleur: '#e8a0b4' },
   gemiddeld: { snelheid: 145, reactieMs: 560, herlaadMs: 620, schietAfstand: 410, kleur: '#c75b7a' },
@@ -415,7 +435,8 @@ function zetTeamModus(room, n) {
       continue;
     }
     wijsTeamToe(room, t);
-    if (t.ai) t.naam = `🤖 ${TEAM_NAAM[t.team]} ${t.ai.elite ? 'ELITE' : t.ai.profiel} · lvl ${t.level}`;
+    // de naam blijft dezelfde als de teams wisselen: je herkent Trumpie zo terug
+    if (t.ai && !t.robotNaam) { t.robotNaam = vrijeRobotNaam(room); t.naam = `🤖 ${t.robotNaam}${t.ai.elite ? ' ⭐' : ''}`; }
     else spawnTank(room, t);
   }
 }
@@ -1045,12 +1066,12 @@ function maakAiTank(room, n) {
    * aanvielen — verwarrend als de rest van het veld rood of blauw is.
    * Het team met de minste robots krijgt de volgende, zodat het eerlijk blijft.
    */
+  t.robotNaam = vrijeRobotNaam(room);
+  t.naam = `🤖 ${t.robotNaam}${elite ? ' ⭐' : ''}`;
   if (room.teamModus) {
     wijsTeamToe(room, t);
-    t.naam = `🤖 ${TEAM_NAAM[t.team]} ${elite ? 'ELITE' : n.profiel} · lvl ${lvl}`;
   } else {
     t.kleur = elite ? '#6a1b9a' : p.kleur;
-    t.naam = `🤖 ${elite ? 'ELITE' : n.profiel} · lvl ${lvl}`;
   }
   t.maxHp = t.ai.hp;
   spawnTank(room, t);

@@ -124,9 +124,16 @@
     /* Vernietiger: één trage, dikke kogel per 2,4 seconden die 3x zoveel schade
        doet en twee keer zoveel incasseert. De terugslag is enorm (15x) — die
        gebruik je in diep.io om vooruit te komen. https://diepwiki.io/#/tanks/destroyer */
+    /*
+     * Vernietiger en Annihilator (https://diepio.fandom.com/wiki/Annihilator).
+     * De loop van de Annihilator is fors breder dan die van de Vernietiger
+     * (0,97 tegen 0,72 van de romp), hij laadt trager en zijn kogel slaat
+     * harder in. Bij ons hadden ze bijna dezelfde cijfers, waardoor die
+     * upgrade nauwelijks iets veranderde.
+     */
     vernietiger: {
-      naam: 'Vernietiger', tier: 3, cannon: 'destroyer', lopen: [L(0, 0, 38, 24)],
-      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.18, recoil: 15, spreiding: 0,
+      naam: 'Vernietiger', tier: 3, cannon: 'destroyer', lopen: [L(0, 0, 34, 21)],
+      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.35, recoil: 15, spreiding: 0,
     },
     /*
      * Gunner: vier evenwijdige lopen, het binnenste paar langer. Ze overlapten
@@ -166,8 +173,8 @@
     /* Annihilator: dezelfde kogel als de Vernietiger, maar uit een nog bredere
        loop en met nog meer terugslag (17x). https://diepwiki.io/#/tanks/annihilator */
     annihilator: {
-      naam: 'Annihilator', tier: 4, cannon: 'destroyer', lopen: [L(0, 0, 40, 30)],
-      herlaad: 4, schade: 3, kogelLeven: 2, kogelSnelheid: 0.7, kogelSchaal: 1.2, recoil: 17, spreiding: 0,
+      naam: 'Annihilator', tier: 4, cannon: 'destroyer', lopen: [L(0, 0, 34, 28.5)],
+      herlaad: 5, schade: 3.6, kogelLeven: 2.5, kogelSnelheid: 0.65, kogelSchaal: 1.35, recoil: 20, spreiding: 0,
     },
     sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.48, schade: 0.6, kogelSnelheid: 1, kogelSchaal: 0.62, spreiding: 0.2 },
     streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 23, 15), L(0, 0, 27, 13), L(0, 0, 31, 11), L(0, 0, 36, 10), L(0, 0, 40, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03, zicht: 1.15 },
@@ -321,7 +328,9 @@
    */
   const UPGRADE_BOOM = {
     basis: { 15: ['twin', 'sluipschutter', 'machinegeweer', 'flankwacht'], 30: ['rammer'] },
-    twin: { 30: ['driedubbel', 'viertank', 'dubbelflank'] },
+    /* De wiki zet Triplet ook rechtstreeks onder Twin: blijf je Twin tot 45,
+       dan mag je die kant nog op. https://diepio.fandom.com/wiki/Twin */
+    twin: { 30: ['driedubbel', 'viertank', 'dubbelflank'], 45: ['triplet'] },
     sluipschutter: { 30: ['jager', 'assassin', 'opzichter', 'trapper'] },
     opzichter: { 45: ['overheer', 'necromancer', 'manager', 'fabriek', 'overtrapper', 'battleship'] },
     trapper: { 45: ['dritrapper', 'megatrapper', 'autotrapper', 'gunnertrapper'] },
