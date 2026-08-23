@@ -36,15 +36,20 @@
           <button id="stap-inklap" title="Paneel kleiner/groter maken">▾</button>
         </div>
         <div id="stap-body">
-          <div id="stap-rechts">
+          <div id="stap-opdracht">
             <p id="stap-doel"></p>
             <!-- "zo hoort het te staan": een klein stapeltje blokjes, want
                  kinderen lezen woorden als "bovenaan" makkelijk over -->
             <div id="stap-voorbeeld" class="verborgen"></div>
+          </div>
+          <div id="stap-zij">
             <div id="stap-checks">
               <div class="check" id="check-structuur"></div>
               <div class="check" id="check-gedrag"></div>
             </div>
+            <!-- Filmpje dat de handeling voordoet (stap 3, 4 en 7): een handje
+                 sleept het blok naar zijn plek, net als in LEGO Spike. -->
+            <canvas id="stap-animatie" class="verborgen" width="440" height="250"></canvas>
           </div>
           <p id="stap-breek" class="verborgen"></p>
           <p id="stap-hint-tekst" class="verborgen"></p>
@@ -234,6 +239,7 @@
   <script src="js/tekenen.js"></script>
   <script src="js/geluid.js"></script>
   <script src="js/stappen.js"></script>
+  <script src="js/animatie.js"></script>
   <script src="js/codetekst.js"></script>
   <script src="/blockly/blockly_compressed.js"></script>
   <script src="/blockly/blocks_compressed.js"></script>

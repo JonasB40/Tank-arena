@@ -443,6 +443,9 @@ body.les-nog-niet-gestart #werk-knoppen { display: none; }
 /* Alleen de tekst scrollt; kop en knoppen blijven staan. Zo valt er nooit
    een regel weg achter de knoppenbalk. */
 #stap-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+/* Stappen met een filmpje krijgen wat meer hoogte, zodat opdracht, vinkjes en
+   filmpje samen in beeld staan. Het werkblad blijft ruim genoeg om te bouwen. */
+body.heeft-filmpje #stap-paneel { max-height: 41vh; }
 /*
  * Het paneel is heel breed maar de regels zijn kort, dus we zetten het
  * probleem links en het doel + de vinkjes rechts. Zo is het paneel ongeveer
@@ -457,12 +460,14 @@ body.les-nog-niet-gestart #werk-knoppen { display: none; }
     column-gap: 22px;
     align-items: start;
   }
-  #stap-rechts { display: contents; }
-  #stap-doel, #stap-voorbeeld { grid-column: 1; }
-  #stap-checks { grid-column: 2; grid-row: 1 / span 2; }
+  /* Links de genummerde opdracht, rechts de vinkjes met daaronder het
+     filmpje. Twee echte kolommen, zodat een lange opdracht het filmpje niet
+     naar beneden duwt. */
+  #stap-opdracht { grid-column: 1; }
+  #stap-zij { grid-column: 2; }
   #stap-breek, #stap-hint-tekst { grid-column: 1 / -1; }
 }
-#stap-rechts > :last-child { margin-bottom: 0; }
+#stap-opdracht > :last-child, #stap-zij > :last-child { margin-bottom: 0; }
 #stap-kop {
   display: flex;
   align-items: center;
@@ -789,6 +794,21 @@ body.wijs-variabeleknop .blocklyFlyoutButtonBackground {
 }
 
 /* Voorbeeldstapeltje bij een stap: laat zien wáár een blok hoort te staan. */
+/* Het filmpje bij de moeilijke stappen. Staat naast de opdracht, dus je kan
+   blijven kijken terwijl je bouwt. */
+#stap-animatie {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  /* Past binnen de hoogte die het stappenpaneel heeft: anders moet je scrollen
+     om het filmpje te zien, en dan schuift de opdracht juist uit beeld. */
+  max-height: 102px;
+  aspect-ratio: 44 / 25;
+  background: #fff8e6;
+  border: 2px solid #ffd54f;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
 #stap-voorbeeld {
   white-space: pre-line;
   background: #f3eefb;

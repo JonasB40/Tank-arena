@@ -1300,6 +1300,48 @@ const elStap = {
   volgende: document.getElementById('stap-volgende'),
 };
 
+/* ---------------- filmpje bij de moeilijke stappen ----------------
+ * Stap 3, 4 en 7 vragen een handeling die je met woorden nauwelijks uitlegt:
+ * een zeshoekje in een zeshoekig gaatje, een getal veranderen, een knop
+ * indrukken die geen blok is. Een handje dat het voordoet werkt beter dan drie
+ * regels tekst — zoals in LEGO Spike. Het filmpje herhaalt zich vanzelf en
+ * blijft naast de opdracht staan, zodat je kan meekijken terwijl je bouwt.
+ */
+let animatieNr = 0;
+let animatieStart = 0;
+
+function zetAnimatie(nr) {
+  const doek = document.getElementById('stap-animatie');
+  const film = (window.STAP_ANIMATIES || {})[nr];
+  animatieNr = film ? nr : 0;
+  animatieStart = Date.now();
+  doek.classList.toggle('verborgen', !film);
+  /* Op een stap mét filmpje mag het paneel iets hoger: dan passen de opdracht,
+     de vinkjes én het filmpje samen in beeld en hoeft er niet gescrold te
+     worden. Juist op die stappen is dat het belangrijkst. */
+  document.body.classList.toggle('heeft-filmpje', !!film);
+  if (window.herschaalWerkveld) setTimeout(window.herschaalWerkveld, 60);
+}
+
+function tekenAnimatie() {
+  requestAnimationFrame(tekenAnimatie);
+  const film = (window.STAP_ANIMATIES || {})[animatieNr];
+  const doek = document.getElementById('stap-animatie');
+  if (!film || !doek || doek.classList.contains('verborgen')) return;
+  // niet tekenen als het paneel toch niet in beeld staat (scheelt op een chromebook)
+  if (!doek.getClientRects().length) return;
+  const c = doek.getContext('2d');
+  const B = doek.width / 2, H = doek.height / 2;   // scherp op schermen met dubbele pixels
+  c.save();
+  c.setTransform(2, 0, 0, 2, 0, 0);
+  c.clearRect(0, 0, B, H);
+  // één seconde adempauze tussen twee rondjes: dan volg je het beter
+  const t = ((Date.now() - animatieStart) / 1000) % (film.duur + 1);
+  try { film.teken(c, Math.min(t, film.duur), B, H); } catch { /* nooit het spel platleggen */ }
+  c.restore();
+}
+requestAnimationFrame(tekenAnimatie);
+
 /* Vóór de les: eerst naam + spelmodus kiezen. Anders staan er twee
    instructies tegelijk op het scherm ("kies een modus" én "druk op 🚩"). */
 function toonStartInstructie() {
@@ -1417,6 +1459,7 @@ function toonStap() {
   // sommige stappen laten zien hoe de stapel eruit hoort te zien
   elStap.voorbeeld.innerHTML = blokHtml(s.voorbeeld || '');
   elStap.voorbeeld.classList.toggle('verborgen', !s.voorbeeld);
+  zetAnimatie(welkeLes === 1 ? s.nr : 0);
   wijsDeWegAan(s);
   elStap.hint.innerHTML = `💡 ${blokHtml(s.hint)}`;
   elStap.hint.classList.add('verborgen');
