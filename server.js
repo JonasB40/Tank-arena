@@ -1932,6 +1932,7 @@ function tickRoom(room, nu, dt) {
       }
       for (const loop of teVuren) {
         if (loop.munitie === 'drone') continue;   // die loop maakt drones, geen kogels
+        if (loop.schijn) continue;                // alleen om te zien (de trapjes van de Streamliner)
         /* Een loop mag een eigen ritme hebben. De valstrikwerper achterop de
            Gunner Trapper laadt bijvoorbeeld veel trager dan de loopjes
            vooruit — anders spuwt hij valstrikken alsof het kogels zijn. */

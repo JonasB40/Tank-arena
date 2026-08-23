@@ -174,7 +174,19 @@
     vijfschot: { naam: 'Vijfschot (Penta)', tier: 4, cannon: 'normaal', lopen: [-0.6, -0.3, 0, 0.3, 0.6].map((h) => L(h, 0, h === 0 ? 36 : 30, 10)), herlaad: 1.3, schade: 0.55, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
     waaierschot: { naam: 'Waaierschot (Spread)', tier: 4, cannon: 'gunner', lopen: [-1.2, -0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9, 1.2].map((h) => L(h, 0, h === 0 ? 36 : 26, h === 0 ? 11 : 7, h === 0 ? {} : { schade: 0.5, r: 4 })), herlaad: 1.6, schade: 0.6, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
     octotank: { naam: 'Octotank', tier: 4, cannon: 'normaal', lopen: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => L((i * PI) / 4, 0, 30, 10)), herlaad: 1.35, schade: 0.5, kogelSnelheid: 1, kogelR: 6, spreiding: 0 },
-    drietwin: { naam: 'Drietwin (Triple Twin)', tier: 4, cannon: 'normaal', lopen: [0, (2 * PI) / 3, (4 * PI) / 3].flatMap((h) => [L(h, -8, 30, 9), L(h, 8, 30, 9)]), herlaad: 1.25, schade: 0.55, kogelSnelheid: 1, kogelR: 5, spreiding: 0 },
+    /*
+     * Drietwin (Triple Twin): drie tweelingen rondom, die OM DE BEURT vuren —
+     * net als de Dubbelflank waar hij uit komt. Hij vuurde bij ons alle zes de
+     * lopen tegelijk op een traag ritme, waardoor de upgrade zwakker was dan
+     * zijn voorganger. Nu schiet er telkens één paar, in hetzelfde tempo.
+     */
+    drietwin: {
+      naam: 'Drietwin (Triple Twin)', tier: 4, cannon: 'normaal', afwisselend: true,
+      lopen: [0, (2 * PI) / 3, (4 * PI) / 3].flatMap((h, i) => [
+        L(h, -8, 32, 10, { groep: i }), L(h, 8, 32, 10, { groep: i }),
+      ]),
+      herlaad: 0.6, schade: 0.55, kogelSnelheid: 1, kogelR: 5, spreiding: 0,
+    },
     ranger: { naam: 'Ranger', tier: 4, cannon: 'trapezium', lopen: [L(0, 0, 50, 12)], herlaad: 2, schade: 1.8, kogelSnelheid: 1.9, kogelR: 6, spreiding: 0, zicht: 1.60 },
     sluiper: { naam: 'Sluiper (Stalker)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 40, 12)], herlaad: 1.7, schade: 1.5, kogelSnelheid: 1.6, kogelR: 6, spreiding: 0, sluip: true, zicht: 1.15 },
     predator: { naam: 'Predator (Roofdier)', tier: 4, cannon: 'sniper', lopen: [L(0, 0, 32, 16, { schade: 0.5, r: 5 }), L(0, 0, 38, 13, { schade: 0.6 }), L(0, 0, 44, 10, { schade: 0.8 })], herlaad: 1.8, schade: 1.9, kogelSnelheid: 1.7, kogelR: 7, spreiding: 0, zicht: 1.15 },
@@ -185,7 +197,20 @@
       herlaad: 5, schade: 3.6, kogelLeven: 2.5, kogelSnelheid: 0.65, kogelSchaal: 1.35, recoil: 20, spreiding: 0,
     },
     sprayer: { naam: 'Sprayer', tier: 4, cannon: 'machinegeweer', lopen: [L(0, 0, 36, 18, { schade: 1 }), L(0, 0, 42, 8, { schade: 0.4, r: 4 })], herlaad: 0.48, schade: 0.6, kogelSnelheid: 1, kogelSchaal: 0.62, spreiding: 0.2 },
-    streamliner: { naam: 'Streamliner', tier: 4, cannon: 'gunner', lopen: [L(0, 0, 23, 15), L(0, 0, 27, 13), L(0, 0, 31, 11), L(0, 0, 36, 10), L(0, 0, 40, 9)], herlaad: 0.9, schade: 0.3, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03, zicht: 1.15 },
+    /*
+     * Streamliner: de vijf trapjes zijn ÉÉN loop die naar voren toe smaller
+     * wordt; er komt dus één snelle stroom kleine kogels uit, niet vijf kogels
+     * tegelijk. De achterste vier zijn alleen om te zien (schijn: true).
+     */
+    streamliner: {
+      naam: 'Streamliner', tier: 4, cannon: 'gunner',
+      lopen: [
+        L(0, 0, 23, 15, { schijn: true }), L(0, 0, 27, 13, { schijn: true }),
+        L(0, 0, 31, 11, { schijn: true }), L(0, 0, 36, 10, { schijn: true }),
+        L(0, 0, 40, 9),
+      ],
+      herlaad: 0.35, schade: 0.5, kogelSnelheid: 1.4, kogelR: 4, spreiding: 0.03, zicht: 1.15,
+    },
     booster: { naam: 'Booster', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(PI - 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI + 0.5, 0, 24, 8, { schade: 0.2, r: 4 }), L(PI - 0.25, 0, 28, 8, { schade: 0.2, r: 4 }), L(PI + 0.25, 0, 28, 8, { schade: 0.2, r: 4 })], herlaad: 1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 65 },
     vechter: { naam: 'Vechter (Fighter)', tier: 4, cannon: 'normaal', lopen: [L(0, 0, 34, 12), L(-PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI / 2, 0, 30, 10, { schade: 0.6 }), L(PI - 0.6, 0, 26, 8, { schade: 0.2, r: 4 }), L(PI + 0.6, 0, 26, 8, { schade: 0.2, r: 4 })], herlaad: 1.1, schade: 0.9, kogelSnelheid: 1, kogelR: 6, spreiding: 0, snelheidBonus: 45 },
     overheer: {
