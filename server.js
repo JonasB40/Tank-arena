@@ -309,14 +309,14 @@ const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
  * De veilige zones zijn smalle stroken aan de rand, zoals de bases in diep.io.
  * Ze waren 20% van de breedte per team: bij twee teams was dus bijna de helft
  * van het speelveld beschermd gebied waar niemand elkaar kon raken. Nu is het
- * een strook van 3,5% — met het strakkere zichtveld vulde 6% nog altijd je
- * halve scherm. Ruim genoeg om te spawnen en bij te komen, maar het gevecht
- * speelt zich af op het veld.
+ * een strook van 2,3%. Op 6% vulde je basis je halve scherm en op 3,5% nog
+ * altijd 39% — je zag nauwelijks veld. Ruim genoeg om te spawnen en bij te
+ * komen, maar het gevecht speelt zich af op het veld.
  */
 function teamZones(room) {
   const a = room.arena;
   if (room.teamModus === 2) {
-    const breed = Math.round(a.w * 0.035);
+    const breed = Math.round(a.w * 0.023);
     return [
       { team: 0, x: 0, y: 0, w: breed, h: a.h },
       { team: 1, x: a.w - breed, y: 0, w: breed, h: a.h },
@@ -537,8 +537,8 @@ function vulVormenAan(room) {
    * een tank van level 40 een stuk of veertig.
    */
   const quota = {
-    vierkant: per(100000),         // het voer van elke beginner
-    driehoek: per(260000),         // vlot te vinden, meer punten
+    vierkant: per(125000),         // het voer van elke beginner
+    driehoek: per(330000),         // vlot te vinden, meer punten
     vijfhoek: per(2400000, 4),     // schaars, buiten het nest
     nestVijfhoek: per(2800000, 5), // in het nest, achter de crashers
     alfa: room.solo ? 2 : 3,       // de dikke blauwe: écht zeldzaam
@@ -1163,7 +1163,10 @@ io.on('connection', (socket) => {
      * pakketje: met tachtig vormen in beeld was dat 11 KB, twintig keer per
      * seconde, per leerling. Nu sturen we per vorm alleen nog wat verandert.
      */
-    socket.emit('welkom', { id: socket.id, arena: room.arena, modus, vormSoorten: VORM_INFO });
+    socket.emit('welkom', {
+      id: socket.id, arena: room.arena, modus, vormSoorten: VORM_INFO,
+      versie: codeStempel(), verouderd: codeGewijzigdNaStart(),
+    });
     zorgVoorAI(room);
   });
 
@@ -1423,6 +1426,27 @@ io.on('connection', (socket) => {
  * het gewoon: herstarten.
  */
 const GESTART_OM = Date.now();
+/*
+ * Welke versie draait er eigenlijk? Node leest zijn code alleen bij het
+ * starten, dus als je vergeet te herstarten speel je met oude regels. Daarom
+ * krijgt elke browser dit stempeltje te zien: het tijdstip waarop het
+ * nieuwste bronbestand voor het laatst is opgeslagen. Staat daar een oude
+ * datum, dan is herstarten het eerste wat je moet doen.
+ */
+function codeStempel() {
+  let nieuwste = 0;
+  const kijk = (pad) => {
+    try {
+      const st = fs.statSync(pad);
+      if (st.isDirectory()) { for (const f of fs.readdirSync(pad)) kijk(path.join(pad, f)); return; }
+      nieuwste = Math.max(nieuwste, st.mtimeMs);
+    } catch { /* bestaat niet meer */ }
+  };
+  [path.join(__dirname, 'server.js'), path.join(__dirname, 'public', 'js')].forEach(kijk);
+  const d = new Date(Math.min(nieuwste, GESTART_OM));
+  const twee = (n) => String(n).padStart(2, '0');
+  return `${twee(d.getDate())}/${twee(d.getMonth() + 1)} ${twee(d.getHours())}:${twee(d.getMinutes())}`;
+}
 const BRONBESTANDEN = [
   path.join(__dirname, 'server.js'),
   path.join(__dirname, 'public', 'js'),

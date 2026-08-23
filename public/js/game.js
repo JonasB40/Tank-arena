@@ -174,7 +174,17 @@ socket.on('connect', () => { if (laatsteJoin) socket.emit('join', laatsteJoin); 
 /* De vaste eigenschappen van elke vormsoort krijgen we één keer bij binnenkomst;
    daarna stuurt de server per vorm alleen nog de plaats en de draaiing mee. */
 let vormSoorten = {};
-socket.on('welkom', (d) => { mijnId = d.id; arena = d.arena; vormSoorten = d.vormSoorten || {}; });
+socket.on('welkom', (d) => {
+  mijnId = d.id; arena = d.arena; vormSoorten = d.vormSoorten || {};
+  /* Welke versie draait er op de server? Node leest zijn code alleen bij het
+     starten: verversen in de browser helpt dan niet en je speelt met oude
+     regels verder. Met dit stempeltje zie je in één blik of dat het geval is. */
+  const vak = document.getElementById('serverversie');
+  if (vak && d.versie) {
+    vak.textContent = d.verouderd ? `⚠ server draait oude code (${d.versie}) — herstarten!` : `v ${d.versie}`;
+    vak.classList.toggle('verouderd', !!d.verouderd);
+  }
+});
 socket.on('vol', () => toast('De arena zit vol! Vraag de begeleider om hulp.'));
 socket.on('state', (s) => {
   // de vaste eigenschappen er weer bij zetten, zodat de rest van de code

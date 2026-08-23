@@ -821,6 +821,17 @@ body.wijs-variabeleknop .blocklyFlyoutButtonBackground {
   color: #4a3a6b;
 }
 
+/* Versie van de server, klein en onopvallend — tenzij hij verouderd is. */
+#serverversie { font-size: .72rem; opacity: .6; }
+#serverversie.verouderd {
+  opacity: 1;
+  background: #e74c3c;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
 /* ---------- hulp vragen + bericht van de lesgever ---------- */
 /* Zelfde vorm en maat als de andere knoppen in de balk; hij mag pas opvallen
    als je hem écht ingedrukt hebt. Daarvoor sprong hij er als los geel blokje
