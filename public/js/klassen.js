@@ -282,14 +282,25 @@
       herlaad: 2.3, schade: 0.9, kogelSnelheid: 0.9, kogelR: 7, spreiding: 0,
     },
 
-    /* Gunner Trapper: de loopjes van de Gunner vooruit, een valstrik naar achter. */
+    /*
+     * Gunner Trapper (https://diepio.fandom.com/wiki/Gunner_Trapper): twee
+     * gunnerloopjes vooruit en een valstrikwerper naar achteren.
+     *
+     * De wiki vergelijkt hem twee keer. Tegenover de Gunner: even snelle en
+     * even sterke kogels, maar ze DOORBOREN meer en hij heeft véél meer
+     * terugslag — schiet je vooruit, dan word je achteruit geduwd, en dat kan
+     * je gebruiken om te vluchten. Tegenover de Trapper: zijn valstrikken
+     * doorboren ook meer, maar de werper laadt duidelijk trager.
+     */
     gunnertrapper: {
       naam: 'Gunner Trapper', tier: 4, cannon: 'gunner',
       lopen: [
-        L(0, -7, 44, 9), L(0, 7, 44, 9),
-        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher' }),
+        L(0, -7, 46, 9), L(0, 7, 46, 9),
+        // eigen, tragere herlaadtijd: 900 ms tegen 840 ms bij een gewone Trapper
+        L(PI, 0, 26, 13, { munitie: 'trap', vorm: 'launcher', herlaad: 3 }),
       ],
-      herlaad: 0.7, schade: 0.4, kogelSnelheid: 1.15, kogelR: 5, spreiding: 0.05,
+      herlaad: 0.5, schade: 0.35, kogelSnelheid: 1.1, kogelR: 5, spreiding: 0.05,
+      kogelLeven: 1.6, recoil: 5,
     },
 
     /* Hybrid: het zware kanon van de Vernietiger, met achterop een dronebay. */

@@ -1932,6 +1932,14 @@ function tickRoom(room, nu, dt) {
       }
       for (const loop of teVuren) {
         if (loop.munitie === 'drone') continue;   // die loop maakt drones, geen kogels
+        /* Een loop mag een eigen ritme hebben. De valstrikwerper achterop de
+           Gunner Trapper laadt bijvoorbeeld veel trager dan de loopjes
+           vooruit — anders spuwt hij valstrikken alsof het kogels zijn. */
+        if (loop.herlaad) {
+          const sleutel = 'lh' + kl.lopen.indexOf(loop);
+          if (nu < (t[sleutel] || 0)) continue;
+          t[sleutel] = nu + herlaadMsVan(t) * loop.herlaad;
+        }
         const richting = t.angle + loop.hoek + (kl.spreiding ? (Math.random() - 0.5) * 2 * kl.spreiding : 0);
         const zijHoek = t.angle + loop.hoek + Math.PI / 2;
         room.bullets.push({
@@ -1954,12 +1962,16 @@ function tickRoom(room, nu, dt) {
           raket: (loop.munitie || kl.munitie) === 'raket' ? Object.assign({ vanaf: nu }, kl.raket) : null,
           hoek: richting,
           schade: bulletSchadeVan(t) * (loop.schade || 1),
-          // kogelpantser = "bullet health": hoeveel keer de kogel iets mag raken
-          // (vorm, tank of vijandelijke kogel) voordat hij verdwijnt. Grote
-          // kogels (destroyer/annihilator) doorboren van nature meer.
-          leven: bulletPierce(t) + (kl.munitie === 'trap' ? 3 : 0) + (loop.w * 0.42 >= 12 ? 2 : 0),
+          /* kogelpantser = "bullet health": hoeveel keer de kogel iets mag raken
+             (vorm, tank of vijandelijke kogel) voordat hij verdwijnt. Grote
+             kogels (destroyer/annihilator) doorboren van nature meer, en
+             klassen met kl.kogelLeven doorboren extra — die vermenigvuldiger
+             werd hier vergeten, waardoor de Vernietiger en de Gunner Trapper
+             hun doorboorkracht van de wiki niet kregen. */
+          leven: (bulletPierce(t) + ((loop.munitie || kl.munitie) === 'trap' ? 3 : 0)
+            + (loop.w * 0.42 >= 12 ? 2 : 0)) * (kl.kogelLeven || 1),
           // traps blijven lang liggen (wiki: ~24 sec), kogels leven 3 sec
-          dood: nu + (kl.munitie === 'trap' ? (kl.trapLeven || 24000) : BULLET_LIFE),
+          dood: nu + ((loop.munitie || kl.munitie) === 'trap' ? (kl.trapLeven || 24000) : BULLET_LIFE),
         });
       }
     }
