@@ -341,6 +341,60 @@ function inEigenZone(room, t) {
 
 /* Teamopstelling wisselen: iedereen krijgt een team, een kleur en een plek in
    zijn eigen zone. Bij 0 vervallen de teams en komt de gedeelde basis terug. */
+/*
+ * EEN RONDE MET EEN EINDE. Zonder klok speelt de arena eindeloos door en moet
+ * de lesgever roepen dat het klaar is. Met een ronde krijgt de les een ritme:
+ * een klok in beeld, een doel om naartoe te werken, en aan het eind een
+ * winnaar. De punten van de ronde tellen apart (t.rondePunten), zodat niemand
+ * zijn level of upgrades kwijtraakt als er opnieuw begonnen wordt.
+ */
+function startRonde(room, minuten, doel) {
+  if (!room) return;
+  for (const t of room.tanks.values()) t.rondePunten = 0;
+  room.ronde = {
+    eind: Date.now() + Math.max(1, Math.min(60, minuten || 10)) * 60000,
+    doel: Math.max(0, Math.min(100000, doel || 0)),
+  };
+  room.gepauzeerd = false;
+  io.to(room.id).emit('rondeStart', { minuten: minuten || 10, doel: doel || 0 });
+}
+
+function rondeStand(room) {
+  const perTeam = new Map();
+  const spelers = [];
+  for (const t of room.tanks.values()) {
+    const punten = t.rondePunten || 0;
+    if (t.team !== null && t.team !== undefined) perTeam.set(t.team, (perTeam.get(t.team) || 0) + punten);
+    spelers.push({ naam: t.naam, kleur: t.kleur, punten, ai: !!t.ai, team: t.team });
+  }
+  spelers.sort((a, b) => b.punten - a.punten);
+  const teams = [...perTeam.entries()].map(([team, punten]) => ({ team, punten }))
+    .sort((a, b) => b.punten - a.punten);
+  return { teams, spelers: spelers.slice(0, 8) };
+}
+
+function stopRonde(room, reden) {
+  if (!room || !room.ronde) return;
+  const stand = rondeStand(room);
+  room.ronde = null;
+  room.gepauzeerd = true;          // even stil: iedereen kijkt naar de uitslag
+  room.uitslagTot = Date.now() + 25000;
+  io.to(room.id).emit('rondeKlaar', Object.assign({ reden }, stand));
+}
+
+/* Elke tik: is de tijd om, of heeft iemand het doel gehaald? */
+function bewaakRonde(room, nu) {
+  if (room.uitslagTot && nu > room.uitslagTot) { room.uitslagTot = 0; room.gepauzeerd = false; }
+  const r = room.ronde;
+  if (!r) return;
+  if (nu >= r.eind) return stopRonde(room, 'tijd');
+  if (r.doel) {
+    const stand = rondeStand(room);
+    const beste = stand.teams.length ? stand.teams[0].punten : (stand.spelers[0] || {}).punten || 0;
+    if (beste >= r.doel) stopRonde(room, 'doel');
+  }
+}
+
 function zetTeamModus(room, n) {
   if (!room || ![0, 2, 4].includes(n)) return;
   room.teamModus = n;
@@ -823,6 +877,9 @@ function statPuntenBijLevel(l) {
 /* Score erbij → misschien level omhoog (met statpunt + gebeurtenis). */
 function geefPunten(room, t, n) {
   t.score += n;
+  /* Punten van deze ronde tellen apart. Zo begint iedereen bij een nieuwe
+     ronde weer op nul zonder dat we zijn level en zijn upgrades afpakken. */
+  t.rondePunten = (t.rondePunten || 0) + n;
   const nieuwLevel = levelVan(t.score);
   if (nieuwLevel > t.level) {
     const vorigLevel = t.level;
@@ -1264,6 +1321,13 @@ io.on('connection', (socket) => {
       zetTeamModus(rooms.get('arena'), Number(d.n));
     } else if (d.type === 'naarArena') {
       io.emit('lesStuur', { type: 'naarArena', teams: [0, 2, 4].includes(Number(d.teams)) ? Number(d.teams) : 0 });
+    } else if (d.type === 'ronde') {
+      if (!rooms.has('arena')) maakRoom('arena', false);
+      startRonde(rooms.get('arena'), Number(d.minuten) || 10, Number(d.doel) || 0);
+    } else if (d.type === 'rondeStop') {
+      const arena = rooms.get('arena');
+      if (arena && arena.ronde) stopRonde(arena, 'lesgever');
+      else if (arena) { arena.uitslagTot = 0; arena.gepauzeerd = false; }
     } else if (d.type === 'rapport') {
       socket.emit('klasrapport', maakRapport());
     }
@@ -1386,6 +1450,11 @@ setInterval(() => {
     bevroren,
     teamModus: arena ? arena.teamModus : 0,
     inArena: arena ? [...arena.tanks.values()].filter((t) => !t.ai).length : 0,
+    // loopt er een ronde? dan de klok en de tussenstand mee
+    ronde: arena && arena.ronde
+      ? { over: Math.max(0, Math.round((arena.ronde.eind - nu) / 1000)),
+          doel: arena.ronde.doel, teams: rondeStand(arena).teams }
+      : null,
     verouderd: codeGewijzigdNaStart(),   // code aangepast sinds het starten?
   });
 }, 1500);
@@ -1430,6 +1499,7 @@ setInterval(() => {
 }, 1000 / 30);
 
 function tickRoom(room, nu, dt) {
+  bewaakRonde(room, nu);
   /*
    * Op pauze staat de wereld helemaal stil: robots, kogels en vormen bewegen
    * niet meer. Alleen mogelijk in je eigen solo-arena — in de gedeelde arena
@@ -2015,13 +2085,24 @@ function beschadigTank(room, t, schade, dader, nu, contact) {
   if (t.hp <= 0 && t.deadUntil <= nu) {
     t.deaths++;
     t.deadUntil = nu + RESPAWN_MS;
-    stuurEvent(t, 'dood');
-    if (dader && !dader.ai && dader.id !== t.id) {
-      // zwaardere tank verslaan = meer punten
-      const punten = t.ai ? t.ai.punten : Math.max(40, 40 + t.level * 15);
-      geefPunten(room, dader, punten);
-      stuurEvent(dader, 'punten', { n: punten, x: Math.round(t.x), y: Math.round(t.y) });
-      stuurEvent(dader, 'versla'); // 🏆 hat-blok "wanneer ik iemand versla"
+    // je hoort te weten wie je te pakken had — dat is de helft van de lol
+    stuurEvent(t, 'dood', dader && dader.id !== t.id
+      ? { door: dader.naam, kleur: dader.kleur }
+      : { door: null });
+    if (dader && dader.id !== t.id) {
+      if (!dader.ai) {
+        // zwaardere tank verslaan = meer punten
+        const punten = t.ai ? t.ai.punten : Math.max(40, 40 + t.level * 15);
+        geefPunten(room, dader, punten);
+        stuurEvent(dader, 'punten', { n: punten, x: Math.round(t.x), y: Math.round(t.y) });
+        stuurEvent(dader, 'versla'); // 🏆 hat-blok "wanneer ik iemand versla"
+      }
+      /* Iedereen in de arena ziet wie wie verslaat. Dat maakt van los rondrijden
+         een wedstrijd: je hoort erbij, ook als je zelf net niet aan de beurt was. */
+      io.to(room.id).emit('kill', {
+        dader: dader.naam, daderKleur: dader.kleur,
+        slachtoffer: t.naam, slachtofferKleur: t.kleur,
+      });
     }
   }
 }
@@ -2054,6 +2135,10 @@ setInterval(() => {
       nest: nestVan(room),
       statLijst: STAT_LIJST,
       statMax: MAX_STAT,
+      // loopt er een ronde? dan de klok en het doel mee (voor het scorebord)
+      ronde: room.ronde
+        ? { over: Math.max(0, Math.round((room.ronde.eind - nu) / 1000)), doel: room.ronde.doel }
+        : null,
       tanks: [...room.tanks.values()].map((t) => ({
         id: t.id, naam: t.naam, kleur: t.kleur, vorm: t.vorm, klasse: t.klasse,
         statMax: statMaxVan(t),   // Smashers mogen 10 i.p.v. 7 per stat
@@ -2061,7 +2146,8 @@ setInterval(() => {
         ai: !!t.ai, elite: !!(t.ai && t.ai.elite), level: t.level, team: t.team,
         x: Math.round(t.x), y: Math.round(t.y), angle: t.angle,
         hp: Math.max(0, Math.round(t.hp)), maxHp: Math.round(t.maxHp),
-        score: t.score, dood: nu < t.deadUntil, onzichtbaar: !!t.onzichtbaar,
+        score: t.score, rondePunten: t.rondePunten || 0,
+        dood: nu < t.deadUntil, onzichtbaar: !!t.onzichtbaar,
         respawnOver: nu < t.deadUntil ? Math.ceil((t.deadUntil - nu) / 1000) : 0,
         flits: nu < t.flashUntil ? t.flashKleur : null,
         schild: isVeilig(room, t, nu),

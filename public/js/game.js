@@ -190,6 +190,108 @@ socket.on('state', (s) => {
   if (typeof meldTeamstand === 'function') meldTeamstand();
 });
 const scorePopups = []; // zwevende "+10"-tekstjes
+/* ---------------- ronde: klok, start en uitslag ---------------- */
+socket.on('rondeStart', (d) => {
+  document.getElementById('ronde-uitslag').classList.add('verborgen');
+  toast(`⏱ De ronde begint! ${d.minuten} minuten${d.doel ? ` · eerste op ${d.doel} punten wint` : ''} — succes!`);
+  speelGeluid('tada');
+});
+
+socket.on('rondeKlaar', (r) => {
+  const vak = document.getElementById('ronde-uitslag');
+  const kop = document.getElementById('ru-winnaar');
+  const reden = { tijd: 'De tijd is om.', doel: 'Het puntendoel is gehaald!', lesgever: 'De lesgever stopte de ronde.' };
+  document.getElementById('ru-reden').textContent = reden[r.reden] || '';
+
+  const ik = spel.mijnTank();
+  if (r.teams && r.teams.length) {
+    const winnaar = r.teams[0];
+    const naam = TEAM_NAAM_CLIENT[winnaar.team] || ('Team ' + winnaar.team);
+    const gelijk = r.teams.length > 1 && r.teams[1].punten === winnaar.punten;
+    kop.textContent = gelijk ? '🤝 Gelijkspel!' : `🏆 ${naam} wint!`;
+    if (!gelijk && ik && ik.team === winnaar.team) kop.textContent += ' 🎉';
+  } else {
+    const beste = r.spelers[0];
+    kop.textContent = beste ? `🏆 ${beste.naam} wint!` : '🏁 Ronde voorbij';
+  }
+
+  const rij = (kleur, naam, punten, dik) =>
+    `<div class="ru-rij"><span class="ru-kleur" style="background:${kleur}"></span>` +
+    `<span class="${dik ? 'ru-team' : ''}">${naam}</span><b>${punten}</b></div>`;
+  let html = (r.teams || []).map((t) =>
+    rij(TEAM_ZONE_KLEUREN[t.team] || '#fff', TEAM_NAAM_CLIENT[t.team] || ('Team ' + t.team), t.punten, true)).join('');
+  if (html) html += '<div class="ru-scheiding"></div>';
+  html += (r.spelers || []).slice(0, 6).map((sp) =>
+    rij(sp.kleur, (sp.ai ? '' : '👤 ') + sp.naam, sp.punten, false)).join('');
+  document.getElementById('ru-lijst').innerHTML = html;
+  vak.classList.remove('verborgen');
+  speelGeluid('tada');
+  // de server laat de arena 25 seconden stilstaan; daarna gaat het scherm weg
+  setTimeout(() => vak.classList.add('verborgen'), 24000);
+});
+
+/* Rode flits + schok als je zelf geraakt wordt. */
+const schade = { tot: 0, kracht: 0 };
+const schok = { tot: 0, kracht: 0 };
+let verslagenDoor = null;
+
+/*
+ * Kill feed: wie verslaat wie. Iedereen in de arena ziet hetzelfde lijstje,
+ * en dat maakt van los rondrijden een wedstrijd — je leest dat je klasgenoot
+ * net iemand te pakken had, ook als je aan de andere kant van de kaart zit.
+ */
+const killFeed = [];
+socket.on('kill', (k) => {
+  killFeed.push({ ...k, start: Date.now() });
+  if (killFeed.length > 5) killFeed.shift();
+  if (k.dader === (document.getElementById('naam').value || '').trim()) speelGeluid('tada');
+});
+
+function tekenKillFeed(nu) {
+  const x = canvas.width / 2;
+  let y = 26;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px Segoe UI, sans-serif';
+  for (const k of killFeed) {
+    const oud = nu - k.start;
+    if (oud > 6000) continue;
+    ctx.globalAlpha = oud > 5000 ? (6000 - oud) / 1000 : 1;
+    const tekst = `${k.dader}  ⚔  ${k.slachtoffer}`;
+    const br = ctx.measureText(tekst).width + 20;
+    ctx.fillStyle = 'rgba(30,34,46,.72)';
+    ctx.beginPath();
+    ctx.roundRect(x - br / 2, y - 14, br, 21, 10);
+    ctx.fill();
+    // de namen in hun eigen teamkleur, het zwaardje in het wit ertussen
+    const halve = ctx.measureText(tekst).width / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = k.daderKleur || '#eef0f6';
+    ctx.fillText(k.dader, x - halve, y);
+    ctx.fillStyle = '#eef0f6';
+    ctx.fillText('  ⚔  ', x - halve + ctx.measureText(k.dader).width, y);
+    ctx.fillStyle = k.slachtofferKleur || '#eef0f6';
+    ctx.fillText(k.slachtoffer, x + halve - ctx.measureText(k.slachtoffer).width, y);
+    ctx.textAlign = 'center';
+    y += 25;
+  }
+  ctx.restore();
+  while (killFeed.length && nu - killFeed[0].start > 6000) killFeed.shift();
+}
+
+/* De rode rand bij schade: donker aan de randen, open in het midden. */
+function tekenSchadeFlits(nu) {
+  if (nu > schade.tot) return;
+  const sterkte = ((schade.tot - nu) / 340) * (0.25 + schade.kracht * 0.4);
+  const g = ctx.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) * 0.28,
+    canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.62,
+  );
+  g.addColorStop(0, 'rgba(200,30,30,0)');
+  g.addColorStop(1, `rgba(200,30,30,${sterkte.toFixed(3)})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 let laatsteTreffer = { schade: 0, ongelezen: false }; // laatste klap die we kregen
 
 socket.on('ev', (ev) => {
@@ -197,6 +299,13 @@ socket.on('ev', (ev) => {
   if (ev.type === 'levelup') { toast(`⬆️ Level omhoog! Je hebt nu een statpunt.`); speelGeluid('tada'); }
   if (ev.type === 'geraakt') {
     speelGeluid('tik');
+    /* Voelen dat je geraakt wordt: een rode rand die wegdooft en een kleine
+       schok. Vroeger zag je alleen je levensbalk zakken — in een druk gevecht
+       merkte je pas dat je in de problemen zat toen je al dood was. */
+    schade.tot = Date.now() + 340;
+    schade.kracht = Math.min(1, (ev.schade || 5) / 25);
+    schok.tot = Date.now() + 180;
+    schok.kracht = 3 + schade.kracht * 7;
     // Onthouden hoe hard die treffer aankwam. De leerling vraagt dat op met
     // "raak ik een vijandelijke kogel?" en "kracht kogel". Die vraag mag maar
     // ÉÉN keer waar zijn per treffer — een herhaal-lus draait 30x per seconde
@@ -206,6 +315,7 @@ socket.on('ev', (ev) => {
     if (!ev.contact) laatsteTreffer = { schade: ev.schade || 0, ongelezen: true };
   }
   if (ev.type === 'punten') { scorePopups.push({ x: ev.x, y: ev.y, n: ev.n, start: Date.now() }); speelGeluid('plop'); }
+  if (ev.type === 'dood') verslagenDoor = ev.door || null;
 });
 
 /* ---------------- geluidknop ---------------- */
@@ -745,7 +855,15 @@ setInterval(() => {
   const halfB = zichtB / 2, halfH = zichtH / 2;
   camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
   camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
-  tekenOffset = { x: canvas.width / 2 - camera.x * zoom, y: canvas.height / 2 - camera.y * zoom };
+  /* Even doorschudden als je geraakt wordt: een paar pixels, kort. Meer is
+     hinderlijk als je net probeert te mikken. */
+  let schokX = 0, schokY = 0;
+  if (Date.now() < schok.tot) {
+    const rest = (schok.tot - Date.now()) / 180;
+    schokX = (Math.random() - 0.5) * schok.kracht * rest * 2;
+    schokY = (Math.random() - 0.5) * schok.kracht * rest * 2;
+  }
+  tekenOffset = { x: canvas.width / 2 - camera.x * zoom + schokX, y: canvas.height / 2 - camera.y * zoom + schokY };
   spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / zoom;
   spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / zoom;
   vernieuwHud(ik);
@@ -844,6 +962,8 @@ function teken() {
    * er geen ranglijst in beeld te staan waar hij toch alleen op staat.
    */
   if (modus === 'samen') tekenScorebord();
+  if (modus === 'samen') tekenKillFeed(nu);
+  tekenSchadeFlits(nu);
 }
 requestAnimationFrame(teken);
 
@@ -1007,7 +1127,11 @@ function tekenScorebord() {
   if (!staat || !staat.tanks) return;
   const spelers = staat.tanks.filter((t) => !t.ai);
   if (!spelers.length) return;
-  const top = [...spelers].sort((a, b) => b.score - a.score);
+  /* Loopt er een ronde? Dan telt wat je DEZE ronde verdiend hebt — anders
+     staat wie al een uur speelt onhaalbaar ver voor. */
+  const ronde = staat.ronde;
+  const punt = (t) => (ronde ? (t.rondePunten || 0) : t.score);
+  const top = [...spelers].sort((a, b) => punt(b) - punt(a));
   const ik = spel.mijnTank();
   const rijen = top.slice(0, 5);
   if (ik && !rijen.some((t) => t.id === ik.id)) rijen.push(ik);
@@ -1017,14 +1141,15 @@ function tekenScorebord() {
     const som = new Map();
     for (const t of staat.tanks) {
       if (t.team === null || t.team === undefined) continue;
-      som.set(t.team, (som.get(t.team) || 0) + t.score);
+      som.set(t.team, (som.get(t.team) || 0) + punt(t));
     }
     for (let i = 0; i < staat.teamModus; i++) if (!som.has(i)) som.set(i, 0);
     teams.push(...[...som.entries()].sort((a, b) => b[1] - a[1]));
   }
 
   const B = 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
-  const H = 24 + kopH + rijen.length * regel + 6;
+  const klokH = ronde ? 26 : 0;
+  const H = 24 + klokH + kopH + rijen.length * regel + 6;
   const x = canvas.width - B - 12, y = 12;
   /* De variabelen-tellertjes staan ook rechtsboven. Het scorebord groeit met
      het aantal spelers, dus schuiven we ze er netjes onder in plaats van
@@ -1044,6 +1169,22 @@ function tekenScorebord() {
   ctx.fillText('SCOREBORD', x + 10, y + 16);
 
   let ry = y + 20;
+  /* De klok van de ronde: hoeveel tijd nog, en waar spelen we voor? De laatste
+     halve minuut kleurt rood — dan wordt het spannend. */
+  if (ronde) {
+    const m = Math.floor(ronde.over / 60), sec = ronde.over % 60;
+    ctx.font = 'bold 17px Segoe UI, sans-serif';
+    ctx.fillStyle = ronde.over <= 30 ? '#ff7b6b' : '#ffd54f';
+    ctx.fillText(`⏱ ${m}:${String(sec).padStart(2, '0')}`, x + 10, y + 38);
+    if (ronde.doel) {
+      ctx.font = '10px Segoe UI, sans-serif';
+      ctx.fillStyle = '#9aa3bb';
+      ctx.textAlign = 'right';
+      ctx.fillText(`tot ${ronde.doel} ptn`, x + B - 10, y + 38);
+      ctx.textAlign = 'left';
+    }
+    ry += klokH;
+  }
   for (const [team, punten] of teams) {
     ry += regel;
     ctx.fillStyle = TEAM_ZONE_KLEUREN[team] || '#fff';
@@ -1065,7 +1206,7 @@ function tekenScorebord() {
     const naam = String(t.naam || '').slice(0, 13);
     ctx.fillText(naam, x + 10, ry);
     ctx.textAlign = 'right';
-    ctx.fillText(String(t.score), x + B - 10, ry);
+    ctx.fillText(String(punt(t)), x + B - 10, ry);
     ctx.textAlign = 'left';
   }
   ctx.restore();
@@ -1094,9 +1235,12 @@ function vernieuwHud(ik) {
   const dood = document.getElementById('dood-melding');
   if (ik && ik.dood) {
     dood.classList.remove('verborgen');
-    dood.textContent = `💥 Kapot! Je komt zwakker terug over ${ik.respawnOver}...`;
+    dood.textContent = verslagenDoor
+      ? `💥 Verslagen door ${verslagenDoor}! Je komt terug over ${ik.respawnOver}...`
+      : `💥 Kapot! Je komt zwakker terug over ${ik.respawnOver}...`;
   } else {
     dood.classList.add('verborgen');
+    verslagenDoor = null;
   }
   vernieuwStatOverzicht(ik);
   vernieuwVariabeleTellers();

@@ -31,6 +31,13 @@
     .kop { font-size: .78rem; color: #9aa3bd; text-transform: uppercase; letter-spacing: .04em; }
     .team-knop { background: #47506b; color: #eef0f6; font-size: .82rem; padding: 5px 10px; }
     .team-knop.aan { background: #2ecc71; color: #06321a; }
+    .knop-groen { background: #2ecc71; color: #06321a; }
+    #stuurbalk select {
+      background: #47506b; color: #eef0f6; border: none; border-radius: 7px;
+      padding: 5px 8px; font-size: .82rem; font-weight: 600;
+    }
+    /* de klok van de ronde valt op zodra hij loopt */
+    #ronde-stand.loopt { color: #ffd54f; font-weight: 700; font-size: .9rem; text-transform: none; }
 
     /* spreidingsbalkje: waar zit de klas? */
     #spreiding { display: flex; gap: 2px; align-items: flex-end; height: 30px; margin-left: 6px; }
@@ -136,6 +143,22 @@
     <button class="team-knop" data-teams="2">2 teams</button>
     <button class="team-knop" data-teams="4">4 teams</button>
     <button id="naar-arena" class="knop-stap">🎮 iedereen naar de arena</button>
+    <span class="scheiding"></span>
+    <span class="kop">Ronde</span>
+    <select id="ronde-minuten" title="Hoe lang duurt de ronde?">
+      <option value="5">5 min</option>
+      <option value="10" selected>10 min</option>
+      <option value="15">15 min</option>
+    </select>
+    <select id="ronde-doel" title="Stopt de ronde ook als een team dit haalt?">
+      <option value="0">geen doel</option>
+      <option value="1000">1000 ptn</option>
+      <option value="2500">2500 ptn</option>
+      <option value="5000">5000 ptn</option>
+    </select>
+    <button id="ronde-start" class="knop-groen">▶ Start ronde</button>
+    <button id="ronde-stop" class="knop-hint">⏹ Stop</button>
+    <span id="ronde-stand" class="kop"></span>
     <span id="arena-info" class="kop"></span>
   </div>
 
@@ -266,6 +289,20 @@
     for (const k of document.querySelectorAll('.team-knop')) {
       k.addEventListener('click', () => socket.emit('lesCommando', { type: 'teams', n: Number(k.dataset.teams) }));
     }
+    /* Een ronde geeft de les een ritme: klok in beeld, een doel, en aan het
+       eind een winnaar. De punten van de ronde tellen apart, dus niemand
+       raakt zijn level of upgrades kwijt als je opnieuw begint. */
+    document.getElementById('ronde-start').addEventListener('click', () => {
+      socket.emit('lesCommando', {
+        type: 'ronde',
+        minuten: Number(document.getElementById('ronde-minuten').value),
+        doel: Number(document.getElementById('ronde-doel').value),
+      });
+    });
+    document.getElementById('ronde-stop').addEventListener('click', () => {
+      socket.emit('lesCommando', { type: 'rondeStop' });
+    });
+
     document.getElementById('naar-arena').addEventListener('click', () => {
       const aan = document.querySelector('.team-knop.aan');
       socket.emit('lesCommando', { type: 'naarArena', teams: aan ? Number(aan.dataset.teams) : 0 });
@@ -319,6 +356,17 @@
         k.classList.toggle('aan', Number(k.dataset.teams) === (d.teamModus || 0));
       }
       document.getElementById('arena-info').textContent = d.inArena ? `${d.inArena} in de arena` : '';
+      // klok en tussenstand van de ronde
+      const stand = document.getElementById('ronde-stand');
+      if (d.ronde) {
+        const m = Math.floor(d.ronde.over / 60), sec = String(d.ronde.over % 60).padStart(2, '0');
+        const teams = (d.ronde.teams || []).map(t => `${['Blauw','Rood','Groen','Paars'][t.team] || t.team} ${t.punten}`).join(' · ');
+        stand.textContent = `⏱ ${m}:${sec}${teams ? ' — ' + teams : ''}`;
+        stand.classList.add('loopt');
+      } else {
+        stand.textContent = '';
+        stand.classList.remove('loopt');
+      }
 
       if (!leerlingen.length) {
         rooster.innerHTML = '<div class="leeg">Nog geen leerlingen verbonden…</div>';

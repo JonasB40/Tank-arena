@@ -844,6 +844,32 @@ body.wijs-variabeleknop .blocklyFlyoutButtonBackground {
 }
 #lb-terug { background: #e3d7f5; color: #3d2d63; font-size: .85rem; }
 
+/* ---------- uitslag van de ronde ---------- */
+#ronde-uitslag {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(24,27,38,.96);
+  border: 3px solid #ffd54f;
+  border-radius: 16px;
+  padding: 20px 26px;
+  min-width: 300px;
+  max-width: 90%;
+  max-height: 88%;
+  overflow: auto;
+  text-align: center;
+  z-index: 45;
+  box-shadow: 0 16px 50px rgba(0,0,0,.55);
+}
+#ru-winnaar { font-size: 1.5rem; margin-bottom: 4px; color: #ffd54f; }
+#ru-reden { font-size: .9rem; color: #9aa3bb; margin-bottom: 12px; }
+#ru-lijst { display: flex; flex-direction: column; gap: 4px; font-size: .95rem; }
+#ru-lijst .ru-rij { display: flex; align-items: center; gap: 8px; }
+#ru-lijst .ru-rij b { margin-left: auto; }
+#ru-lijst .ru-team { font-weight: 700; font-size: 1.05rem; }
+#ru-lijst .ru-kleur { width: 11px; height: 11px; border-radius: 3px; }
+#ru-lijst .ru-scheiding { height: 1px; background: #3d4560; margin: 7px 0; }
+
 /* ---------- popups ---------- */
 .popup {
   position: absolute;
