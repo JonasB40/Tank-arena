@@ -95,7 +95,14 @@
       toonAdres(`Speel mee: ${location.origin}`);
     }
 
-    socket.on('state', s => { staat = s; arena = s.arena; });
+    /* De vormen komen maar een paar keer per seconde mee (het zijn er
+       duizenden en ze staan bijna stil). We onthouden ze zodra ze binnenkomen
+       — niet pas tijdens het tekenen, want dan hangt het ervan af of een
+       tekenbeurt toevallig samenvalt met zo'n pakketje. */
+    socket.on('state', s => {
+      staat = s; arena = s.arena;
+      if (s.vormen) vormenCache = s.vormen;
+    });
 
     // teamknoppen (admin = lesgever)
     document.querySelectorAll('.teamknop').forEach(k => k.addEventListener('click', () => {
@@ -124,7 +131,6 @@
       drawArena(ctx, arena, 1 / s);
       drawZones(ctx, staat.zones);
 
-      if (staat.vormen) vormenCache = staat.vormen;
       for (const v of vormenCache) {
         const info = vormSoorten[v.type];
         if (info) {
