@@ -42,7 +42,7 @@ De app begeleidt dit: boven de blokken staat een **stappenpaneel** met het probl
 ## Wat jij vooraf klaarzet
 
 1. Dubbelklik **start.bat**. Schrijf het adres uit de console op het bord.
-2. Open op jouw laptop **`http://localhost:3000/lesgever`** — dat is je dashboard.
+2. Open op jouw laptop **`http://localhost:3000/lesgever`** — dat is je dashboard. (Op een ander toestel vraagt het de lesgeverscode uit het zwarte venster.)
 3. Beamer: **`http://localhost:3000/beamer`** (de arena, voor het slot van de les).
 4. Bekijk vooraf de **👩‍🏫 Voorbeeldoplossing** in het startmenu, zodat je het einddoel kent. Zie [OPLOSSING.md](OPLOSSING.md).
 
@@ -52,8 +52,11 @@ De app begeleidt dit: boven de blokken staat een **stappenpaneel** met het probl
 |---|---|
 | **Klasoverzicht** | Per leerling: op welke stap, ✓ klaar / ⏳ bezig / ⚠ zit vast (met hoelang al). Onderaan: *"14/18 klaar — iedereen mee, je kan door!"* |
 | **◀ vorige / volgende ▶** | Zet de héle klas op dezelfde stap. Leerlingen springen automatisch mee. |
-| **⏸ Ogen op mij** | Bevriest alle speelvelden met een grijs scherm. Eén klik terug om verder te gaan. |
-| **toon blokken** | Projecteert de code van die leerling als grote leesbare tekst — ideaal om een goede oplossing óf een leerzame fout te bespreken. |
+| **⏸ Ogen op mij** | Bevriest alle speelvelden met een grijs scherm — ook de robots staan stil, dus niemand wordt intussen kapotgeschoten. Eén klik terug om verder te gaan; de leerlingen drukken dan zelf weer op 🚩. |
+| **✋ hulpbalk** | Wie zijn hand opsteekt, staat bovenaan met een piepje. Klik **geholpen ✓** als je langs bent geweest. |
+| **blokken** | Opent de blokken van die leerling rechts in een echte editor. Je kan ze aanpassen (blok bijslepen, variabele maken, …) en met **📤 stuur terug** naar de leerling sturen. Zijn programma start meteen opnieuw met jouw versie, en hij kan met **↩** zijn eigen versie terugzetten. Met 📄 zie je hetzelfde als grote leesbare tekst — ideaal om te projecteren. |
+| **👁 volg** | Hetzelfde, maar de blokken worden elke twee seconden live bijgewerkt. Eén leerling tegelijk. Begin je zelf te slepen, dan stopt het bijwerken tot je terugstuurt. |
+| **💬 tip** | Een bericht dat op het scherm van die leerling blijft staan tot hij het wegklikt. 💡 vult meteen de hint van zijn stap in. |
 
 > ⚠ Vraag altijd toestemming aan het kind voor je zijn code projecteert. Bespreek fouten als *"kijk wat een interessant probleem"*, nooit als *"kijk wat er fout is"*.
 
@@ -161,8 +164,8 @@ Daarna: **[deel 2](LESPLAN_DEEL2.md)** — stappen 11 t/m 15 en het teamtoernooi
 
 | Situatie | Wat je doet |
 |---|---|
-| Eén leerling loopt ver achter | Zijn ⚠-melding staat in je dashboard. Zet de klas niet stil — geef hem de hint-knop en help gericht. |
+| Eén leerling loopt ver achter | Zijn ⚠-melding staat in je dashboard. Zet de klas niet stil — geef hem de hint-knop en help gericht. Vanachter je eigen scherm kan dat ook: **blokken** → aanpassen → **📤 stuur terug**. |
 | Halve klas loopt vast op dezelfde stap | ⏸ **Ogen op mij**, en bouw die stap klassikaal voor. |
 | Iemand is klaar en gaat spelen | Prima — laat hem, of geef een opdrachtkaart. Spelen is de beloning. |
-| Iemand wist per ongeluk alles | 🗑 Begin opnieuw geeft een leeg werkblad; hij haalt de vorige stappen snel terug in. |
-| Blokken kwijt na verversen | Zijn **projectcode** (💾 TANK-XXXX) staat bovenaan — daarmee komt alles terug. |
+| Iemand wist per ongeluk blokken | Meteen **Ctrl+Z** zet ze terug. Na 🗑 *Alles wissen* begint hij met een leeg werkblad en haalt hij de vorige stappen snel opnieuw in. |
+| Blokken kwijt na verversen | In het startmenu staat **📂 Verder met het project van …** — één klik en alles is terug. Op een ander toestel: **meer opties → projectcode** (💾 TANK-XXXX, staat bovenaan zijn scherm). |

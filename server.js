@@ -14,6 +14,7 @@ const http = require('http');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 const { KLASSEN, UPGRADE_BOOM, TIER_LEVEL } = require('./public/js/klassen.js');
 
 const app = express();
@@ -48,6 +49,32 @@ function lanIps() {
     }
   }
   return ips;
+}
+
+/*
+ * WIE IS DE LESGEVER? Het dashboard kan de hele klas bevriezen, berichten
+ * sturen en het werkblad van een leerling overschrijven. Vroeger kreeg élke
+ * browser die "ik ben de lesgever" riep die rechten — één regel in de console
+ * van een leerling was genoeg. Nu geldt:
+ *  - op de laptop waar de server draait (localhost of zijn eigen netwerkadres)
+ *    ben je vanzelf lesgever, je hoeft niets in te typen;
+ *  - op elk ander toestel heb je de lesgeverscode nodig. Die staat in het
+ *    zwarte servervenster, of je kiest hem zelf met LESGEVER_SLEUTEL (online).
+ */
+const LESGEVER_SLEUTEL = String(process.env.LESGEVER_SLEUTEL || '').trim()
+  || Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[crypto.randomInt(31)]).join('');
+
+function opDezeLaptop(socket) {
+  const h = socket.handshake;
+  // via een proxy (zoals bij Render) komt elk verzoek van "dichtbij": nooit vertrouwen
+  if (h.headers && h.headers['x-forwarded-for']) return false;
+  const adres = String(h.address || '').replace(/^::ffff:/, '');
+  return adres === '127.0.0.1' || adres === '::1' || lanIps().includes(adres);
+}
+
+function magLesgeven(socket, sleutel) {
+  if (opDezeLaptop(socket)) return true;
+  return typeof sleutel === 'string' && sleutel.trim().toUpperCase() === LESGEVER_SLEUTEL.toUpperCase();
 }
 
 /* ------------------------------------------------------------------ */
@@ -217,16 +244,12 @@ const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const klem = (n, a, b) => Math.max(a, Math.min(b, n));
 
 /*
- * Steilere XP-curve zodat je niet te snel omhoog vliegt (level 15 ≈ 1400 XP
- * ≈ ~10 vijfhoeken, level 30 ≈ 7900, level 45 ≈ 21700). Zo blijft levelen
- * en klassekeuze iets om naartoe te werken.
- */
-/*
  * De échte diep.io-tabel (https://diepio.fandom.com/wiki/Levels): hoeveel
  * punten je totaal nodig hebt voor elk level. Onze eigen formule week hier
  * flink van af, waardoor levelen anders aanvoelde dan in het spel dat de
  * kinderen kennen. Ter controle: één vijfhoek (130 XP) = level 7 met 6
- * statpunten, precies zoals in diep.io.
+ * statpunten, precies zoals in diep.io. Level 15 haal je bij 787 punten
+ * (zes vijfhoeken), level 30 bij 6184 en level 45 bij 23536.
  */
 const XP_TABEL = [
   0, 4, 13, 28, 50, 78, 113, 157, 211, 275,
@@ -248,18 +271,65 @@ function levelVan(score) {
 /* (TANK-XXXX) zodat ze op elk toestel — ook in les 2 — verder kunnen. */
 /* ------------------------------------------------------------------ */
 const PROJECT_BESTAND = path.join(__dirname, 'projecten.json');
-let projecten = {};
-try { projecten = JSON.parse(fs.readFileSync(PROJECT_BESTAND, 'utf8')); } catch { /* nog geen bestand */ }
+/* Zonder prototype: een code als "__proto__" of "constructor" is dan gewoon
+   een onbekende code, en geen ingebouwde eigenschap van elk object. */
+const projecten = Object.create(null);
+try {
+  const ruw = fs.readFileSync(PROJECT_BESTAND, 'utf8');
+  try {
+    Object.assign(projecten, JSON.parse(ruw));
+  } catch {
+    /* Een kapot bestand (stroom weg tijdens het schrijven) NIET stilletjes
+       vervangen door een leeg: dan zou de eerstvolgende bewaarbeurt alle
+       projecten van de klas wissen. We zetten het opzij, dan is er nog iets
+       te redden. */
+    const reserve = PROJECT_BESTAND.replace(/\.json$/, `-kapot-${Date.now()}.json`);
+    try { fs.copyFileSync(PROJECT_BESTAND, reserve); } catch { /* dan maar niet */ }
+    console.log(`   ⚠ projecten.json was beschadigd — bewaard als ${path.basename(reserve)}`);
+  }
+} catch { /* nog geen bestand */ }
 
+/*
+ * Wegschrijven gebeurt hooguit om de anderhalve seconde, maar wél gegarandeerd.
+ * Vroeger schoof elke nieuwe bewaarbeurt het schrijven weer anderhalve seconde
+ * op. Met een klas die volop bouwt komt er bijna elke seconde iets binnen,
+ * en dan werd het bestand zolang de les liep nooit geschreven — sloot je het
+ * zwarte venster, dan was het werk van de hele les weg.
+ */
 let schrijfTimer = null;
-function bewaarProjectenOpSchijf() {
+function schrijfProjectenNu() {
   clearTimeout(schrijfTimer);
-  schrijfTimer = setTimeout(() => {
-    fs.writeFile(PROJECT_BESTAND, JSON.stringify(projecten), () => {});
-  }, 1500);
+  schrijfTimer = null;
+  const inhoud = JSON.stringify(projecten);
+  // eerst naar een tijdelijk bestand en dan in één keer omwisselen: valt de
+  // stroom weg tijdens het schrijven, dan blijft de vorige versie heel
+  const tijdelijk = PROJECT_BESTAND + '.tmp';
+  try {
+    fs.writeFileSync(tijdelijk, inhoud);
+    fs.renameSync(tijdelijk, PROJECT_BESTAND);
+  } catch {
+    // OneDrive houdt het bestand soms even vast; dan rechtstreeks schrijven
+    try { fs.writeFileSync(PROJECT_BESTAND, inhoud); } catch (err) {
+      console.log(`   ⚠ Projecten bewaren mislukt: ${err.message}`);
+    }
+  }
+}
+function bewaarProjectenOpSchijf() {
+  if (schrijfTimer) return;   // er staat al een schrijfbeurt klaar
+  schrijfTimer = setTimeout(schrijfProjectenNu, 1500);
+}
+/* Sluit je het venster of druk je Ctrl+C, dan eerst nog wegschrijven wat er
+   klaarstaat. (SIGHUP = het venster dichtklikken op Windows, SIGTERM = een
+   herstart bij een online server.) */
+for (const sein of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sein, () => {
+    if (schrijfTimer) schrijfProjectenNu();
+    process.exit(0);
+  });
 }
 
 const CODE_TEKENS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // geen 0/O/1/I-verwarring
+const CODE_VORM = /^TANK-[A-Z0-9]{4}$/;
 function nieuweProjectCode() {
   let code;
   do {
@@ -278,7 +348,7 @@ function maakRoom(id, solo, niveau) {
   const room = {
     arena,
     id, solo,
-    niveau: NIVEAUS[niveau] ? niveau : 'makkelijk',
+    niveau: Object.hasOwn(NIVEAUS, String(niveau)) ? niveau : 'makkelijk',
     gestartOm: Date.now(),
     tanks: new Map(),
     bullets: [],
@@ -439,6 +509,20 @@ function zetTeamModus(room, n) {
     if (t.ai && !t.robotNaam) { t.robotNaam = vrijeRobotNaam(room); t.naam = `🤖 ${t.robotNaam}${t.ai.elite ? ' ⭐' : ''}`; }
     else spawnTank(room, t);
   }
+}
+
+/*
+ * De lesgever kiest de opstelling (dashboard of beamer). Die keuze blijft
+ * staan: een leerling die daarna nog op "Les 2 — 4 teams" klikt, gooit ze niet
+ * meer om. Anders kon één kind de hele klas laten herspawnen, en twee kinderen
+ * met een andere knop zelfs om de beurt.
+ */
+function lesgeverZetTeams(n) {
+  if (![0, 2, 4].includes(n)) return;
+  if (!rooms.has('arena')) maakRoom('arena', false);
+  const room = rooms.get('arena');
+  room.teamsDoorLesgever = true;
+  zetTeamModus(room, n);
 }
 
 function wijsTeamToe(room, t) {
@@ -1151,6 +1235,9 @@ function stuurAI(room, t, nu) {
 /* ------------------------------------------------------------------ */
 io.on('connection', (socket) => {
   let laatsteActieMsg = 0;
+  /* Wie binnenkomt terwijl de lesgever "ogen op mij" heeft aangezet (of zijn
+     pagina ververst), hoort ook meteen stil te staan. */
+  if (bevroren) socket.emit('lesStuur', { type: 'bevries', aan: true });
 
   socket.on('join', (data) => {
     const totaal = [...rooms.values()].reduce((n, r) => n + [...r.tanks.values()].filter((t) => !t.ai).length, 0);
@@ -1206,9 +1293,12 @@ io.on('connection', (socket) => {
   socket.on('intent', (inp) => {
     const t = vindTank(socket);
     if (!t || !inp) return;
+    /* Een oneindige hoek (een kind dat "richt op 10^400 graden" bouwt) maakte
+       van de terugslag NaN, en dan stond de tank voorgoed nergens meer. */
+    const hoek = Number(inp.angle);
     t.intent = {
       mx: klemF(inp.mx, -1, 1), my: klemF(inp.my, -1, 1),
-      angle: Number(inp.angle) || 0,
+      angle: Number.isFinite(hoek) ? hoek : (t.intent.angle || 0),
       shoot: !!inp.shoot,
       // waar de muis in de wereld staat: drones vliegen daar naartoe
       tx: klem(Number(inp.tx) || t.x, 0, arenaVan(socket).w),
@@ -1263,14 +1353,17 @@ io.on('connection', (socket) => {
     if (t.maxHp > oudMax) t.hp += t.maxHp - oudMax; // extra max levens = meteen erbij
   });
 
-  /* De beamer kijkt mee naar de gedeelde arena. */
-  socket.on('beamer', () => {
+  /* De beamer kijkt mee naar de gedeelde arena. Meekijken mag iedereen (het is
+     een scorebord); de teamknoppen werken alleen voor de lesgever. */
+  socket.on('beamer', (d) => {
     if (!rooms.has('arena')) maakRoom('arena', false);
     socket.join('arena');
     socket.data.isBeamer = true;
+    if (magLesgeven(socket, d && d.sleutel)) socket.data.isLesgever = true;
     beamers.add(socket.id);
     // ook de beamer tekent de vormen, dus die heeft de soortentabel nodig
     socket.emit('vormSoorten', VORM_INFO);
+    socket.emit('beamerRechten', { teams: !!socket.data.isLesgever });
   });
 
   /*
@@ -1287,22 +1380,23 @@ io.on('connection', (socket) => {
     };
   });
 
-  /* Les 2: de lesgever (admin, via de beamer) kiest 0, 2 of 4 teams. */
+  /* Les 2: de lesgever (via de beamer) kiest 0, 2 of 4 teams. */
   socket.on('zetTeams', (n) => {
-    if (!socket.data.isBeamer) return;
-    zetTeamModus(rooms.get('arena'), n);
+    if (!socket.data.isLesgever) return;
+    lesgeverZetTeams(Number(n));
   });
 
   /*
    * Een leerling die in het startmenu "2 teams" of "4 teams" kiest, zet die
-   * opstelling ook echt aan — anders klikt hij op iets dat niets doet en staat
-   * hij zonder veilige zone in de arena. De lesgever kan het op de beamer
-   * altijd overrulen; dat blijft de laatste stem.
+   * opstelling aan als er nog niets gekozen is — anders klikt hij op iets dat
+   * niets doet en staat hij zonder veilige zone in de arena. Staat er al een
+   * opstelling, of heeft de lesgever gekozen, dan blijft die staan: de
+   * lesgever heeft altijd het laatste woord.
    */
   socket.on('kiesTeams', (n) => {
     if (![2, 4].includes(n)) return;
     const room = rooms.get(socket.data.roomId);
-    if (!room || room.solo || room.teamModus === n) return;
+    if (!room || room.solo || room.teamModus || room.teamsDoorLesgever) return;
     zetTeamModus(room, n);
   });
 
@@ -1314,16 +1408,24 @@ io.on('connection', (socket) => {
     laatsteBewaar = Date.now();
     const inhoud = JSON.stringify(d.werkruimte || {});
     if (inhoud.length > 200000) return; // te groot = niet bewaren
-    const code = projecten[d.code] ? d.code : nieuweProjectCode();
+    const bestaand = typeof d.code === 'string' && CODE_VORM.test(d.code) && projecten[d.code] ? d.code : null;
+    /* Eén verbinding maakt hooguit één nieuwe code aan. Zo kan niemand met een
+       lusje in de console de schijf volschrijven met duizenden projecten. */
+    const code = bestaand || socket.data.projectCode || nieuweProjectCode();
+    socket.data.projectCode = code;
     projecten[code] = { naam: saneNaam(d.naam), werkruimte: d.werkruimte, bijgewerkt: Date.now() };
     bewaarProjectenOpSchijf();
     cb({ code });
   });
 
+  let laatsteLaad = 0;
   socket.on('laadProject', (d, cb) => {
     if (typeof cb !== 'function') return;
+    // niet eindeloos codes kunnen raden
+    if (Date.now() - laatsteLaad < 400) { cb({ ok: false }); return; }
+    laatsteLaad = Date.now();
     const code = String((d && d.code) || '').toUpperCase().trim();
-    const p = projecten[code];
+    const p = CODE_VORM.test(code) ? projecten[code] : null;
     cb(p ? { ok: true, naam: p.naam, werkruimte: p.werkruimte } : { ok: false });
   });
 
@@ -1331,10 +1433,15 @@ io.on('connection', (socket) => {
   socket.on('lesStatus', (d) => {
     if (!d) return;
     const oud = klas.get(socket.id) || {};
-    const stap = klem(d.stap, 1, 20);
+    // een stapnummer dat geen getal is, werd NaN en bleef dan zo in het rapport staan
+    const stap = klem(Math.round(Number(d.stap)) || 1, 1, 20);
+    /* Les 2 heeft eigen stappen met eigen nummers (1-6). Zonder dit stond een
+       les-2-leerling op het dashboard als "stap 3" van les 1. */
+    const les = d.les === 2 ? 2 : 1;
     const t = vindTank(socket);
     klas.set(socket.id, {
       naam: saneNaam(d.naam),
+      les,
       stap,
       status: ['bezig', 'klaar', 'vast'].includes(d.status) ? d.status : 'bezig',
       // hoeveel blokken staan er, en hoe lang is er al niets veranderd?
@@ -1354,11 +1461,11 @@ io.on('connection', (socket) => {
       speelt: !!t,
       hulp: !!oud.hulp,
       hulpSinds: oud.hulpSinds || 0,
-      sinds: oud.stap === stap ? oud.sinds || Date.now() : Date.now(),
+      sinds: oud.stap === stap && oud.les === les ? oud.sinds || Date.now() : Date.now(),
       bijgewerkt: Date.now(),
     });
     // voor het klasrapport achteraf: hoe ver kwam iedereen, en wanneer?
-    noteerVoortgang(socket.id, saneNaam(d.naam), stap);
+    noteerVoortgang(saneNaam(d.naam), les, stap);
   });
 
   /* De leerling steekt zijn hand op (of doet hem weer omlaag). */
@@ -1369,24 +1476,39 @@ io.on('connection', (socket) => {
     l.hulpSinds = aan ? Date.now() : 0;
   });
 
-  /* De lesgever kijkt mee en stuurt de klas. */
-  socket.on('lesgever', () => {
+  /* De lesgever kijkt mee en stuurt de klas — maar alleen met de juiste code
+     (of vanaf de laptop zelf). Zie magLesgeven bovenaan. */
+  let foutePogingen = 0;
+  socket.on('lesgever', (d) => {
+    if (foutePogingen >= 8) { socket.emit('lesgeverToegang', { ok: false, teVeel: true }); return; }
+    if (!magLesgeven(socket, d && d.sleutel)) {
+      foutePogingen++;
+      socket.emit('lesgeverToegang', { ok: false });
+      return;
+    }
     socket.data.isLesgever = true;
     socket.join('lesgevers');
+    // de code meesturen, zodat je ziet wat je op een ander toestel moet typen
+    socket.emit('lesgeverToegang', { ok: true, sleutel: LESGEVER_SLEUTEL });
   });
 
   socket.on('lesCommando', (d) => {
     if (!socket.data.isLesgever || !d) return;
     if (d.type === 'stap' && Number.isFinite(d.stap)) {
-      io.emit('lesStuur', { type: 'stap', stap: klem(d.stap, 1, 20) });
+      // voor welke les? een les-2-leerling springt niet mee met de stappen van les 1
+      io.emit('lesStuur', { type: 'stap', stap: klem(d.stap, 1, 20), les: d.les === 2 ? 2 : 1 });
     } else if (d.type === 'bevries') {
       bevroren = !!d.aan;
       io.emit('lesStuur', { type: 'bevries', aan: bevroren });
     } else if (d.type === 'toonCode') {
       io.to(d.id).emit('lesStuur', { type: 'stuurCode' }); // vraag de leerling zijn blokken
     } else if (d.type === 'volg') {
-      // live meekijken: zolang dit aanstaat vragen we de blokken elke 2 sec op
-      if (d.aan) gevolgd.add(d.id); else gevolgd.delete(d.id);
+      /* Live meekijken: zolang dit aanstaat vragen we de blokken elke 2 sec op.
+         Eén leerling per lesgever. Vroeger bleef de vorige leerling óók
+         gevolgd als je een nieuwe koos, en sprong het werkblad om de twee
+         seconden heen en weer tussen die twee — je aanpassingen incluis. */
+      if (d.aan && typeof d.id === 'string') gevolgd.set(socket.id, d.id);
+      else gevolgd.delete(socket.id);
     } else if (d.type === 'bericht') {
       /* Een tip sturen vanachter je eigen scherm: naar één leerling of naar de
          hele klas. Precies waarvoor de lesgever anders door het lokaal moet. */
@@ -1410,8 +1532,7 @@ io.on('connection', (socket) => {
       if (l) { l.hulp = false; l.hulpSinds = 0; }
       io.to(d.id).emit('lesStuur', { type: 'hulpKlaar' });
     } else if (d.type === 'teams' && [0, 2, 4].includes(Number(d.n))) {
-      if (!rooms.has('arena')) maakRoom('arena', false);
-      zetTeamModus(rooms.get('arena'), Number(d.n));
+      lesgeverZetTeams(Number(d.n));
     } else if (d.type === 'naarArena') {
       io.emit('lesStuur', { type: 'naarArena', teams: [0, 2, 4].includes(Number(d.teams)) ? Number(d.teams) : 0 });
     } else if (d.type === 'ronde') {
@@ -1438,7 +1559,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('verlaat', () => verlaatRoom(socket));
-  socket.on('disconnect', () => { klas.delete(socket.id); beamers.delete(socket.id); verlaatRoom(socket); });
+  socket.on('disconnect', () => {
+    klas.delete(socket.id); beamers.delete(socket.id); gevolgd.delete(socket.id);
+    verlaatRoom(socket);
+  });
 });
 
 /*
@@ -1494,13 +1618,15 @@ function codeGewijzigdNaStart() {
 
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
 const klas = new Map();
-/* Leerlingen waarvan de lesgever live meekijkt met de blokken. */
-const gevolgd = new Set();
+/* Wie volgt wie? (socket-id van de lesgever → socket-id van de leerling) */
+const gevolgd = new Map();
 setInterval(() => {
-  for (const id of gevolgd) {
-    if (klas.has(id)) io.to(id).emit('lesStuur', { type: 'stuurCode' });
-    else gevolgd.delete(id);   // weg uit de les: niet blijven vragen
+  const leerlingen = new Set();
+  for (const [lesgever, id] of gevolgd) {
+    if (klas.has(id)) leerlingen.add(id);
+    else gevolgd.delete(lesgever);   // weg uit de les: niet blijven vragen
   }
+  for (const id of leerlingen) io.to(id).emit('lesStuur', { type: 'stuurCode' });
 }, 2000);
 let bevroren = false;
 
@@ -1510,11 +1636,13 @@ let bevroren = false;
  * bereikte. Zo kan je na de les zien waar het spaak liep — en waar je de
  * volgende keer meer tijd voor uittrekt.
  */
-const rapport = new Map();   // naam -> { naam, maxStap, begonnen, stapTijden }
+const rapport = new Map();   // "les|naam" -> { naam, les, maxStap, begonnen, stapTijden }
 
-function noteerVoortgang(id, naam, stap) {
-  let r = rapport.get(naam);
-  if (!r) { r = { naam, maxStap: stap, begonnen: Date.now(), stapTijden: {}, laatst: Date.now() }; rapport.set(naam, r); }
+function noteerVoortgang(naam, les, stap) {
+  // les 1 en les 2 apart: stap 3 van les 2 is iets heel anders dan stap 3 van les 1
+  const sleutel = `${les}|${naam}`;
+  let r = rapport.get(sleutel);
+  if (!r) { r = { naam, les, maxStap: stap, begonnen: Date.now(), stapTijden: {}, laatst: Date.now() }; rapport.set(sleutel, r); }
   r.laatst = Date.now();
   if (stap > r.maxStap) r.maxStap = stap;
   if (!r.stapTijden[stap]) r.stapTijden[stap] = Date.now();
@@ -1529,13 +1657,14 @@ function maakRapport() {
       const eind = i + 1 < stappen.length ? r.stapTijden[stappen[i + 1]] : r.laatst;
       duur[nr] = Math.max(0, Math.round((eind - r.stapTijden[nr]) / 1000));
     });
-    return { naam: r.naam, maxStap: r.maxStap, minuten: Math.round((r.laatst - r.begonnen) / 60000), duur };
-  }).sort((a, b) => b.maxStap - a.maxStap || a.naam.localeCompare(b.naam));
-  // gemiddelde tijd per stap over de hele klas
+    return { naam: r.naam, les: r.les, maxStap: r.maxStap, minuten: Math.round((r.laatst - r.begonnen) / 60000), duur };
+  }).sort((a, b) => b.les - a.les || b.maxStap - a.maxStap || a.naam.localeCompare(b.naam));
+  // gemiddelde tijd per stap over de hele klas ("2-3" = les 2, stap 3)
   const perStap = {};
   for (const l of leerlingen) {
     for (const [nr, sec] of Object.entries(l.duur)) {
-      (perStap[nr] || (perStap[nr] = [])).push(sec);
+      const sleutel = l.les === 2 ? `2-${nr}` : nr;
+      (perStap[sleutel] || (perStap[sleutel] = [])).push(sec);
     }
   }
   const gemiddeld = Object.fromEntries(Object.entries(perStap).map(([nr, lijst]) => [
@@ -1550,7 +1679,7 @@ setInterval(() => {
   const lijst = [...klas.entries()]
     .filter(([, l]) => nu - l.bijgewerkt < 15000)
     .map(([id, l]) => ({
-      id, naam: l.naam, stap: l.stap, status: l.status,
+      id, naam: l.naam, les: l.les || 1, stap: l.stap, status: l.status,
       blokken: l.blokken || 0, stilMs: l.stilMs || 0,
       minuten: Math.floor((nu - l.sinds) / 60000),
       checkS: !!l.checkS, checkG: !!l.checkG, code: l.code || '',
@@ -1602,17 +1731,46 @@ function klemF(n, min, max) {
 /* ------------------------------------------------------------------ */
 let vorigeTick = Date.now();
 
+/*
+ * Eén fout mag nooit de hele klas platleggen. Een onverwachte fout in de
+ * spel-lus of in een bericht van één browser liet vroeger het hele programma
+ * stoppen: zwart venster dicht, iedereen uit het spel. Nu schrijven we de fout
+ * op (hooguit één keer per tien seconden dezelfde) en draait de rest door.
+ */
+const gemeldeFouten = new Map();
+function meldFout(waar, err) {
+  const tekst = `${waar}: ${(err && err.stack) || err}`;
+  const nu = Date.now();
+  if (nu - (gemeldeFouten.get(tekst) || 0) < 10000) return;
+  gemeldeFouten.set(tekst, nu);
+  console.log(`   ⚠ fout in ${tekst}`);
+}
+process.on('uncaughtException', (err) => meldFout('server', err));
+
 setInterval(() => {
   const nu = Date.now();
   const dt = Math.min(0.1, (nu - vorigeTick) / 1000);
   vorigeTick = nu;
 
   for (const room of rooms.values()) {
-    tickRoom(room, nu, dt);
+    try { tickRoom(room, nu, dt); } catch (err) { meldFout(`arena ${room.id}`, err); }
   }
 }, 1000 / 30);
 
 function tickRoom(room, nu, dt) {
+  /*
+   * "Ogen op mij": dan staat ELKE arena stil. Vroeger stonden alleen de tanks
+   * van de leerlingen stil, terwijl de robots in hun eigen arena gewoon bleven
+   * schieten — wie twee minuten naar de lesgever keek, lag intussen drie keer
+   * kapot. De klok van een lopende ronde wacht ook.
+   */
+  if (bevroren) {
+    const ms = Math.round(dt * 1000);
+    room.gestartOm += ms;
+    if (room.ronde) room.ronde.eind += ms;
+    if (room.uitslagTot) room.uitslagTot += ms;
+    return;
+  }
   bewaakRonde(room, nu);
   /*
    * Op pauze staat de wereld helemaal stil: robots, kogels en vormen bewegen
@@ -2374,6 +2532,12 @@ setInterval(() => {
   const nu = Date.now();
   tikTeller++;
   for (const room of rooms.values()) {
+    try { stuurWereld(room, nu); } catch (err) { meldFout(`versturen ${room.id}`, err); }
+  }
+}, 1000 / 20);
+
+function stuurWereld(room, nu) {
+  {
     const gedeeld = {
       arena: room.arena,
       teamModus: room.teamModus,
@@ -2483,7 +2647,7 @@ setInterval(() => {
       io.to(t.id).emit('state', Object.assign({}, gedeeld, { vormen, bullets }));
     }
   }
-}, 1000 / 20);
+}
 
 /* ------------------------------------------------------------------ */
 server.on('error', (err) => {
@@ -2504,7 +2668,10 @@ server.on('error', (err) => {
     console.log('');
     process.exit(1);
   }
-  throw err;
+  // elke andere reden waarom de server niet kan starten: zeggen en stoppen
+  // (niet gooien — het vangnet hierboven zou hem anders half laten draaien)
+  console.log(`\n   De server kon niet starten: ${err.message}\n`);
+  process.exit(1);
 });
 
 server.listen(PORT, () => {
@@ -2518,5 +2685,9 @@ server.listen(PORT, () => {
   console.log('');
   console.log(`   Jouw dashboard:        http://localhost:${PORT}/lesgever`);
   console.log(`   Beamer (groot scherm): http://localhost:${PORT}/beamer`);
+  console.log('');
+  console.log(`   Lesgeverscode:         ${LESGEVER_SLEUTEL}`);
+  console.log('   (alleen nodig als je het dashboard op een ánder toestel opent;');
+  console.log('    op deze laptop werkt het zonder code)');
   console.log('');
 });

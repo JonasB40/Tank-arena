@@ -119,12 +119,42 @@
     #rapport th, #rapport td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #343a52; }
     #rapport th { color: #9aa3bd; font-weight: 600; }
     #rapport .traag { color: #ffb74d; }
+
+    .verborgen { display: none !important; }
+    #mijn-code { background: rgba(0,0,0,.22); padding: 4px 10px; border-radius: 7px; font-size: .85rem; font-family: monospace; letter-spacing: .08em; }
+    #mijn-code:empty { display: none; }
+
+    /* ---------- lesgeverscode ----------
+       Op de laptop van de server zie je dit nooit. Op een ander toestel vraagt
+       het dashboard eerst de code uit het zwarte servervenster. */
+    #toegang { position: fixed; inset: 0; z-index: 300; background: #1a1d27; display: flex; align-items: center; justify-content: center; }
+    #toegang-vak { background: #232736; border-radius: 14px; padding: 22px 24px; width: min(420px, 92vw); text-align: center; }
+    #toegang-vak h2 { margin-bottom: 8px; }
+    #toegang-vak p { font-size: .9rem; color: #9aa3bd; line-height: 1.45; margin-bottom: 12px; }
+    #toegang-code { width: 100%; padding: 10px 12px; font-size: 1.2rem; text-align: center; letter-spacing: .15em; text-transform: uppercase; border-radius: 9px; border: 2px solid #4fc3f7; background: #1a1d27; color: #eef0f6; margin-bottom: 10px; }
+    #toegang-fout { color: #ff8a80 !important; font-weight: 700; margin: 10px 0 0 !important; }
+
+    /* ---------- "Nieuwe variabele"-venster (hetzelfde als bij de leerling) ----------
+       Zonder dit venster liep "Maak een variabele" op het dashboard stil vast. */
+    #var-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+    #var-venster { width: min(440px, 92vw); background: #fff; color: #3d2d63; border-radius: 10px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+    #var-kop { display: flex; align-items: center; justify-content: center; position: relative; background: #855cd6; color: #fff; font-weight: 700; padding: 12px; }
+    #var-kruis { position: absolute; right: 10px; background: rgba(0,0,0,.22); color: #fff; width: 26px; height: 26px; border-radius: 50%; padding: 0; }
+    #var-body { padding: 18px 20px 16px; }
+    #var-naam { width: 100%; margin: 8px 0 14px; padding: 9px 12px; font-size: 1rem; border: 1px solid #d6c9ef; border-radius: 6px; }
+    #var-bereik { display: flex; gap: 22px; flex-wrap: wrap; }
+    #var-bereik label { display: flex; align-items: center; gap: 6px; }
+    #var-uitleg { font-size: .78rem; color: #8a94ad; margin-top: 10px; line-height: 1.4; }
+    #var-knoppen { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+    #var-knoppen button { border-radius: 999px; border: 1px solid #d6c9ef; background: #fff; color: #3d2d63; }
+    #var-knoppen .hoofdknop { background: #855cd6; color: #fff; border-color: #855cd6; }
   </style>
 </head>
 <body>
   <header>
     <h1>👩‍🏫 Tank Arena — lesgever</h1>
     <span id="joinurl"></span>
+    <span id="mijn-code" title="Lesgeverscode: typ deze als je het dashboard of de beamer op een ander toestel opent"></span>
     <span id="verouderd" style="display:none"></span>
     <span class="rek"></span>
     <button id="rapport-knop" class="knop-licht">📋 Rapport</button>
@@ -212,15 +242,51 @@
     </div>
   </div>
 
+  <!-- De lesgeverscode. Verdwijnt meteen als je op de laptop van de server zit. -->
+  <div id="toegang" class="verborgen">
+    <div id="toegang-vak">
+      <h2>🔒 Lesgeverscode</h2>
+      <p>Dit dashboard bestuurt de hele klas. Typ de code die in het zwarte servervenster staat
+         (online: de code die je zelf instelde als LESGEVER_SLEUTEL).</p>
+      <input id="toegang-code" type="text" maxlength="40" autocomplete="off" spellcheck="false">
+      <button id="toegang-ok" class="knop-primair">Open het dashboard</button>
+      <p id="toegang-fout"></p>
+    </div>
+  </div>
+
+  <!-- Nieuwe variabele / tekst typen: hetzelfde venster als bij de leerling -->
+  <div id="var-overlay" class="verborgen">
+    <div id="var-venster">
+      <div id="var-kop"><span>Nieuwe variabele</span><button id="var-kruis" title="Annuleren">✕</button></div>
+      <div id="var-body">
+        <label for="var-naam">Nieuwe variabelenaam:</label>
+        <input id="var-naam" type="text" autocomplete="off" spellcheck="false">
+        <div id="var-bereik">
+          <label><input type="radio" name="var-bereik" value="alle" checked> Voor alle sprites</label>
+          <label><input type="radio" name="var-bereik" value="deze"> Alleen voor deze sprite</label>
+        </div>
+        <p id="var-uitleg">De leerling heeft één sprite (zijn tank), dus beide keuzes doen hetzelfde.</p>
+        <div id="var-knoppen">
+          <button id="var-annuleer">Annuleren</button>
+          <button id="var-ok" class="hoofdknop">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- editor.js verwacht deze knopjes uit het leerlingscherm; hier staan ze
        verstopt zodat we exact dezelfde blokkeneditor kunnen gebruiken -->
   <div id="stubs">
     <button id="modus-starter"></button><button id="modus-expert"></button>
     <button id="knop-opruimen"></button><button id="knop-inklappen"><span id="label-inklappen"></span></button>
     <div id="blok-uitleg"></div>
-    <div id="var-overlay"><input id="var-naam"></div>
   </div>
 
+  <script>
+    /* Op het dashboard toont de editor exact wat de leerling bouwde. Blokken
+       die onder een herhaal-lus hangen, laten we dus staan waar ze staan. */
+    window.geenAutoReparatie = true;
+  </script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/stappen.js"></script>
   <script src="js/klassen.js"></script>
@@ -230,16 +296,72 @@
   <script src="js/editor.js"></script>
   <script>
     const socket = io();
+
+    /* ---------------- lesgeverscode ----------------
+     * Op de laptop van de server ben je vanzelf lesgever. Op een ander toestel
+     * vraagt het dashboard de code één keer; daarna onthoudt dit toestel hem
+     * (de beamer op hetzelfde toestel gebruikt hem dan ook).
+     */
+    const SLEUTEL_OPSLAG = 'tankLesgeverSleutel';
+    let sleutelInGeheugen = new URLSearchParams(location.search).get('sleutel') || '';
+    function bewaarSleutel(code) {
+      sleutelInGeheugen = code || '';
+      try { localStorage.setItem(SLEUTEL_OPSLAG, sleutelInGeheugen); } catch { /* geen opslag */ }
+    }
+    if (sleutelInGeheugen) {
+      bewaarSleutel(sleutelInGeheugen);
+      // de code niet in de adresbalk laten staan (die zie je op de beamer)
+      history.replaceState(null, '', location.pathname);
+    }
+    function leesSleutel() {
+      if (sleutelInGeheugen) return sleutelInGeheugen;
+      try { return localStorage.getItem(SLEUTEL_OPSLAG) || ''; } catch { return ''; }
+    }
+    let probeerdeCode = false;
+
     // bij elke (her)verbinding opnieuw aanmelden, anders werkt het dashboard
     // niet meer nadat de server opnieuw is opgestart
-    socket.on('connect', () => socket.emit('lesgever'));
+    socket.on('connect', () => socket.emit('lesgever', { sleutel: leesSleutel() }));
 
-    fetch('/info').then(r => r.json()).then(d => {
-      const ip = d.ips[0];
-      document.getElementById('joinurl').textContent = ip ? `Leerlingen: http://${ip}:${d.port}` : '';
+    socket.on('lesgeverToegang', (d) => {
+      const vak = document.getElementById('toegang');
+      if (d && d.ok) {
+        vak.classList.add('verborgen');
+        if (d.sleutel) {
+          bewaarSleutel(d.sleutel);
+          document.getElementById('mijn-code').textContent = `🔑 ${d.sleutel}`;
+        }
+        return;
+      }
+      vak.classList.remove('verborgen');
+      const fout = document.getElementById('toegang-fout');
+      fout.textContent = d && d.teVeel ? 'Te veel pogingen. Ververs de pagina en probeer opnieuw.'
+        : probeerdeCode ? 'Die code klopt niet — kijk hem na in het zwarte servervenster.'
+          : leesSleutel() ? 'De bewaarde code werkt niet meer (is de server herstart?).' : '';
+      document.getElementById('toegang-code').focus();
     });
+    function probeerCode() {
+      const code = document.getElementById('toegang-code').value.trim();
+      if (!code) return;
+      probeerdeCode = true;
+      bewaarSleutel(code);
+      socket.emit('lesgever', { sleutel: code });
+    }
+    document.getElementById('toegang-ok').addEventListener('click', probeerCode);
+    document.getElementById('toegang-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') probeerCode(); });
 
-    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    /* Het speeladres. Op de laptop zelf (localhost) heb je aan dat adres niets,
+       dus vragen we het netwerkadres op; online staat het al in de adresbalk. */
+    if (/^(localhost|127\.|\[?::1\]?$)/.test(location.hostname)) {
+      fetch('/info').then(r => r.json()).then(d => {
+        const ip = d.ips[0];
+        document.getElementById('joinurl').textContent = ip ? `Leerlingen: http://${ip}:${d.port}` : '';
+      }).catch(() => { });
+    } else {
+      document.getElementById('joinurl').textContent = `Leerlingen: ${location.origin}`;
+    }
+
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     /* De lesteksten staan vol met {{bew|blokjes}} zodat de leerling ze gekleurd
        ziet. Hier willen we gewoon de woorden. */
     const zonderOpmaak = (s) => String(s || '').replace(/\{\{[a-z]+\|([^}]*)\}\}/g, '$1');
@@ -258,32 +380,46 @@
       } catch { /* geluid mag mislukken */ }
     }
 
-    /* ---------------- de klas door de les sturen ---------------- */
+    /* ---------------- de klas door de les sturen ----------------
+     * Les 1 en les 2 hebben elk hun eigen stappen (les 2 telt opnieuw vanaf 1).
+     * De pijltjes sturen de les waar de meeste leerlingen in zitten; een
+     * leerling in de andere les springt niet mee.
+     */
+    const LESSEN = { 1: window.STAPPEN || [], 2: window.LES2_STAPPEN || [] };
+    const stappenVan = (les) => LESSEN[les] || LESSEN[1];
+    const maxStapVan = (les) => stappenVan(les).length || 15;
+    const stapTitel = (les, nr) => { const s = stappenVan(les).find(x => x.nr === nr); return s ? s.titel : ''; };
+    const lesLabel = (les) => (les === 2 ? 'les 2 · ' : '');
+    let klasLes = 1;
     let klasStap = 1;
-    const alleStappen = window.STAPPEN || [];
-    const maxStap = alleStappen.length || 15;
 
     function toonKlasStap() {
-      const s = alleStappen.find(x => x.nr === klasStap);
-      document.getElementById('klasstap').textContent = `stap ${klasStap}${s ? ' — ' + s.titel : ''}`;
+      const titel = stapTitel(klasLes, klasStap);
+      document.getElementById('klasstap').textContent = `${lesLabel(klasLes)}stap ${klasStap}${titel ? ' — ' + titel : ''}`;
     }
     toonKlasStap();
 
     function stuurStap(n) {
-      klasStap = Math.max(1, Math.min(maxStap, n));
+      klasStap = Math.max(1, Math.min(maxStapVan(klasLes), n));
       toonKlasStap();
-      socket.emit('lesCommando', { type: 'stap', stap: klasStap });
+      socket.emit('lesCommando', { type: 'stap', stap: klasStap, les: klasLes });
     }
     document.getElementById('vorige').addEventListener('click', () => stuurStap(klasStap - 1));
     document.getElementById('volgende').addEventListener('click', () => stuurStap(klasStap + 1));
 
+    /* De knop volgt wat de server zegt. Ververste je het dashboard terwijl de
+       klas bevroren stond, dan stond hier "Ogen op mij" terwijl alles stillag —
+       en de eerste klik bevroor ze nog eens in plaats van ze los te laten. */
     let bevroren = false;
-    document.getElementById('bevries').addEventListener('click', () => {
-      bevroren = !bevroren;
-      socket.emit('lesCommando', { type: 'bevries', aan: bevroren });
+    function toonBevriesKnop() {
       const k = document.getElementById('bevries');
       k.classList.toggle('aan', bevroren);
       k.textContent = bevroren ? '▶ Ga verder' : '⏸ Ogen op mij';
+    }
+    document.getElementById('bevries').addEventListener('click', () => {
+      bevroren = !bevroren;
+      socket.emit('lesCommando', { type: 'bevries', aan: bevroren });
+      toonBevriesKnop();
     });
 
     for (const k of document.querySelectorAll('.team-knop')) {
@@ -310,16 +446,17 @@
 
     /* ---------------- tips sturen ---------------- */
     let gekozen = null;         // naar wie gaat de tip? (null = hele klas)
-    let gekozenNaam = '';
     let gekozenStap = 1;
+    let gekozenLes = 1;
 
-    function zetTipDoel(id, naam, stap) {
-      gekozen = id; gekozenNaam = naam || ''; gekozenStap = stap || 1;
+    function zetTipDoel(id, naam, stap, les) {
+      gekozen = id; gekozenStap = stap || 1; gekozenLes = les || 1;
       document.getElementById('tip-doel').textContent = id ? `— naar ${naam}` : '— naar de hele klas';
     }
     document.getElementById('tip-klas').addEventListener('click', () => zetTipDoel(null));
     document.getElementById('tip-hint').addEventListener('click', () => {
-      const s = alleStappen.find(x => x.nr === (gekozen ? gekozenStap : klasStap));
+      const les = gekozen ? gekozenLes : klasLes;
+      const s = stappenVan(les).find(x => x.nr === (gekozen ? gekozenStap : klasStap));
       document.getElementById('tiptekst').value = s ? zonderOpmaak(s.hint) : '';
       document.getElementById('tiptekst').focus();
     });
@@ -338,18 +475,44 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) stuurTip();
     });
 
-    /* ---------------- klasoverzicht ---------------- */
-    const gevolgd = new Set();
+    /* ---------------- klasoverzicht ----------------
+     * Het overzicht komt elke anderhalve seconde opnieuw binnen. Bouwden we de
+     * kaartjes telkens opnieuw op terwijl jij net klikte, dan verdween de knop
+     * onder je muis tussen indrukken en loslaten — en gebeurde er niets. Nu
+     * wachten we zolang je muisknop ingedrukt is, en zetten we de knoppen
+     * één keer vast op het rooster zelf.
+     */
     let vorigeHulp = new Set();   // om te horen wanneer er een hand omhoog gaat
+    let laatsteOverzicht = null;
+    let knopIngedrukt = false;
+    let vorigeRooster = '';
+    let vorigeHulpHtml = '';
+    const rooster = document.getElementById('rooster');
+    const hulplijst = document.getElementById('hulplijst');
+
+    for (const vlak of [rooster, hulplijst]) {
+      vlak.addEventListener('pointerdown', () => { knopIngedrukt = true; });
+    }
+    window.addEventListener('pointerup', () => {
+      if (!knopIngedrukt) return;
+      // eerst de klik laten afhandelen, dan pas bijwerken
+      setTimeout(() => { knopIngedrukt = false; if (laatsteOverzicht) toonOverzicht(laatsteOverzicht); }, 0);
+    });
 
     socket.on('klasoverzicht', (d) => {
-      const rooster = document.getElementById('rooster');
+      laatsteOverzicht = d;
+      if (!knopIngedrukt) toonOverzicht(d);
+    });
+
+    function toonOverzicht(d) {
       const leerlingen = d.leerlingen || [];
 
       // ---- herstartwaarschuwing ----
       const ver = document.getElementById('verouderd');
       ver.style.display = d.verouderd ? '' : 'none';
       if (d.verouderd) ver.textContent = `⚠ code aangepast ná het starten — herstart de server`;
+
+      if (bevroren !== !!d.bevroren) { bevroren = !!d.bevroren; toonBevriesKnop(); }
 
       // ---- teamknoppen en arena ----
       for (const k of document.querySelectorAll('.team-knop')) {
@@ -360,7 +523,7 @@
       const stand = document.getElementById('ronde-stand');
       if (d.ronde) {
         const m = Math.floor(d.ronde.over / 60), sec = String(d.ronde.over % 60).padStart(2, '0');
-        const teams = (d.ronde.teams || []).map(t => `${['Blauw','Rood','Groen','Paars'][t.team] || t.team} ${t.punten}`).join(' · ');
+        const teams = (d.ronde.teams || []).map(t => `${['Blauw', 'Rood', 'Groen', 'Paars'][t.team] || t.team} ${t.punten}`).join(' · ');
         stand.textContent = `⏱ ${m}:${sec}${teams ? ' — ' + teams : ''}`;
         stand.classList.add('loopt');
       } else {
@@ -368,8 +531,18 @@
         stand.classList.remove('loopt');
       }
 
+      // ---- in welke les zit de klas? ----
+      const perLes = { 1: 0, 2: 0 };
+      for (const l of leerlingen) perLes[l.les === 2 ? 2 : 1]++;
+      const nieuweLes = perLes[2] > perLes[1] ? 2 : 1;
+      if (nieuweLes !== klasLes) {
+        klasLes = nieuweLes;
+        klasStap = Math.min(klasStap, maxStapVan(klasLes));
+        toonKlasStap();
+      }
+
       if (!leerlingen.length) {
-        rooster.innerHTML = '<div class="leeg">Nog geen leerlingen verbonden…</div>';
+        zetHtml(rooster, '<div class="leeg">Nog geen leerlingen verbonden…</div>', 'rooster');
         document.getElementById('hulpbalk').classList.remove('aan');
         document.getElementById('samenvatting').textContent = '—';
         tekenSpreiding([]);
@@ -382,28 +555,29 @@
       for (const id of nuHulp) if (!vorigeHulp.has(id)) piep(true);   // nieuwe hand omhoog
       vorigeHulp = nuHulp;
       document.getElementById('hulpbalk').classList.toggle('aan', hulp.length > 0);
-      document.getElementById('hulplijst').innerHTML = hulp.map(l =>
-        `<span class="hulp-chip">${esc(l.naam)} · stap ${l.stap}${l.hulpMin ? ' · ' + l.hulpMin + ' min' : ''}
-           <button data-klaar="${l.id}">geholpen ✓</button></span>`).join('');
-      for (const k of document.querySelectorAll('#hulplijst button')) {
-        k.addEventListener('click', () => socket.emit('lesCommando', { type: 'hulpKlaar', id: k.dataset.klaar }));
-      }
+      zetHtml(hulplijst, hulp.map(l =>
+        `<span class="hulp-chip">${esc(l.naam)} · ${lesLabel(l.les)}stap ${l.stap}${l.hulpMin ? ' · ' + l.hulpMin + ' min' : ''}
+           <button data-blokken="${l.id}" data-naam="${esc(l.naam)}">blokken</button>
+           <button data-klaar="${l.id}">geholpen ✓</button></span>`).join(''), 'hulp');
 
       /* Volgorde: wie zijn hand opsteekt eerst, dan wie vastzit, dan wie lang
          stilstaat. Zo staat bovenaan altijd degene die jou nodig heeft. */
       const gewicht = (l) => (l.hulp ? 0 : l.status === 'vast' ? 1 : l.stilMs > 60000 ? 2 : l.status === 'klaar' ? 4 : 3);
       const gesorteerd = [...leerlingen].sort((a, b) => gewicht(a) - gewicht(b) || a.naam.localeCompare(b.naam));
 
-      rooster.innerHTML = gesorteerd.map(l => {
+      zetHtml(rooster, gesorteerd.map(l => {
         const stil = Math.round((l.stilMs || 0) / 1000);
-        const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${stil}s stil` : `${Math.floor(stil / 60)} min stil`;
+        const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${Math.floor(stil / 10) * 10}s stil` : `${Math.floor(stil / 60)} min stil`;
         const alarm = stil >= 120 && l.status !== 'klaar' ? ' alarm' : '';
         const spel = l.speelt ? `lvl ${l.lvl} · ${l.punten} ptn · ❤️ ${l.hp}%` : 'nog niet in het spel';
+        const les = l.les === 2 ? 2 : 1;
+        const volgt = gevolgdId === l.id;
+        const naam = esc(l.naam);
         return `<div class="kaart ${l.hulp ? 'hulp' : l.status}">
           <div class="top">
-            <span class="naam">${l.hulp ? '✋ ' : ''}${esc(l.naam)}</span>
+            <span class="naam">${l.hulp ? '✋ ' : ''}${naam}</span>
             <span class="code">${esc(l.code || '')}</span>
-            <span class="stap">stap ${l.stap}</span>
+            <span class="stap" title="${esc(stapTitel(les, l.stap))}">${lesLabel(les)}stap ${l.stap}</span>
           </div>
           <div class="vinkjes">
             <span class="vink ${l.checkS ? 'ok' : ''}">${l.checkS ? '✓' : '○'} blokken</span>
@@ -415,33 +589,15 @@
             <span style="margin-left:auto">${spel}</span>
           </div>
           <div class="knoppen">
-            <button class="knop-volg ${gevolgd.has(l.id) ? 'aan' : ''}" data-volg="${l.id}">${gevolgd.has(l.id) ? '👁 volgt' : '👁 volg'}</button>
-            <button data-toon="${l.id}">blokken</button>
-            <button class="knop-tip" data-tip="${l.id}" data-naam="${esc(l.naam)}" data-stap="${l.stap}">💬 tip</button>
-            <button data-stap-min="${l.id}" data-nr="${l.stap - 1}" title="Zet alleen deze leerling een stap terug">◀</button>
-            <button data-stap-plus="${l.id}" data-nr="${l.stap + 1}" title="Zet alleen deze leerling een stap verder">▶</button>
+            <button class="knop-volg ${volgt ? 'aan' : ''}" data-volg="${l.id}" data-naam="${naam}" title="Toon zijn blokken en blijf ze live bijwerken">${volgt ? '👁 volgt' : '👁 volg'}</button>
+            <button data-blokken="${l.id}" data-naam="${naam}" title="Open zijn blokken rechts: aanpassen en terugsturen kan">blokken</button>
+            <button class="knop-tip" data-tip="${l.id}" data-naam="${naam}" data-stap="${l.stap}" data-les="${les}">💬 tip</button>
+            <button data-stapnaar="${l.id}" data-nr="${l.stap - 1}" ${l.stap <= 1 ? 'disabled' : ''} title="Zet alleen deze leerling een stap terug">◀</button>
+            <button data-stapnaar="${l.id}" data-nr="${l.stap + 1}" ${l.stap >= maxStapVan(les) ? 'disabled' : ''} title="Zet alleen deze leerling een stap verder">▶</button>
             <button data-opruimen="${l.id}" title="Zet zijn blokken netjes onder elkaar">🧹</button>
           </div>
         </div>`;
-      }).join('');
-
-      const klik = (kies, fn) => { for (const k of rooster.querySelectorAll(`[${kies}]`)) k.addEventListener('click', () => fn(k)); };
-      klik('data-toon', k => socket.emit('lesCommando', { type: 'toonCode', id: k.dataset.toon }));
-      klik('data-opruimen', k => socket.emit('lesCommando', { type: 'opruimen', id: k.dataset.opruimen }));
-      klik('data-stap-min', k => socket.emit('lesCommando', { type: 'stapVoor', id: k.dataset.stapMin, stap: Number(k.dataset.nr) }));
-      klik('data-stap-plus', k => socket.emit('lesCommando', { type: 'stapVoor', id: k.dataset.stapPlus, stap: Number(k.dataset.nr) }));
-      klik('data-tip', k => {
-        zetTipDoel(k.dataset.tip, k.dataset.naam, Number(k.dataset.stap));
-        document.getElementById('tiptekst').focus();
-      });
-      klik('data-volg', k => {
-        const id = k.dataset.volg;
-        const aan = !gevolgd.has(id);
-        gevolgd.clear();                 // één leerling tegelijk volgen
-        if (aan) gevolgd.add(id);
-        socket.emit('lesCommando', { type: 'volg', id, aan });
-        socket.emit('lesCommando', { type: 'toonCode', id });
-      });
+      }).join(''), 'rooster');
 
       tekenSpreiding(leerlingen);
 
@@ -450,18 +606,43 @@
       document.getElementById('samenvatting').textContent =
         `${klaar}/${leerlingen.length} klaar met hun stap · ${vast} ${vast === 1 ? 'zit' : 'zitten'} vast` +
         (klaar === leerlingen.length ? ' — iedereen mee, je kan door! 🎉' : '');
-    });
+    }
+
+    /* Alleen vervangen als er echt iets veranderde. */
+    function zetHtml(el, html, wie) {
+      if (wie === 'rooster') { if (html === vorigeRooster) return; vorigeRooster = html; }
+      else { if (html === vorigeHulpHtml) return; vorigeHulpHtml = html; }
+      el.innerHTML = html;
+    }
+
+    /* Eén klik-afhandeling voor alle knoppen op de kaartjes en in de hulpbalk. */
+    function opKnop(e) {
+      const k = e.target.closest('button');
+      if (!k || k.disabled) return;
+      const d = k.dataset;
+      if (d.blokken) vraagBlokken(d.blokken, d.naam);
+      else if (d.volg) volg(d.volg, d.naam);
+      else if (d.klaar) socket.emit('lesCommando', { type: 'hulpKlaar', id: d.klaar });
+      else if (d.opruimen) socket.emit('lesCommando', { type: 'opruimen', id: d.opruimen });
+      else if (d.stapnaar) socket.emit('lesCommando', { type: 'stapVoor', id: d.stapnaar, stap: Number(d.nr) });
+      else if (d.tip) {
+        zetTipDoel(d.tip, d.naam, Number(d.stap), Number(d.les));
+        document.getElementById('tiptekst').focus();
+      }
+    }
+    rooster.addEventListener('click', opKnop);
+    hulplijst.addEventListener('click', opKnop);
 
     /* Waar zit de klas? Eén staafje per stap, blauw = waar jij de klas hebt. */
     function tekenSpreiding(leerlingen) {
       const perStap = {};
-      for (const l of leerlingen) perStap[l.stap] = (perStap[l.stap] || 0) + 1;
+      for (const l of leerlingen) if ((l.les === 2 ? 2 : 1) === klasLes) perStap[l.stap] = (perStap[l.stap] || 0) + 1;
       const hoogste = Math.max(1, ...Object.values(perStap));
       let html = '';
-      for (let n = 1; n <= maxStap; n++) {
+      for (let n = 1; n <= maxStapVan(klasLes); n++) {
         const aantal = perStap[n] || 0;
         const h = aantal ? 6 + Math.round((aantal / hoogste) * 22) : 3;
-        html += `<div class="staaf ${n === klasStap ? 'hier' : ''}" style="height:${h}px" title="stap ${n}: ${aantal} leerling(en)">
+        html += `<div class="staaf ${n === klasStap ? 'hier' : ''}" style="height:${h}px" title="${lesLabel(klasLes)}stap ${n}: ${aantal} leerling(en)">
                    ${aantal ? `<span>${aantal}</span>` : ''}</div>`;
       }
       document.getElementById('spreiding').innerHTML = html;
@@ -469,70 +650,149 @@
 
     /* ---------------- de blokken van een leerling ----------------
      * Rechts staat een échte blokkeneditor met dezelfde blokken als op het
-     * scherm van de leerling. Platte tekst zei te weinig: je zag niet wat er
-     * ín een herhaal-blok hing en je kon er niets aan doen. Nu sleep je zelf
-     * een blok op zijn plek en stuur je het resultaat terug.
+     * scherm van de leerling. Je sleept zelf een blok op zijn plek en stuurt
+     * het resultaat terug; de leerling kan met één klik zijn eigen versie
+     * terugzetten.
+     *
+     * Wat er vroeger misging, en hoe het nu zit:
+     *  - Volgde je een tweede leerling, dan bleef de server de eerste óók
+     *    opvragen. Het werkblad sprong om de twee seconden heen en weer en je
+     *    aanpassing ging verloren. Nu: één leerling tegelijk, en antwoorden van
+     *    een andere leerling dan die je opvroeg worden genegeerd.
+     *  - Kwam het werkblad niet mee (te groot), dan stond de vorige leerling er
+     *    nog — en "stuur terug" stuurde dié blokken naar de nieuwe leerling.
+     *    Nu kan je alleen terugsturen wat je van díe leerling binnenkreeg.
+     *  - Live volgen laadde elke twee seconden opnieuw, ook als er niets
+     *    veranderd was; het beeld versprong dan terwijl je keek.
      */
-    let getoondeLeerling = null;
+    let getoondeLeerling = null;   // { id, naam }
+    let gevraagdId = null;         // op wiens blokken wachten we?
+    let gevolgdId = null;          // wie volgen we live?
+    let werkbladVan = null;        // van wie staan de blokken nu écht in de editor?
+    let laatstGeladen = '';
     let zelfAangepast = false;     // niet overschrijven terwijl jij bezig bent
+    let bezigMetLaden = false;
     const blokPaneel = document.getElementById('blok-paneel');
+    const stuurKnop = document.getElementById('stuur-blokken');
 
-    // alle blokken in de lade, niet alleen die van stap 1
-    setTimeout(() => { try { window.zetLesStap(17, true); } catch { } }, 300);
-    /*
-     * Zodra jij het werkblad aanraakt, stoppen we met live bijwerken — anders
-     * schuift de volgende update van de leerling jouw sleepwerk zo weer weg.
-     * We kijken naar de muis op het paneel zelf en niet naar Blockly-events:
-     * die kwamen bij programmatisch verwijderen niet altijd door, en dit werkt
-     * voor elke manier van aanpassen.
-     */
-    document.getElementById('blok-paneel').addEventListener('mousedown', () => {
-      if (!getoondeLeerling || bezigMetLaden) return;
-      zelfAangepast = true;
-      zetTitel();
+    /* Alle blokken in de lade, ook de extra's van Expert: een leerling die
+       Expert aanzette, kan blokken gebruiken die er in Starter niet staan. */
+    setTimeout(() => {
+      try { window.zetLesStap(17, true); } catch { }
+      try { document.getElementById('modus-expert').click(); } catch { }
+    }, 300);
+
+    /* Is het werkblad door jou veranderd? We kijken naar wat Blockly meldt
+       als er een blok bijkomt, verdwijnt of verschuift — niet naar klikken,
+       want even scrollen of inzoomen is nog geen aanpassing. Het inladen van
+       de blokken van de leerling telt niet mee: die gebeurtenissen komen soms
+       pas een seconde later binnen, maar ze zijn te herkennen omdat je ze niet
+       ongedaan kan maken (recordUndo staat uit). */
+    window.blocklyWerkruimte.addChangeListener((e) => {
+      if (e.isUiEvent || !e.recordUndo || bezigMetLaden || !werkbladVan) return;
+      if (!zelfAangepast) { zelfAangepast = true; zetTitel(); }
     });
 
-    let bezigMetLaden = false;
-    function zetTitel() {
-      const live = getoondeLeerling && gevolgd.has(getoondeLeerling.id) && !zelfAangepast ? ' · live' : '';
-      const bewerkt = zelfAangepast ? ' · jouw aanpassing' : '';
+    function zetTitel(extra) {
+      const live = getoondeLeerling && gevolgdId === getoondeLeerling.id && !zelfAangepast ? ' · live' : '';
+      const bewerkt = zelfAangepast ? ' · jouw aanpassing (nog niet verstuurd)' : '';
       document.getElementById('code-titel').textContent = getoondeLeerling
-        ? `🔍 Blokken van ${getoondeLeerling.naam}${live}${bewerkt}` : '🔍 Blokken van een leerling';
+        ? `🔍 ${getoondeLeerling.naam}${live}${bewerkt}${extra ? ' · ' + extra : ''}` : '🔍 Blokken van een leerling';
+      stuurKnop.disabled = !getoondeLeerling || werkbladVan !== getoondeLeerling.id;
+    }
+
+    /* Vraag de blokken van een leerling op. Geeft false als je liever bleef. */
+    function vraagBlokken(id, naam) {
+      if (zelfAangepast && getoondeLeerling && getoondeLeerling.id !== id
+          && !confirm(`Je aanpassing aan de blokken van ${getoondeLeerling.naam} is nog niet verstuurd.\n\nToch naar ${naam} gaan? Je aanpassing gaat dan verloren.`)) {
+        return false;
+      }
+      // een ander bekijken = de vorige niet langer live volgen
+      if (gevolgdId && gevolgdId !== id) {
+        socket.emit('lesCommando', { type: 'volg', id: gevolgdId, aan: false });
+        gevolgdId = null;
+      }
+      if (!getoondeLeerling || getoondeLeerling.id !== id) {
+        zelfAangepast = false;
+        werkbladVan = null;
+        laatstGeladen = '';
+      }
+      getoondeLeerling = { id, naam };
+      gevraagdId = id;
+      zetTitel('⏳ blokken worden opgehaald…');
+      socket.emit('lesCommando', { type: 'toonCode', id });
+      vernieuwKaartjes();
+      return true;
+    }
+
+    function volg(id, naam) {
+      if (gevolgdId === id) {
+        socket.emit('lesCommando', { type: 'volg', id, aan: false });
+        gevolgdId = null;
+        zetTitel();
+      } else {
+        if (!vraagBlokken(id, naam)) return;
+        gevolgdId = id;
+        socket.emit('lesCommando', { type: 'volg', id, aan: true });
+        zetTitel('⏳ blokken worden opgehaald…');
+      }
+      vernieuwKaartjes();
+    }
+
+    /* De knop "volg" moet meteen omslaan, niet pas bij het volgende overzicht. */
+    function vernieuwKaartjes() {
+      vorigeRooster = '';
+      if (laatsteOverzicht && !knopIngedrukt) toonOverzicht(laatsteOverzicht);
     }
 
     socket.on('leerlingCode', (d) => {
-      const anders = !getoondeLeerling || getoondeLeerling.id !== d.id;
-      if (anders) zelfAangepast = false;
+      if (!d || d.id !== gevraagdId) return;     // oud antwoord of een andere leerling
       getoondeLeerling = { id: d.id, naam: d.naam };
-      // vanaf nu kan je terugsturen: je hoeft niet per se iets aangepast te hebben
-      document.getElementById('stuur-blokken').disabled = false;
-      // het grijze "klik op blokken"-laagje mag weg zodra er iemand getoond wordt
-      blokPaneel.classList.add('bezig');
+      blokPaneel.classList.add('bezig');         // het grijze "klik op blokken"-laagje mag weg
       document.getElementById('code-weergave').innerHTML = `<pre>${esc(d.tekst || '(nog geen blokken)')}</pre>`;
+
+      if (!d.werkruimte) {
+        // te groot of kapot: dan alleen de tekst, en zeker niet terugsturen
+        if (werkbladVan !== d.id) {
+          bezigMetLaden = true;
+          try { window.blocklyWerkruimte.clear(); } catch { }
+          setTimeout(() => { bezigMetLaden = false; }, 80);
+          werkbladVan = null;
+        }
+        zetTitel('⚠ blokken konden niet mee — zie de tekstweergave 📄');
+        return;
+      }
       // jouw eigen sleepwerk niet overschrijven met de volgende live-update
-      if (d.werkruimte && window.blocklyWerkruimte && (anders || !zelfAangepast)) {
+      if (zelfAangepast && werkbladVan === d.id) { zetTitel(); return; }
+
+      const json = JSON.stringify(d.werkruimte);
+      if (json !== laatstGeladen || werkbladVan !== d.id) {
         bezigMetLaden = true;
         try {
           Blockly.serialization.workspaces.load(d.werkruimte, window.blocklyWerkruimte);
           Blockly.renderManagement.triggerQueuedRenders();
-          blokPaneel.classList.add('bezig');
-        } catch { /* kapot werkblad: dan blijft de tekst staan */ }
+          werkbladVan = d.id;
+          laatstGeladen = json;
+        } catch {
+          werkbladVan = null;   // kapot werkblad: dan blijft de tekst staan
+        }
+        // Blockly meldt zijn laad-gebeurtenissen pas een tikje later
         setTimeout(() => { bezigMetLaden = false; }, 80);
       }
-      zetTitel();
+      zetTitel(werkbladVan === d.id ? '' : '⚠ kon de blokken niet openen');
     });
 
     /* Jouw versie terugsturen naar de leerling. */
-    document.getElementById('stuur-blokken').addEventListener('click', () => {
-      if (!getoondeLeerling || !window.blocklyWerkruimte) return;
+    stuurKnop.addEventListener('click', () => {
+      if (!getoondeLeerling || werkbladVan !== getoondeLeerling.id || !window.blocklyWerkruimte) return;
       const werkruimte = Blockly.serialization.workspaces.save(window.blocklyWerkruimte);
       socket.emit('lesCommando', { type: 'zetWerkruimte', id: getoondeLeerling.id, werkruimte });
       zelfAangepast = false;
-      const k = document.getElementById('stuur-blokken');
-      k.textContent = '✓ verstuurd';
-      k.disabled = true;
-      setTimeout(() => { k.textContent = '📤 stuur terug'; k.disabled = !getoondeLeerling; }, 1600);
+      laatstGeladen = JSON.stringify(werkruimte);
+      stuurKnop.textContent = '✓ verstuurd';
+      setTimeout(() => { stuurKnop.textContent = '📤 stuur terug'; zetTitel(); }, 1600);
       zetTitel();
+      stuurKnop.disabled = true;
     });
 
     /* Groot scherm om in te slepen. Blockly moet daarna opnieuw uitrekenen
@@ -563,9 +823,10 @@
     document.getElementById('rapport-sluit').addEventListener('click', () => document.getElementById('rapport').classList.remove('aan'));
     document.getElementById('rapport-kopieer').addEventListener('click', () => {
       if (!laatsteRapport) return;
-      const regels = laatsteRapport.leerlingen.map(l => `${l.naam}\tstap ${l.maxStap}\t${l.minuten} min`);
-      navigator.clipboard.writeText(['naam\tver gekomen\ttijd', ...regels].join('\n'))
-        .then(() => { document.getElementById('rapport-kopieer').textContent = '✓ gekopieerd'; });
+      const regels = laatsteRapport.leerlingen.map(l => `${l.naam}\t${l.les === 2 ? 'les 2' : 'les 1'}\tstap ${l.maxStap}\t${l.minuten} min`);
+      navigator.clipboard.writeText(['naam\tles\tver gekomen\ttijd', ...regels].join('\n'))
+        .then(() => { document.getElementById('rapport-kopieer').textContent = '✓ gekopieerd'; })
+        .catch(() => { document.getElementById('rapport-kopieer').textContent = 'kopiëren lukte niet'; });
     });
 
     socket.on('klasrapport', (r) => {
@@ -573,15 +834,17 @@
       const vak = document.getElementById('rapport-inhoud');
       if (!r.leerlingen.length) { vak.innerHTML = '<div class="leeg">Nog geen gegevens — er heeft nog niemand meegedaan.</div>'; }
       else {
+        // "2-3" is stap 3 van les 2
+        const stapNaam = (sleutel) => (String(sleutel).startsWith('2-') ? `les 2 · stap ${String(sleutel).slice(2)}` : `stap ${sleutel}`);
         const traagste = Object.entries(r.gemiddeld).sort((a, b) => b[1] - a[1]).slice(0, 3);
         vak.innerHTML = `
           <table>
             <tr><th>Naam</th><th>Ver gekomen</th><th>Tijd</th></tr>
-            ${r.leerlingen.map(l => `<tr><td>${esc(l.naam)}</td><td>stap ${l.maxStap}</td><td>${l.minuten} min</td></tr>`).join('')}
+            ${r.leerlingen.map(l => `<tr><td>${esc(l.naam)}</td><td>${lesLabel(l.les)}stap ${l.maxStap}</td><td>${l.minuten} min</td></tr>`).join('')}
           </table>
           <p style="margin-top:14px;font-size:.9rem;color:#9aa3bd">
             Waar bleef de klas het langst hangen?
-            ${traagste.map(([nr, sec]) => `<br>· <b class="traag">stap ${nr}</b> — gemiddeld ${Math.round(sec / 60) || '<1'} min`).join('')}
+            ${traagste.map(([nr, sec]) => `<br>· <b class="traag">${stapNaam(nr)}</b> — gemiddeld ${Math.round(sec / 60) || '<1'} min`).join('')}
           </p>`;
       }
       document.getElementById('rapport').classList.add('aan');

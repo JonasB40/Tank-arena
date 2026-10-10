@@ -133,6 +133,11 @@
           <label for="naam">Hoe heet je?</label>
           <input id="naam" type="text" maxlength="16" placeholder="typ je naam…" autocomplete="off" autofocus>
           <button id="kies-computer" class="hoofdknop">▶ Start de les</button>
+          <!-- Stond er op dit toestel al een project, dan bieden we het hier
+               aan — met de naam erbij, zodat niemand per ongeluk het werk van
+               een ander ophaalt. -->
+          <button id="verder-knop" class="verborgen">📂 Verder met het project van <span id="verder-naam"></span></button>
+          <p id="start-melding" class="verborgen" role="status"></p>
 
           <button id="meer-opties-knop">meer opties ▾</button>
           <!--

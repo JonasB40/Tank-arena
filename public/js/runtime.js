@@ -50,6 +50,13 @@ window.addEventListener('keydown', (e) => {
   if (runtime.draait && [' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
 });
 window.addEventListener('keyup', (e) => runtime.toetsen.delete(normToets(e.key)));
+/* Laat je een toets los terwijl je even in een ander venster zit (of klapt de
+   chromebook dicht), dan komt dat loslaten nooit aan. Je tank bleef dan
+   eindeloos doorrijden of -schieten. Venster kwijt = alles losgelaten. */
+window.addEventListener('blur', () => {
+  runtime.toetsen.clear();
+  if (window.spel) window.spel.muisKnop = false;
+});
 function normToets(k) { return k.length === 1 ? k.toLowerCase() : k; }
 
 /* ---------------- starten / stoppen ---------------- */

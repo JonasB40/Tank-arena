@@ -3,7 +3,11 @@ node_modules/
 
 # Projecten van leerlingen (namen + hun blokkencode). Hoort niet in een
 # repository thuis: het is werk van kinderen en het verandert continu.
+# (ook het tijdelijke bestand tijdens het schrijven en een opzijgezette
+# kapotte versie, die allebei dezelfde namen bevatten)
 projecten.json
+projecten.json.tmp
+projecten-kapot-*.json
 
 # Rommel van het besturingssysteem
 Thumbs.db

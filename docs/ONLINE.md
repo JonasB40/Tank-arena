@@ -30,10 +30,20 @@ In de map staat een **`render.yaml`**: daarin staan alle instellingen al (Node, 
 
 > Liever handmatig? Dan kies je **New → Web Service** en vul je zelf in: runtime **Node**, build command `npm install`, start command `node server.js`, instance type **Free**.
 
-## Stap 3 — Testen
+## Stap 3 — De lesgeverscode instellen
 
-- Open de URL: het startmenu verschijnt, kies "Tegen de computer" en speel even.
-- Beamer/scorebord: `https://jouw-url.onrender.com/beamer` (teams werken daar ook).
+Online is er geen "laptop van de server": élk toestel komt van buitenaf. Het dashboard (`/lesgever`) en de teamknoppen op de beamer vragen daarom altijd de **lesgeverscode**. Zonder code kan iedereen met de link de klas bevriezen of werkbladen overschrijven.
+
+- **Zelf een code kiezen (aanbevolen):** maak je de service via de Blueprint, dan vraagt Render meteen om een waarde voor `LESGEVER_SLEUTEL`. Kies iets wat je makkelijk typt, bv. `KREKEL7`. Bestaat de service al: in Render → je service → **Environment** → `LESGEVER_SLEUTEL` toevoegen → **Save** (Render herstart dan vanzelf).
+- **Geen code ingesteld?** Dan verzint de server er bij elke start één. Die vind je in Render onder **Logs** ("Lesgeverscode: …"). Op het gratis plan herstart de server geregeld, en dan verandert die code — daarom liever zelf kiezen.
+
+Het dashboard onthoudt de code per toestel, dus je typt hem maar één keer.
+
+## Stap 4 — Testen
+
+- Open de URL: het startmenu verschijnt. Typ een naam, kies *meer opties → 👩‍🏫 Voorbeeldoplossing*, dan ▶ Start de les en 🚩.
+- Dashboard: `https://jouw-url.onrender.com/lesgever` — typ de lesgeverscode.
+- Beamer/scorebord: `https://jouw-url.onrender.com/beamer` (op hetzelfde toestel als het dashboard werken de teamknoppen meteen).
 
 ## Goed om te weten (gratis plan)
 
@@ -64,7 +74,7 @@ Gemeten op deze code: **één spelende leerling in zijn eigen arena kost ongevee
 
 ### Twee dingen om te weten als je hem publiek zet
 
-- **Er is geen slot op de deur.** Iedereen die de URL heeft, kan meedoen en komt in dezelfde gedeelde arena. Prima voor een klas, minder prettig als het adres rondslingert.
+- **Er is geen slot op de spelersdeur.** Iedereen die de URL heeft, kan meedoen en komt in dezelfde gedeelde arena. Prima voor een klas, minder prettig als het adres rondslingert. Het dashboard en de teamknoppen zijn wél op slot: die vragen de lesgeverscode (`LESGEVER_SLEUTEL`, zie stap 3 hierboven).
 - **Projectcodes staan in een bestand** (`projecten.json`) naast de server. Op een VPS blijft dat gewoon staan; op een gratis plan bij Render is het weg na elke herstart.
 
 > **Voor de workshop zelf blijft lokaal de beste keuze:** `start.bat` op jouw laptop, leerlingen op het adres uit de console. Geen internet nodig, de snelste verbinding, en de projectcodes blijven tussen les 1 en les 2 bewaard.

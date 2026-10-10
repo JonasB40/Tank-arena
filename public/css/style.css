@@ -699,6 +699,27 @@ body.speelmodus #podium { flex: 1 1 auto; }
 }
 #startmenu .hoofdknop:hover { background: #40e087 !important; }
 
+/* "Verder met het project van …": geel zoals de ophaalknop, maar breder */
+#startmenu #verder-knop {
+  width: auto;
+  max-width: 92vw;
+  background: #ffd54f;
+  color: #5b4400;
+  font-size: .98rem;
+}
+#startmenu #verder-knop:hover { background: #ffe082; }
+/* meldingen in het startmenu zelf: daar vallen de toastjes achter weg */
+#startmenu #start-melding {
+  background: rgba(255,255,255,.1);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: .95rem;
+  opacity: 1;
+  margin: 0;
+  max-width: 92vw;
+  text-align: center;
+}
+
 /* alles wat níét nodig is om te starten, staat ingeklapt */
 #meer-opties-knop {
   width: auto !important;

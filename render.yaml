@@ -18,3 +18,8 @@ services:
       # Node 18 of hoger is nodig (zie "engines" in package.json)
       - key: NODE_VERSION
         value: "20"
+      # De lesgeverscode voor het dashboard en de teamknoppen. "sync: false"
+      # betekent: Render vraagt je bij het aanmaken zelf een waarde te kiezen,
+      # zodat de code niet in deze repository staat.
+      - key: LESGEVER_SLEUTEL
+        sync: false

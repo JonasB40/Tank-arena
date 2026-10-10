@@ -23,6 +23,10 @@
     .kop:first-child { margin-top: 0; }
     .rij.team { font-size: 1.5rem; font-weight: 800; border-left: 8px solid #888; padding: 9px 10px; margin-bottom: 3px; }
     .rij.team.leidt { background: rgba(255,255,255,0.1); }
+    /* de klok van een lopende ronde */
+    .klok { font-size: 2rem; font-weight: 800; color: #ffd54f; margin-bottom: 10px; display: flex; align-items: baseline; gap: 10px; }
+    .klok.bijna { color: #ff7b6b; }
+    .klok small { font-size: .85rem; font-weight: 600; color: #9aa3bb; }
   </style>
 </head>
 <body>
@@ -58,11 +62,26 @@
   <script src="js/tekenen.js"></script>
   <script>
     const socket = io();
+    /* De lesgeverscode: nodig voor de teamknoppen als de beamer níet op de
+       laptop van de server draait. Hij komt uit het adres (?sleutel=...) of
+       uit het dashboard, dat hem in dit toestel bewaart. */
+    const SLEUTEL_OPSLAG = 'tankLesgeverSleutel';
+    const uitAdres = new URLSearchParams(location.search).get('sleutel');
+    if (uitAdres) { try { localStorage.setItem(SLEUTEL_OPSLAG, uitAdres); } catch { } }
+    function leesSleutel() {
+      if (uitAdres) return uitAdres;
+      try { return localStorage.getItem(SLEUTEL_OPSLAG) || ''; } catch { return ''; }
+    }
     // Bij ELKE verbinding opnieuw aanmelden. Anders is de beamer na een
     // herverbinding (herstart van de server, wifi-hikje, laptop uit slaap)
     // stilletjes zijn plek in de arena én zijn lesgeversrechten kwijt:
     // het scherm blijft dan leeg en de teamknoppen doen niets meer.
-    socket.on('connect', () => socket.emit('beamer'));
+    socket.on('connect', () => socket.emit('beamer', { sleutel: leesSleutel() }));
+    /* Zonder lesgeversrechten verbergen we de teamknoppen: knoppen die niets
+       doen zijn erger dan geen knoppen. */
+    socket.on('beamerRechten', (d) => {
+      document.getElementById('teamknoppen').style.display = d && d.teams ? 'flex' : 'none';
+    });
     /* De server stuurt de vaste eigenschappen van elke vormsoort één keer op;
        in de statuspakketjes zit daarna alleen nog wat verandert. */
     let vormSoorten = {};
@@ -104,12 +123,17 @@
       if (s.vormen) vormenCache = s.vormen;
     });
 
-    // teamknoppen (admin = lesgever)
+    // teamknoppen (admin = lesgever). Welke knop oplicht, volgt wat er écht
+    // aanstaat — ook als je de teams op het dashboard omzet.
     document.querySelectorAll('.teamknop').forEach(k => k.addEventListener('click', () => {
       socket.emit('zetTeams', Number(k.dataset.n));
-      document.querySelectorAll('.teamknop').forEach(x => x.classList.remove('actief'));
-      k.classList.add('actief');
     }));
+    let getoondeTeams = null;
+    function toonTeamknoppen(n) {
+      if (n === getoondeTeams) return;
+      getoondeTeams = n;
+      document.querySelectorAll('.teamknop').forEach(x => x.classList.toggle('actief', Number(x.dataset.n) === n));
+    }
 
     function teken() {
       requestAnimationFrame(teken);
@@ -158,14 +182,25 @@
        * Spelen ze in teams, dan komt de teamstand er groot boven — dat is
        * waar het dan om draait; de losse spelers blijven eronder staan.
        */
+      toonTeamknoppen(staat.teamModus || 0);
+      /* Loopt er een ronde? Dan tellen de punten van DEZE ronde, net als op
+         het scorebord in het spel zelf. Anders zag de klas op de beamer een
+         andere stand dan op zijn eigen scherm. */
+      const ronde = staat.ronde;
+      const punt = (t) => (ronde ? (t.rondePunten || 0) : t.score);
       const spelers = staat.tanks.filter((t) => !t.ai);
-      const top = [...spelers].sort((a, b) => b.score - a.score);
+      const top = [...spelers].sort((a, b) => punt(b) - punt(a));
       let html = '';
+      if (ronde) {
+        const m = Math.floor(ronde.over / 60), sec = String(ronde.over % 60).padStart(2, '0');
+        html += `<div class="klok ${ronde.over <= 30 ? 'bijna' : ''}">⏱ ${m}:${sec}`
+          + `${ronde.doel ? `<small>tot ${ronde.doel} ptn</small>` : ''}</div>`;
+      }
       if (staat.teamModus) {
         const totalen = new Map();
         for (const t of spelers) {
           if (t.team === null || t.team === undefined) continue;
-          totalen.set(t.team, (totalen.get(t.team) || 0) + t.score);
+          totalen.set(t.team, (totalen.get(t.team) || 0) + punt(t));
         }
         for (let i = 0; i < staat.teamModus; i++) if (!totalen.has(i)) totalen.set(i, 0);
         const teams = [...totalen.entries()].sort((a, b) => b[1] - a[1]);
@@ -177,10 +212,16 @@
         html += '<div class="kop">Spelers</div>';
       }
       html += top.map((t, i) =>
-        `<div class="rij ${i === 0 ? 'goud' : ''}"><span>${i === 0 ? '👑 ' : ''}${esc(t.naam)}</span><span>${t.score}</span></div>`
+        `<div class="rij ${i === 0 ? 'goud' : ''}"><span>${i === 0 ? '👑 ' : ''}${esc(t.naam)}</span><span>${punt(t)}</span></div>`
       ).join('') || '<div class="rij">Nog geen spelers...</div>';
-      document.getElementById('scores').innerHTML = html;
+      // alleen vervangen als er iets veranderde: 60 keer per seconde de hele
+      // lijst opnieuw opbouwen is zonde van de beamerlaptop
+      if (html !== vorigeScores) {
+        vorigeScores = html;
+        document.getElementById('scores').innerHTML = html;
+      }
     }
+    let vorigeScores = '';
     const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
     const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
     function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }

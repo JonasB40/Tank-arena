@@ -169,7 +169,12 @@ window.spel = spel;
  * blijven staan, maar het speelveld blijft leeg tot hij terug naar het menu gaat.
  */
 let laatsteJoin = null;
-socket.on('connect', () => { if (laatsteJoin) socket.emit('join', laatsteJoin); });
+socket.on('connect', () => {
+  if (!laatsteJoin) return;
+  socket.emit('join', laatsteJoin);
+  // na een herstart van de server is de nieuwe arena niet gepauzeerd
+  if (!window.runtime.bevroren) document.body.classList.remove('gepauzeerd');
+});
 
 /* De vaste eigenschappen van elke vormsoort krijgen we één keer bij binnenkomst;
    daarna stuurt de server per vorm alleen nog de plaats en de draaiing mee. */
@@ -185,7 +190,14 @@ socket.on('welkom', (d) => {
     vak.classList.toggle('verouderd', !!d.verouderd);
   }
 });
-socket.on('vol', () => toast('De arena zit vol! Vraag de begeleider om hulp.'));
+/* Vol: terug naar het startmenu. Anders zat de leerling voor een leeg
+   speelveld zonder te weten waarom. */
+socket.on('vol', () => {
+  modus = null;
+  laatsteJoin = null;
+  startmenu.classList.remove('verborgen');
+  meldInStartmenu('😕 De arena zit vol! Vraag de begeleider om hulp.');
+});
 socket.on('state', (s) => {
   // de vaste eigenschappen er weer bij zetten, zodat de rest van de code
   // gewoon v.kleur / v.r / v.maxHp kan blijven gebruiken
@@ -337,7 +349,19 @@ geluidKnop.addEventListener('click', () => {
 });
 
 /* ---------------- projectopslag (autosave + code) ---------------- */
-let projectCode = localStorage.getItem('tankProjectCode') || null;
+/*
+ * Welk project hoort bij deze sessie? Pas als de leerling het ophaalt (of iets
+ * nieuws bouwt) — NIET automatisch de code die nog op dit toestel stond.
+ *
+ * Dat ging zo mis: in les 2 opent een kind het spel, typt zijn naam, en vijf
+ * seconden later schreef de autosave zijn nog lege werkblad over het project
+ * van les 1 heen. Klikte hij daarna op "Ophalen", dan haalde hij een leeg
+ * project op. Op een gedeelde chromebook overschreef het volgende kind zo ook
+ * het werk van het vorige. De code van dit toestel bieden we nu alleen áán.
+ */
+let VORIGE_CODE = null;
+try { VORIGE_CODE = localStorage.getItem('tankProjectCode') || null; } catch { /* geen opslag */ }
+let projectCode = null;
 let laatsteOpslag = '';
 
 function toonProjectCode() {
@@ -348,6 +372,8 @@ toonProjectCode();
 setInterval(() => {
   const naam = document.getElementById('naam').value.trim();
   if (!naam || !window.blocklyWerkruimte) return;
+  // een leeg werkblad zonder project is niets om te bewaren
+  if (!projectCode && !blocklyWerkruimte.getAllBlocks(false).length) return;
   const data = Blockly.serialization.workspaces.save(blocklyWerkruimte);
   const s = JSON.stringify(data);
   if (s === laatsteOpslag) return;
@@ -356,29 +382,56 @@ setInterval(() => {
     laatsteOpslag = s;
     if (res.code !== projectCode) {
       projectCode = res.code;
-      localStorage.setItem('tankProjectCode', projectCode);
+      try { localStorage.setItem('tankProjectCode', projectCode); } catch { /* geen opslag */ }
       toonProjectCode();
       toast(`💾 Je project wordt automatisch bewaard! Jouw code: ${projectCode}`);
     }
   });
 }, 5000);
 
-document.getElementById('project-laad-knop').addEventListener('click', () => {
-  const code = document.getElementById('project-code-invoer').value.toUpperCase().trim();
-  if (!code) { document.getElementById('project-code-invoer').focus(); return; }
+/* Een project ophalen: vanuit het invulvak of met de knop "Verder met …". */
+function haalProjectOp(code) {
   socket.emit('laadProject', { code }, (res) => {
-    if (!res || !res.ok) { toast('Die code ken ik niet — kijk hem goed na! 🔍'); return; }
+    if (!res || !res.ok) { meldInStartmenu('Die code ken ik niet — kijk hem goed na! 🔍'); return; }
     Blockly.serialization.workspaces.load(res.werkruimte, blocklyWerkruimte);
     document.getElementById('naam').value = res.naam;
     projectCode = code;
-    localStorage.setItem('tankProjectCode', code);
+    try { localStorage.setItem('tankProjectCode', code); } catch { /* geen opslag */ }
     laatsteOpslag = '';
     toonProjectCode();
-    toast(`📂 Project van ${res.naam} geladen! Kies nu een spelmodus.`);
+    document.getElementById('verder-knop').classList.add('verborgen');
+    meldInStartmenu(`📂 Project van ${res.naam} geladen! Klik nu op ▶ Start de les.`);
   });
+}
+document.getElementById('project-laad-knop').addEventListener('click', () => {
+  const code = document.getElementById('project-code-invoer').value.toUpperCase().trim();
+  if (!code) { document.getElementById('project-code-invoer').focus(); return; }
+  haalProjectOp(code);
 });
-// eigen code alvast invullen als die op dit toestel bekend is
-if (projectCode) document.getElementById('project-code-invoer').value = projectCode;
+
+/* Het startmenu ligt over het hele scherm, ook over de toastjes. Meldingen
+   die bij het startmenu horen, komen daarom in het menu zelf. */
+function meldInStartmenu(tekst) {
+  const el = document.getElementById('start-melding');
+  el.textContent = tekst;
+  el.classList.remove('verborgen');
+}
+
+/*
+ * Stond er op dit toestel al een project? Dan bieden we het aan met de naam
+ * erbij — "Verder met het project van Emma". Zo haalt een leerling met één
+ * klik zijn werk terug, en ziet een ander kind meteen dat het niet het zijne is.
+ */
+if (VORIGE_CODE) {
+  document.getElementById('project-code-invoer').value = VORIGE_CODE;
+  socket.emit('laadProject', { code: VORIGE_CODE }, (res) => {
+    if (!res || !res.ok || projectCode) return;
+    const knop = document.getElementById('verder-knop');
+    document.getElementById('verder-naam').textContent = `${res.naam} (${VORIGE_CODE})`;
+    knop.classList.remove('verborgen');
+    knop.addEventListener('click', () => haalProjectOp(VORIGE_CODE), { once: true });
+  });
+}
 
 document.getElementById('opnieuw-knop').addEventListener('click', () => {
   if (!confirm('Alles wissen en opnieuw beginnen met het sjabloon?')) return;
@@ -386,8 +439,9 @@ document.getElementById('opnieuw-knop').addEventListener('click', () => {
   // ook de behaalde vinkjes wissen, anders staat alles groen bij een leeg blad
   gehaaldeStappen.clear();
   stapIndex = 0;
-  // schone lei betekent ook: terug naar de blokken van stap 1
-  if (window.zetLesStap) window.zetLesStap(1, true);
+  // schone lei betekent ook: terug naar de blokken van stap 1 — behalve in
+  // les 2, want die begint met álle blokken van les 1 in de lade
+  if (window.zetLesStap) window.zetLesStap(welkeLes === 2 ? 17 : 1, true);
   toonStap();
   toast('🗑 Schone lei! Het sjabloon staat weer klaar.');
 });
@@ -509,12 +563,16 @@ function kiesModus(m) {
   const naam = document.getElementById('naam').value.trim();
   if (!naam) {
     document.getElementById('naam').focus();
-    toast('Typ eerst je naam 😊');
+    meldInStartmenu('Typ eerst je naam 😊');
     return;
   }
   modus = m;
   laatsteJoin = { naam, modus: m, niveau: gekozenNiveau };
   socket.emit('join', laatsteJoin);
+  document.getElementById('start-melding').classList.add('verborgen');
+  /* Een nieuwe arena staat nooit op pauze. Had je vóór het menu op de rode
+     stopknop gedrukt, dan bleef je speelveld anders grijs alsof alles stilstond. */
+  if (!window.runtime.bevroren) document.body.classList.remove('gepauzeerd');
   document.getElementById('sprite-naam').textContent = naam;
   startmenu.classList.add('verborgen');
   document.getElementById('naam-weergave').textContent = `👤 ${naam}`;
@@ -537,6 +595,7 @@ document.getElementById('menu-knop').addEventListener('click', () => {
   modus = null;
   laatsteJoin = null;   // bewust weggegaan: niet automatisch terugkeren
   startmenu.classList.remove('verborgen');
+  document.getElementById('start-melding').classList.add('verborgen');
   document.getElementById('naam-weergave').textContent = '';
   document.getElementById('modus-badge').textContent = '';
   document.getElementById('naam').focus();
@@ -1034,6 +1093,8 @@ function teken() {
    * er geen ranglijst in beeld te staan waar hij toch alleen op staat.
    */
   if (modus === 'samen') tekenScorebord();
+  // zonder scorebord horen de tellertjes weer helemaal bovenaan
+  else document.getElementById('var-watchers').style.top = '';
   if (modus === 'samen') tekenKillFeed(nu);
   tekenSchadeFlits(nu);
 }
@@ -1636,16 +1697,28 @@ document.getElementById('stap-inklap').addEventListener('click', () => {
 socket.on('lesStuur', (d) => {
   if (!d) return;
   if (d.type === 'stap') {
+    // de klas naar stap 3 van les 1 sturen mag een les-2-leerling niet verzetten
+    if (!d.alleenJij && d.les && d.les !== welkeLes) return;
     const i = stappen().findIndex((s) => s.nr === d.stap);
     if (i >= 0 && i !== stapIndex) {
       stapIndex = i; toonStap();
       toast(d.alleenJij ? `📘 De lesgever zet jou op stap ${d.stap}` : `📘 De klas gaat naar stap ${d.stap}`);
     }
   } else if (d.type === 'bevries') {
+    const was = window.runtime.bevroren;
     document.getElementById('bevroren-melding').classList.toggle('verborgen', !d.aan);
     document.body.classList.toggle('gepauzeerd', !!d.aan);
     window.runtime.bevroren = !!d.aan;   // ook de pijltjes doen even niets meer
-    if (d.aan) window.runtimeStop();
+    if (d.aan) {
+      window.runtimeStop();
+      // de knoppen zeggen eerlijk dat het programma stilstaat
+      stopKnop.classList.add('actief');
+      vlagKnop.classList.remove('actief');
+    } else if (was && modus) {
+      /* Het programma is gestopt tijdens het bevriezen. Zonder deze melding
+         bleven kinderen wachten op een tank die niet meer uit zichzelf rijdt. */
+      toast('▶ We gaan verder! Druk op de groene vlag om je programma weer te starten.');
+    }
   } else if (d.type === 'bericht') {
     /* Een tip van de lesgever, vanachter zijn eigen scherm. Blijft staan tot
        de leerling hem wegklikt — een toast die na drie seconden verdwijnt
@@ -1667,6 +1740,7 @@ socket.on('lesStuur', (d) => {
       werkbladVoorIngreep = Blockly.serialization.workspaces.save(blocklyWerkruimte);
       Blockly.serialization.workspaces.load(d.werkruimte, blocklyWerkruimte);
       Blockly.renderManagement.triggerQueuedRenders();
+      herstartAlsHetDraait();
       toonIngreepMelding();
     } catch { /* editor nog niet klaar */ }
   } else if (d.type === 'hulpKlaar') {
@@ -1738,10 +1812,21 @@ document.getElementById('hulp-knop').addEventListener('click', () => {
 
 /* De lesgever paste je blokken aan — met één klik zet je het terug. */
 let werkbladVoorIngreep = null;
+
+/*
+ * Draaide het programma al? Dan meteen opnieuw starten met de nieuwe blokken.
+ * Anders bleef de tank het óúde programma uitvoeren tot de leerling zelf op de
+ * groene vlag drukte — en leek het alsof de hulp van de lesgever niets deed.
+ */
+function herstartAlsHetDraait() {
+  if (window.runtime && window.runtime.draait) window.runtimeStart();
+}
 function toonIngreepMelding() {
   const vak = document.getElementById('lesgever-bericht');
   vak.querySelector('.lb-kop').textContent = '👩‍🏫 De lesgever heeft je blokken aangepast';
-  vak.querySelector('.lb-tekst').textContent = 'Kijk maar eens wat er veranderd is. Liever je eigen versie terug?';
+  vak.querySelector('.lb-tekst').textContent = window.runtime && window.runtime.draait
+    ? 'Je programma is meteen opnieuw gestart. Kijk maar eens wat er veranderd is. Liever je eigen versie terug?'
+    : 'Kijk maar eens wat er veranderd is, en druk op de groene vlag om het uit te proberen. Liever je eigen versie terug?';
   vak.classList.remove('verborgen');
   document.getElementById('lb-terug').classList.remove('verborgen');
   speelGeluid('tada');
@@ -1751,6 +1836,7 @@ document.getElementById('lb-terug').addEventListener('click', () => {
   try {
     Blockly.serialization.workspaces.load(werkbladVoorIngreep, blocklyWerkruimte);
     Blockly.renderManagement.triggerQueuedRenders();
+    herstartAlsHetDraait();
     toast('↩ Je eigen blokken staan er weer.');
   } catch { /* editor nog niet klaar */ }
   document.getElementById('lesgever-bericht').classList.add('verborgen');
@@ -1779,6 +1865,7 @@ function meldStatusAanLesgever(status) {
   if (nu !== laatsteVingerafdruk) { laatsteVingerafdruk = nu; laatsteWijziging = Date.now(); }
   socket.emit('lesStatus', {
     naam: document.getElementById('naam').value.trim() || 'Naamloos',
+    les: welkeLes,
     stap: stappen()[stapIndex].nr,
     status,
     blokken,

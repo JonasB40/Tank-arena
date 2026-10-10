@@ -8,11 +8,12 @@ Een diep.io-geïnspireerd workshopspel voor leerlingen van 8–13 jaar. Leerling
 2. Dubbelklik **start.bat** (installeert de eerste keer automatisch de pakketten).
 3. De console toont het adres voor de leerlingen, bv. `http://192.168.68.102:3000`.
 4. Beamer: `http://localhost:3000/beamer` — hele arena, scorebord, speeladres én de teamknoppen (uit/2/4) voor les 2.
-5. **Lesgeversdashboard: `http://localhost:3000/lesgever`** — klasoverzicht (wie is klaar, wie zit vast, welk vinkje nog ontbreekt), leerlingen die ✋ hun hand opsteken, tips sturen naar één leerling of de hele klas, iemand apart een stap vooruit of terug zetten, zijn werkblad opruimen, de klas centraal sturen, ⏸ alles bevriezen, teams instellen, de blokken van een leerling live volgen en 📋 een klasrapport achteraf. Het adres staat ook in het opstartvenster van de server en als knop op de beamer.
+5. **Lesgeversdashboard: `http://localhost:3000/lesgever`** — klasoverzicht (wie is klaar, wie zit vast, welk vinkje nog ontbreekt), leerlingen die ✋ hun hand opsteken, tips sturen naar één leerling of de hele klas, iemand apart een stap vooruit of terug zetten, zijn werkblad opruimen, de klas centraal sturen, ⏸ alles bevriezen, teams instellen, de blokken van een leerling live volgen, **zijn blokken zelf aanpassen en terugsturen** (de leerling kan met één klik zijn eigen versie terugzetten) en 📋 een klasrapport achteraf. Het adres staat ook in het opstartvenster van de server en als knop op de beamer.
+6. **Lesgeverscode:** op de laptop waar de server draait werkt het dashboard zonder code. Open je het op een ánder toestel (tablet, tweede laptop), dan vraagt het de code die in het zwarte servervenster staat. Zo kan een leerling zich niet via de browserconsole als lesgever voordoen.
 
 Geen internet, geen accounts nodig: alles (ook Blockly) wordt lokaal geserveerd.
 
-**Documenten:** [LESPLAN_LES1.md](docs/LESPLAN_LES1.md) (kern, 2,5u) · [LESPLAN_LES2.md](docs/LESPLAN_LES2.md) (multiplayer + teams, 2,5u) · [VOORBEREIDING.md](docs/VOORBEREIDING.md) (checklist vóór de workshopdag) · [OPLOSSING.md](docs/OPLOSSING.md) (volledige voorbeeldcode voor de lesgever — ook in het spel via de knop **👩‍🏫 Voorbeeldoplossing**).
+**Documenten:** [LESPLAN_LES1.md](docs/LESPLAN_LES1.md) (deel 1: stappen 1–10) · [LESPLAN_DEEL2.md](docs/LESPLAN_DEEL2.md) (deel 2: stappen 11–15 + toernooi) · [LESPLAN_LES2.md](docs/LESPLAN_LES2.md) (losse vervolgsessie: multiplayer + teams) · [VOORBEREIDING.md](docs/VOORBEREIDING.md) (checklist vóór de workshopdag) · [OPLOSSING.md](docs/OPLOSSING.md) (volledige voorbeeldcode voor de lesgever — ook in het spel via de knop **👩‍🏫 Voorbeeldoplossing**) · [ONLINE.md](docs/ONLINE.md) (het spel online zetten).
 
 ## Wat de leerling doet vs. wat het platform doet
 
@@ -20,7 +21,7 @@ Geen internet, geen accounts nodig: alles (ook Blockly) wordt lokaal geserveerd.
 |---|---|
 | **Alles, vanaf een leeg werkblad** — de les bestaat uit 15 stappen die élk beginnen met een probleem dat de leerling zelf oplost (zie [LESPLAN_LES1.md](docs/LESPLAN_LES1.md)) | Polygons diep.io-getrouw (vierkant 10 ptn, driehoek 25, vijfhoek 130, zeldzame zeshoek 1500 en alfa-vijfhoek 3000) + kapotschietbare muren als dekking |
 | Besturing, richten, schieten, reacties, tellers, upgrade-strategie | AI-robots: 3 niveaus (makkelijk/gemiddeld/moeilijk) die meeschalen met de spelerscore en zwaardere robots meer punten waard maken |
-| Elke stap heeft een **checkpoint** dat blokstructuur én werkend gedrag controleert | Score/XP/levels (steilere curve: level 15 ≈ 1400 XP), respawn als zwakkere tank |
+| Elke stap heeft een **checkpoint** dat blokstructuur én werkend gedrag controleert | Score/XP/levels volgens de echte diep.io-tabel (level 15 bij 787 punten ≈ 6 vijfhoeken, level 30 bij 6184, level 45 bij 23 536), respawn als zwakkere tank |
 | Upgrade-trigger + tactiek (als-dan, variabelen) | 8 statpunten diep.io-stijl in balken linksonder in beeld (levensregen, max levens, botsschade, kogelpantser, kogelschade, kogelsnelheid, herladen, snelheid — elk tot 7): klik op het plusje of toets 1-8 en speel gewoon door. Punten volgen het echte schema: elk level van 2 t/m 28, daarna om de drie levels tot 45 = **33 punten**, te weinig voor alles (8 × 7 = 56), dus kiezen is verplicht. Klassenboom: basis → lvl 15 → lvl 30 → lvl 45, met drie soorten munitie (kogels, drones, valstrikken) |
 | Teamtactiek (les 2) | Multiplayer, teams (2/4, admin kiest), teamzones = veilige spawn-zones, geen friendly fire |
 
@@ -59,11 +60,13 @@ tank-arena/
         └── geluid.js     # korte geluidjes via WebAudio
 ```
 
-**Veiligheid:** blokken worden nooit ge-evald; de compiler maakt er een JSON-programma van en de runtime interpreteert dat met een stappenbudget. De server valideert élke input (intents geklemd, namen gestript, upgrades alleen als je er recht op hebt) — spelers kunnen niet vals spelen via de console.
+**Veiligheid:** blokken worden nooit ge-evald; de compiler maakt er een JSON-programma van en de runtime interpreteert dat met een stappenbudget. De server valideert élke input (intents geklemd, namen gestript, upgrades alleen als je er recht op hebt) — spelers kunnen niet vals spelen via de console. De lesgeversfuncties (bevriezen, berichten, werkbladen overschrijven, teams) werken alleen vanaf de serverlaptop zelf of met de lesgeverscode. Een onverwachte fout legt de server niet meer plat: hij schrijft de fout in het zwarte venster en speelt door.
+
+**Projecten:** de blokken van elke leerling worden automatisch bewaard in `projecten.json` (hooguit om de 1,5 seconde, en nog één keer als je het venster sluit). Een leeg werkblad overschrijft nooit een bestaand project: wie op een toestel komt waar al een project stond, krijgt in het startmenu de knop *"Verder met het project van …"* met de naam erbij.
 
 ## Online zetten (optioneel, thuisspeel-link)
 
-Werkt op elke Node-host (Render/Railway): build `npm install`, start `node server.js`, poort via `process.env.PORT`. Let op: iedereen met de link kan meespelen; er is bewust geen chat en namen zijn beperkt tot 16 tekens.
+Werkt op elke Node-host (Render/Railway): build `npm install`, start `node server.js`, poort via `process.env.PORT`. Zet de omgevingsvariabele `LESGEVER_SLEUTEL` op een zelfgekozen code, anders verzint de server bij elke start een nieuwe (die staat dan in de logs). Let op: iedereen met de link kan meespelen; er is bewust geen chat en namen zijn beperkt tot 16 tekens. Zie [ONLINE.md](docs/ONLINE.md).
 
 ## Roadmap (fase 3, latere sessies)
 

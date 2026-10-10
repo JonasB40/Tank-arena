@@ -73,8 +73,8 @@ Twee inzichten tegelijk. Het verschil tussen de lussen: de eeuwige lus stopt noo
 
 ### 2:36–2:52 · 🏆 Het teamtoernooi
 
-- Iedereen kiest in het startmenu onder *meer opties* → **🧑‍🤝‍🧑 Tegen klasgenoten**. Die knop verschijnt pas als hun tank kan rijden, dus wie stap 4 haalde kan mee. Jij zet op de beamer (`/beamer`) **Teams: 2** (of 4 bij een grote groep).
-- **Ronde 1** (5 min) — vechten, live scorebord op de beamer.
+- Iedereen kiest in het startmenu onder *meer opties* → **🧑‍🤝‍🧑 Tegen klasgenoten**. Die knop verschijnt pas als hun tank kan rijden, dus wie stap 4 haalde kan mee. Jij zet op de beamer (`/beamer`) of op je dashboard **Teams: 2** (of 4 bij een grote groep).
+- **Ronde 1** (5 min) — start op je dashboard een ronde (**▶ Start ronde**). De klok staat dan op de beamer en in elk speelveld, en het scorebord telt alleen de punten van deze ronde: wie al een uur speelt, staat niet onhaalbaar ver voor.
 - **⏸ Ogen op mij + 2 min bouwtijd.** *"Wat ging er mis? Pas één ding aan."* Dit is het belangrijkste moment van het toernooi: itereren op je eigen ontwerp.
 - **Ronde 2** (5 min) — finale.
 
@@ -129,7 +129,7 @@ De vier vormen en wat ze doen:
 
 > 💡 Dit is jullie versie van Scratch' *"verander uiterlijk naar …"*. Het blok staat in de paarse categorie **Uiterlijken**.
 
-**Waarom dit een sterke opdracht is:** het gebruikt de variabele `mijn level` én een operator (`>`) in één als-dan — precies de combinatie uit stap 10 en 13, maar nu met een beloning die ze meteen zíen. En omdat het pas vanaf level 15 werkt, moeten ze eerst vormen kapotschieten: level 15 kost ±1400 punten, ongeveer 11 vijfhoeken.
+**Waarom dit een sterke opdracht is:** het gebruikt de variabele `mijn level` én een operator (`>`) in één als-dan — precies de combinatie uit stap 10 en 13, maar nu met een beloning die ze meteen zíen. En omdat het pas vanaf level 15 werkt, moeten ze eerst vormen kapotschieten: level 15 kost 787 punten, ongeveer 6 vijfhoeken (of een hoop kleine vierkantjes en driehoekjes).
 
 **🔬 Stukmaken:** zet de 14 op 1. Verandert je tank nu meteen? *(Nee — het spel laat het pas toe vanaf level 15, hoe je het ook programmeert. De computer mag niet alles wat jij vraagt.)* Dat is een mooi gespreksmoment over waarom een spel niet alles vertrouwt wat jouw programma vraagt.
 

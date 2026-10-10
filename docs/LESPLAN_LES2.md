@@ -6,7 +6,9 @@
 
 In het oorspronkelijke Scratch-plan zou multiplayer via cloud variables met cijfer-encoding lopen (alles in één getal proppen wegens de limiet van 10 cloud variables). **Op ons eigen platform is dat niet nodig:** de server kent elke speler apart en er is geen spelerslimiet van 10. De encoding-denkoefening houden we wél als leuke klasoefening (zie 1:15), want het idee — meerdere getallen samenpakken in één getal met plaatswaarde — is een mooi rekeninzicht.
 
-**Adminrol:** jij bent de admin. Op de beamerpagina (`/beamer`) staan de teamknoppen **uit / 2 / 4** — jij kiest de teamopzet per sessie, leerlingen niet.
+**Adminrol:** jij bent de admin. Op de beamerpagina (`/beamer`) en op je dashboard (`/lesgever`) staan de teamknoppen **uit / 2 / 4** — jij kiest de teamopzet per sessie. Op een ander toestel dan de serverlaptop werken die knoppen alleen met de lesgeverscode uit het zwarte venster.
+
+**Les 2 op je dashboard:** leerlingen in les 2 staan er als *"les 2 · stap 3"*. De pijltjes ◀ ▶ sturen de les waar de meeste leerlingen in zitten; een leerling in de andere les springt niet mee.
 
 ---
 
@@ -14,7 +16,7 @@ In het oorspronkelijke Scratch-plan zou multiplayer via cloud variables met cijf
 
 ### 0:00–0:10 · Opfrissing
 
-Iedereen opent zijn spel en haalt zijn blokken van les 1 terug met zijn **projectcode** (TANK-XXXX, in het startmenu → "📂 Haal mijn project op"; op hetzelfde toestel staat de code al ingevuld). Daarna "Tegen de computer" en op 🚩 drukken. Snelle quiz: *welke bouwsteen zit waar in jouw programma?* (herhaling van de 4 concepten uit les 1).
+Iedereen opent zijn spel en haalt zijn blokken van les 1 terug. Op hetzelfde toestel staat in het startmenu de knop **📂 Verder met het project van …** (met de naam erbij — laat ze even kijken of het hún naam is). Op een ander toestel: *meer opties* → projectcode (TANK-XXXX) → **📂 Ophalen**. Een leeg werkblad overschrijft nooit een bewaard project, dus wie eerst iets anders aanklikt, verliest niets. Daarna "Tegen de computer" en op 🚩 drukken. Snelle quiz: *welke bouwsteen zit waar in jouw programma?* (herhaling van de 4 concepten uit les 1).
 
 ### 0:10–0:30 · Van solo naar samen (klassikaal moment!)
 
@@ -54,7 +56,7 @@ De twee opstellingen zijn dezelfde als in diep.io:
 | **2 teams** | 🔵 blauw vs 🔴 rood | twee brede stroken, links en rechts | frontlijn: je weet altijd waar de vijand vandaan komt |
 | **4 teams** | 🔵 🔴 🟢 🟣 | vier vierkanten in de hoeken | chaos: je kan van drie kanten aangevallen worden |
 
-> In het startmenu staan onder *meer opties* → **Volgende les** drie startknoppen: **Les 2 zonder teams**, **met 2 teams** en **met 4 teams**. De teamkeuze zit dus in de startknop zelf. Zet jij op de beamer om van 2 naar 4, dan ziet iedereen dat meteen in beeld verschijnen — jouw keuze wint altijd.
+> In het startmenu staan onder *meer opties* → **Volgende les** drie startknoppen: **Les 2 zonder teams**, **met 2 teams** en **met 4 teams**. De teamkeuze zit dus in de startknop zelf. Een leerling kan zo teams aanzetten zolang er nog niets gekozen is; staat er al een opstelling, dan blijft die staan (twee kinderen met een andere knop kunnen elkaar dus niet om de beurt laten herspawnen). Zet jij op de beamer of het dashboard om van 2 naar 4, dan ziet iedereen dat meteen in beeld verschijnen — jouw keuze wint altijd, en daarna kunnen leerlingen de opstelling niet meer veranderen.
 
 ### 1:15–1:30 · Denkoefening: hoe zou Scratch dit doen? (zonder computer)
 
