@@ -5,6 +5,10 @@ body {
   background: #e5f0ff;
   color: #575e75;
   height: 100vh;
+  /* Op een iPad telt 100vh ook het stuk áchter de adresbalk van Safari mee:
+     dan viel de onderkant van het speelveld (met de joystick) buiten beeld.
+     dvh is de hoogte die je echt ziet; oudere browsers houden 100vh. */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -653,7 +657,99 @@ body.speelmodus #podium { flex: 1 1 auto; }
 @keyframes pulse { 50% { transform: scale(1.07); } }
 
 #podium-canvas { flex: 1; position: relative; min-height: 0; background: #a9adb5; }
-#canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+/* touch-action: none — een vinger op het speelveld mikt en schiet, en mag de
+   pagina dus niet laten scrollen of inzoomen. Geen vergrootglas of
+   kopieermenu bij lang drukken op een iPad. */
+#canvas {
+  width: 100%; height: 100%; display: block; cursor: crosshair;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+
+/* ---------- joystick voor tablets ----------
+   Linksonder, onder de linkerduim. Halfdoorzichtig, zodat je de arena erachter
+   nog ziet. De statbalken (die daar normaal staan) schuiven naar linksboven. */
+#podium { --js-maat: 128px; }
+body.podium-klein #podium { --js-maat: 104px; }
+#joystick {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: var(--js-maat);
+  height: var(--js-maat);
+  border-radius: 50%;
+  background: rgba(28, 32, 44, .3);
+  border: 3px solid rgba(255, 255, 255, .55);
+  z-index: 13;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+#joystick.actief { background: rgba(28, 32, 44, .42); }
+#joystick-duim {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 42%; height: 42%;
+  transform: translate(0, 0);
+  margin: -21% 0 0 -21%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+  pointer-events: none;
+  transition: transform .12s ease-out;   /* terugveren naar het midden */
+}
+#joystick.actief #joystick-duim { transition: none; }
+/* de vier pijltjes: lichten op als de joystick die toets indrukt */
+.js-pijl {
+  position: absolute;
+  width: 22px;
+  text-align: center;
+  font: 800 17px/22px 'Segoe UI', sans-serif;
+  color: rgba(255, 255, 255, .85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  pointer-events: none;
+  transition: transform .08s, color .08s;
+}
+.js-pijl[data-toets="ArrowUp"]    { top: 2px; left: calc(50% - 11px); }
+.js-pijl[data-toets="ArrowDown"]  { bottom: 2px; left: calc(50% - 11px); }
+.js-pijl[data-toets="ArrowLeft"]  { left: 3px; top: calc(50% - 11px); }
+.js-pijl[data-toets="ArrowRight"] { right: 3px; top: calc(50% - 11px); }
+.js-pijl.aan { color: #ffd54f; transform: scale(1.35); }
+/* de spatiebalk, net boven de joystick */
+#spatie-knop {
+  position: absolute;
+  left: 14px;
+  bottom: calc(14px + var(--js-maat) + 10px);
+  width: var(--js-maat);
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, .55);
+  background: rgba(28, 32, 44, .45);
+  color: #fff;
+  font: 700 .85rem 'Segoe UI', sans-serif;
+  letter-spacing: .5px;
+  z-index: 13;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+#spatie-knop.aan { background: #ffd54f; color: #5b4400; border-color: #ffd54f; }
+body.joystick-aan #stat-balken { top: 10px; bottom: auto; }
+/* zonder toetsenbord heb je niets aan "[1]".."[8]" naast de balkjes */
+body.joystick-aan .sb-toets { display: none; }
+#joystick-schakel {
+  border: none;
+  border-radius: 8px;
+  background: #e3d7f5;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+  opacity: .6;
+}
+#joystick-schakel.actief { background: #855cd6; opacity: 1; }
 
 /* ---------- startmenu ---------- */
 /*
@@ -1014,6 +1110,17 @@ body.gepauzeerd #podium::after {
   box-shadow: 0 4px 18px rgba(0,0,0,.4);
   max-width: 90%;
   text-align: center;
+  pointer-events: none;   /* een melding mag nooit een tik op het speelveld opvangen */
+  z-index: 14;
+}
+/* Met de joystick aan staat de melding rechts ervan, niet erover. */
+body.joystick-aan #toast {
+  left: calc(14px + var(--js-maat) + 14px);
+  right: 14px;
+  bottom: 14px;
+  transform: none;
+  max-width: none;
+  width: auto;
 }
 
 /* Smalle schermen: onder elkaar, maar dan moet de pagina wél kunnen scrollen
@@ -1023,7 +1130,11 @@ body.gepauzeerd #podium::after {
   #hoofd { flex-direction: column; overflow: visible; }
   #editor-kolom { overflow: visible; }
   #werkveld-houder { height: 60vh; flex: none; }
-  #blocklyDiv { height: 100%; flex: none; }
+  /* Het werkblad zit in een houder die zelf een flex-rij is. Met "flex: none"
+     kreeg het daarin de breedte van zijn inhoud — en dat is 0, want Blockly
+     tekent alles absoluut. Op een iPad rechtop (768-834 px breed) was het
+     werkblad daardoor onzichtbaar: geen lade, geen blokken. */
+  #blocklyDiv { height: 100%; flex: 1 1 auto; min-width: 0; }
   #podium { flex: none; height: 70vh; min-width: 0; border-left: none; border-top: 3px solid #d9c7f5; }
   #grootte-knoppen { display: none; }
 }
@@ -1047,6 +1158,7 @@ body.gepauzeerd #podium::after {
   #stap-inklap { min-height: 40px; min-width: 44px; font-size: 1.05rem; }
   #vlag, #stop { min-height: 46px; min-width: 46px; }
   .gr-knop { min-height: 42px; min-width: 42px; font-size: 1.05rem; }
+  #joystick-schakel { min-height: 42px; min-width: 42px; }
   .sb-plus { min-width: 34px; }
   .sb-balk { height: 26px; }
 
@@ -1115,6 +1227,9 @@ body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }
    klein hoekvenster: je ziet je tank nog en kan gewoon doorrijden tot je
    gekozen hebt. Linksboven, want rechtsboven staat het scorebord. */
 #popup-klasse {
+  /* boven de statbalken: met de joystick aan staan die óók linksboven, en
+     dan vielen ze over de kaartjes waarop je je nieuwe klasse kiest */
+  z-index: 16;
   left: 12px; top: 12px; right: auto; bottom: auto;
   transform: none;
   min-width: 0;

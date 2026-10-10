@@ -13,6 +13,16 @@ function haalAudioCtx() {
   return audioCtx;
 }
 
+/* Een iPad laat pas geluid toe als het aangezet wordt tíjdens een aanraking.
+   Onze geluidjes komen meestal uit het spel zelf (een treffer, een level), en
+   dan bleef het op een iPad de hele les stil. Bij de eerste aanraking zetten
+   we het geluid daarom alvast open. */
+window.addEventListener('pointerdown', function ontgrendel() {
+  if (gedempt) return;
+  try { haalAudioCtx(); } catch { /* geen audio beschikbaar */ }
+  window.removeEventListener('pointerdown', ontgrendel, true);
+}, true);
+
 function toon(freq, duur, golf, volume, glijNaar) {
   if (gedempt) return;
   try {
@@ -52,5 +62,7 @@ function speelGeluid(naam) {
 function zetGeluid(aan) {
   gedempt = !aan;
   localStorage.setItem('tankGeluidUit', gedempt ? '1' : '0');
+  // de klik op 🔊 is zelf een aanraking: meteen het geluid openzetten (iPad)
+  if (aan) { try { haalAudioCtx(); } catch { /* geen audio beschikbaar */ } }
 }
 function geluidStaatAan() { return !gedempt; }

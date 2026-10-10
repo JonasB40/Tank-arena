@@ -18,6 +18,8 @@ De app begeleidt dit: boven de blokken staat een **stappenpaneel** met het probl
 
 **De gereedschapskist groeit mee.** Bij stap 1 liggen er maar twee blokken klaar; elke stap ontgrendelt precies wat er nodig is. Een leerling kan dus niet verdwalen tussen blokken die hij nog niet kent — en jij hoeft nooit te zeggen "die gebruiken we straks pas". Wat ontgrendeld is blijft staan. Wil iemand vooruit? De schakelaar **🚀 Expert** toont in één klik alles.
 
+**Op een iPad of tablet** staat er linksonder op het speelveld een joystick. Die drukt de pijltjestoetsen voor je in: duw hem omhoog en voor het spel is *pijltje omhoog* ingedrukt (het pijltje licht geel op). Tikken op het speelveld is de muis: daar mik je naartoe, en zolang je vinger erop staat is `muis ingedrukt?` waar. De blokken zijn dus exact dezelfde als op een chromebook — een kind op een iPad bouwt hetzelfde programma als zijn buur. De knop **spatie** boven de joystick is voor de proef van stap 6. Zolang de besturing nog niet gebouwd is (stap 1–2), doet de joystick niets; net als de pijltjestoetsen.
+
 **Schermindeling, zoals in Scratch:** blokken links, speelveld rechtsboven, en rechtsonder zie je wélke sprite je programmeert. Met de knopjes ▫ ◻ ⛶ boven het speelveld kies je klein / normaal / volledig scherm — op **klein** is er het meeste plaats om te bouwen. Uitleg over een blok verschijnt alleen als je erop klikt (en verdwijnt vanzelf), zodat er niet permanent extra tekst op het scherm staat.
 
 ## De tien problemen
@@ -97,7 +99,7 @@ De tank rijdt eindeloos de muur in. Je kan niet sturen. → `als <toets ↑ inge
 ### 0:40–0:50 · Stap 4: de andere drie richtingen
 Nu bouwen ze **zelf** verder: hetzelfde patroon, drie keer, met een andere toets en een ander aantal graden. Hier ontstaat het eerste tempoverschil in de klas — gebruik je dashboard om te zien wie klaar is.
 
-> 💡 Wijs op rechtsklikken → *Dupliceren*. Vergeet in de kopie niet **allebei** de dingen te veranderen: de toets én de graden.
+> 💡 Wijs op rechtsklikken → *Dupliceren* (op een iPad: de vinger even op het blok houden). Vergeet in de kopie niet **allebei** de dingen te veranderen: de toets én de graden.
 
 **🔬 Stukmaken:** geef twee als-blokken dezelfde toets maar een andere richting. Welke kant gaat hij op? Waarom die?
 

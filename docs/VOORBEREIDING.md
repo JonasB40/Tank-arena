@@ -16,6 +16,7 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
   - *Plan B als het netwerk blokkeert:* maak een hotspot met jouw gsm of een reisrouter en laat laptop + Chromebooks daarop aansluiten. Er is géén internet nodig — alles draait lokaal.
 - [ ] **Wifi-belastingstest:** sluit 5+ toestellen tegelijk aan en laat ze samen spelen (Les 2 — samen spelen). Ons verkeer is licht (kleine berichtjes, 20×/sec), maar zwakke accesspoints kunnen bij 15+ toestellen haperen.
 - [ ] **Chromebooks:** browser opent gewoon het IP-adres, niets te installeren. Check wel of een schoolfilter lokale IP-adressen niet blokkeert.
+- [ ] **iPads:** open het adres in Safari. Liggend werkt het best (blokken links, speelveld rechts). Zonder toetsenbord verschijnt er vanzelf een **joystick** linksonder op het speelveld, met een knop **spatie** erboven. Test één iPad vooraf: rijdt de tank met de joystick (eerst de voorbeeldoplossing laden), en mikt en schiet hij als je op het speelveld tikt? Heeft de iPad toch een toetsenbord, dan zet je de joystick uit met de 🕹️-knop boven het speelveld.
 - [ ] **Windows-firewall:** vraagt Windows bij de eerste start om toegang voor Node.js? Vink "privénetwerken" aan en sta toe — anders kunnen de Chromebooks de server niet bereiken.
 
 ## De dag zelf (ochtendritueel, 10 min)

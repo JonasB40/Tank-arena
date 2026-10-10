@@ -108,6 +108,8 @@
         <div class="hud-item">⬆️ lvl <span id="hud-level">1</span></div>
         <div id="xp-balk"><div id="xp-balk-vul"></div></div>
         <button id="hud-statpunten" class="verborgen">⬆️</button>
+        <!-- Alleen op toestellen met een aanraakscherm: joystick aan/uit -->
+        <button id="joystick-schakel" class="verborgen" title="Joystick op het scherm (voor tablets zonder toetsenbord)">🕹️</button>
         <div id="grootte-knoppen" title="Grootte van het speelveld">
           <button class="gr-knop" data-grootte="klein" title="Klein speelveld — veel plaats om te programmeren">▫</button>
           <button class="gr-knop actief" data-grootte="normaal" title="Normaal">◻</button>
@@ -123,6 +125,20 @@
              plusjes op en klik je er gewoon op (of toets 1-8). Er springt geen
              apart venster meer open. -->
         <div id="stat-balken" class="verborgen"></div>
+
+        <!-- Joystick voor tablets. Hij drukt dezelfde pijltjestoetsen in als
+             een toetsenbord, dus "als toets pijltje omhoog ingedrukt?" werkt
+             gewoon — een kind op een iPad bouwt exact hetzelfde programma.
+             De pijltjes lichten op zodat je ziet welke toets je nu indrukt. -->
+        <div id="joystick" class="verborgen" aria-hidden="true">
+          <span class="js-pijl" data-toets="ArrowUp">↑</span>
+          <span class="js-pijl" data-toets="ArrowRight">→</span>
+          <span class="js-pijl" data-toets="ArrowDown">↓</span>
+          <span class="js-pijl" data-toets="ArrowLeft">←</span>
+          <div id="joystick-duim"></div>
+        </div>
+        <!-- de spatiebalk (voor "wanneer toets spatiebalk wordt ingedrukt") -->
+        <button id="spatie-knop" class="verborgen">spatie</button>
 
         <!-- Eigen variabelen als tellertjes, zoals in Scratch -->
         <div id="var-watchers"></div>
@@ -253,5 +269,6 @@
   <script src="js/editor.js"></script>
   <script src="js/runtime.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/joystick.js"></script>
 </body>
 </html>

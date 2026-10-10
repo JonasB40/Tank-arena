@@ -585,8 +585,19 @@ function kiesModus(m) {
   if (m !== 'solo' && hulpGevraagd) zetHulpVraag(false);
   // nu pas begint de les — anders staan er twee instructies tegelijk
   if (!lesGestart) toonStap();
-  if (welkeLes === 2) toast('🎮 Rijden met de pijltjes, mikken en schieten met de muis — dat werkt hier meteen.');
+  const metJoystick = window.joystickStaatAan && window.joystickStaatAan();
+  if (welkeLes === 2) {
+    toast(metJoystick
+      ? '🎮 Rijden met de joystick, mikken en schieten door op het speelveld te tikken — dat werkt hier meteen.'
+      : '🎮 Rijden met de pijltjes, mikken en schieten met de muis — dat werkt hier meteen.');
+  } else if (metJoystick && !joystickUitgelegd) {
+    /* Op een tablet zegt de les "pijltje omhoog" en "klik met je muis". Eén
+       keer uitleggen wat daar op dit toestel mee bedoeld wordt. */
+    joystickUitgelegd = true;
+    toast('🕹️ Geen toetsenbord? De joystick linksonder zijn jouw pijltjestoetsen, en tikken op het speelveld is je muis.');
+  }
 }
+let joystickUitgelegd = false;
 
 document.getElementById('menu-knop').addEventListener('click', () => {
   window.runtimeStop();
@@ -633,14 +644,49 @@ stopKnop.addEventListener('click', () => {
   }
 });
 
-/* ---------------- muis (invoer!) ---------------- */
-canvas.addEventListener('mousemove', (e) => {
+/* ---------------- muis én vinger (invoer!) ----------------
+ * Pointer-events in plaats van muis-events: dezelfde code vangt de muis op
+ * een laptop én een vinger op een iPad. Voor het programma van de leerling is
+ * een vinger op het speelveld gewoon "de muis": hij mikt waar je tikt, en
+ * zolang je vinger erop staat is "muis ingedrukt?" waar.
+ *
+ * We houden bij wélke vingers op het speelveld staan. Met de ene duim op de
+ * joystick en de andere op het speelveld mag het loslaten van de joystick het
+ * schieten niet stoppen — dat gebeurde wel met één gewone "muis los".
+ */
+const vingersOpSpeelveld = new Set();
+/* Waar in de arena staat de muis (of de vinger)? */
+function werkMuisWereldBij() {
+  spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / zoom;
+  spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / zoom;
+}
+/*
+ * Meteen omrekenen naar de arena, niet pas bij de volgende tik. Een muis
+ * schuift eerst naar zijn doel en klikt dan; een vinger springt ergens anders
+ * naartoe én drukt tegelijk. Wachtten we op de tik, dan vertrok het eerste
+ * schot op een iPad nog naar de plek waar je vóórdien had getikt.
+ */
+function zetMuisScherm(e) {
   const r = canvas.getBoundingClientRect();
   spel.muisScherm.x = (e.clientX - r.left) * (canvas.width / r.width);
   spel.muisScherm.y = (e.clientY - r.top) * (canvas.height / r.height);
+  werkMuisWereldBij();
+}
+canvas.addEventListener('pointermove', zetMuisScherm);
+canvas.addEventListener('pointerdown', (e) => {
+  zetMuisScherm(e);
+  vingersOpSpeelveld.add(e.pointerId);
+  spel.muisKnop = true;
+  // een vinger: niet ook nog laten scrollen, zoomen of een vergrootglas tonen
+  if (e.pointerType !== 'mouse') e.preventDefault();
 });
-canvas.addEventListener('mousedown', () => { spel.muisKnop = true; });
-window.addEventListener('mouseup', () => { spel.muisKnop = false; });
+function laatVingerLos(e) {
+  vingersOpSpeelveld.delete(e.pointerId);
+  spel.muisKnop = vingersOpSpeelveld.size > 0;
+}
+window.addEventListener('pointerup', laatVingerLos);
+window.addEventListener('pointercancel', laatVingerLos);
+window.addEventListener('blur', () => { vingersOpSpeelveld.clear(); spel.muisKnop = false; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* ---------------- upgrade-popups ---------------- */
@@ -934,12 +980,13 @@ for (const k of document.querySelectorAll('.gr-knop')) {
 
 /* ---------------- toast-meldingen ---------------- */
 let toastTimer = null;
-function toast(tekst) {
+function toast(tekst, ms) {
   const el = document.getElementById('toast');
   el.textContent = tekst;
   el.classList.remove('verborgen');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add('verborgen'), 2600);
+  // lange zinnen langer laten staan: een kind van acht leest geen twintig woorden in 2,6 seconden
+  toastTimer = setTimeout(() => el.classList.add('verborgen'), ms || Math.max(2600, tekst.length * 70));
 }
 
 /* ---------------- tekenen (uitvoer!) ---------------- */
@@ -995,8 +1042,7 @@ setInterval(() => {
     schokY = (Math.random() - 0.5) * schok.kracht * rest * 2;
   }
   tekenOffset = { x: canvas.width / 2 - camera.x * zoom + schokX, y: canvas.height / 2 - camera.y * zoom + schokY };
-  spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / zoom;
-  spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / zoom;
+  werkMuisWereldBij();
   vernieuwHud(ik);
   // de waarnemer kijkt mee voor de checkpoints van de les
   stapWaarnemer.tik(ik, eigenKogelsTeller, window.runtime ? runtime.vars : {});
