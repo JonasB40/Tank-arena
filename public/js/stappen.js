@@ -318,6 +318,10 @@ const STAPPEN = [
       'Sleep het groene {{ope|( ) < ( )}} in het zeshoekige gaatje van het als-blok.',
       'Zet {{vrb|mijn levens}} in het linkervakje en typ 30 in het rechtervakje.',
       'Zet in het als-blok: {{uit|zeg [help!]}}.',
+      /* Zonder deze regel bleven kinderen in hun basis staan wachten: daar kan
+         je geen schade krijgen, dus je levens zakken nooit onder de 30 en het
+         vinkje "uitgeprobeerd" wordt nooit groen. */
+      'Test het: druk op 🚩, rij uit je veilige basis en bots tegen een paar vormen tot je levens onder de 30 zakken.',
     ].join('\n'),
     /* Zes losse stapjes zijn veel om te onthouden. Het plaatje laat de hele
        stapel in een keer zien: wat hangt onder wat, en wat gaat in welk gaatje. */
@@ -533,6 +537,7 @@ const LES2_STAPPEN = [
       'Links: {{ope|niet}} met daarin {{waa|ben ik in mijn basis?}}',
       'Rechts: {{ope|( ) < ( )}} met {{vrb|mijn levens}} en 40.',
       'In het als-blok: {{uit|zeg [naar huis!]}} en {{uit|flits rood}}.',
+      'Test het: rij de arena in en laat je raken tot je levens onder de 40 zakken.',
     ].join('\n'),
     hint: 'Lees het hardop: "als ik NIET in mijn basis ben EN mijn levens kleiner zijn dan 40, roep dan naar huis". Je tank rijdt niet vanzelf terug — dat doe jij. Het programma waarschuwt alleen.',
     check: {
@@ -556,6 +561,7 @@ const LES2_STAPPEN = [
       'Daaronder: {{uit|zeg [ik ga schuilen!]}}.',
       'Daaronder: {{bes|wacht tot}} met {{ope|( ) > ( )}}: {{vrb|mijn levens}} en 80.',
       'En als laatste: {{uit|zeg [ik ben er weer!]}} en {{uit|flits groen}}.',
+      'Test het: laat je raken tot onder de 40, en rij dan terug naar je basis om te genezen.',
     ].join('\n'),
     hint: 'Lees je stapeltje hardop: "wacht tot ik bijna dood ben → roep dat je gaat schuilen → wacht tot ik weer sterk ben → roep dat je terug bent". Het blok {{bes|wacht tot}} staat bij {{bes|Besturen}}. Genezen doe je door in je teamzone te blijven staan.',
     check: {

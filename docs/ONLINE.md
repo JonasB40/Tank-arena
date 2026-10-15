@@ -70,7 +70,14 @@ Je kan de map dus niet zomaar met FTP naar one.com kopiëren: er is daar niets d
 
 ### Hoeveel leerlingen kan dat aan?
 
-Gemeten op deze code: **één spelende leerling in zijn eigen arena kost ongeveer 2% van één processorkern en het geheugen blijft rond de 63 MB.** In les 1 heeft elke leerling zijn éígen arena, dus een klas van 20 komt op grofweg een halve kern. In de gedeelde arena van les 2 zitten ze samen in één wereld en valt het nog lager uit. De server laat maximaal 40 spelers tegelijk toe (`MAX_SPELERS`). Zelfs de kleinste VPS heeft daar genoeg aan; het knelpunt wordt eerder de wifi in het lokaal dan de server.
+Gemeten met een nagebootste klas van 25 leerlingen die rijden, schieten en hun project bewaren:
+
+| Situatie | Processor | Geheugen |
+|---|---|---|
+| Toernooi: 25 leerlingen samen in de arena, allemaal level 45 met de zwaarste klassen | 30–50% van één kern | ±210 MB |
+| Zwaarste geval van les 1: 25 leerlingen elk in hun eigen arena, met 5 robots van level 45 | 45–95% van één kern | ±250 MB |
+
+In een gewone les 1 (lagere levels, 1 tot 3 robots) ligt het een stuk lager. De server laat maximaal 40 spelers tegelijk toe (`MAX_SPELERS`). Over het netwerk krijgt elke leerling twintig keer per seconde een gecomprimeerd pakketje van een paar KB: een volle klas is zo'n 10–15 Mbit/s. Het knelpunt wordt dus eerder de wifi in het lokaal dan de server.
 
 ### Twee dingen om te weten als je hem publiek zet
 

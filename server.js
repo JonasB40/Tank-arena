@@ -19,7 +19,16 @@ const { KLASSEN, UPGRADE_BOOM, TIER_LEVEL } = require('./public/js/klassen.js');
 
 const app = express();
 const server = http.createServer(app);
-const io = require('socket.io')(server);
+/*
+ * Pakketjes gecomprimeerd versturen. De wereld gaat twintig keer per seconde
+ * naar elke leerling; met een volle klas in de arena liep dat zonder compressie
+ * op tot zo'n 50 Mbit/s over de schoolwifi. Gecomprimeerd is een pakketje vier
+ * keer kleiner (gemeten: 14,7 KB → 3,6 KB), en het inpakken gebeurt buiten de
+ * spel-lus. Niveau 1 = snel inpakken; kleine berichtjes laten we zoals ze zijn.
+ */
+const io = require('socket.io')(server, {
+  perMessageDeflate: { threshold: 1024, zlibDeflateOptions: { level: 1 } },
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -110,7 +119,12 @@ const RECOIL_KRACHT = 26;   // hoe hard één 'recoil-eenheid' van de wiki duwt
  * meteen wie er al een tijdje bezig is. De wiki tekent precies zo: straal 50
  * op level 1, 57 op 15, 67 op 30 en 77 op 45. https://diepwiki.io/#/formulas/
  */
-function straalVan(t) { return TANK_RADIUS * Math.pow(1.01, Math.max(0, (t.level || 1) - 1)); }
+// één keer per level uitrekenen: dit wordt honderden keren per tik gevraagd
+const STRAAL_PER_LEVEL = [];
+function straalVan(t) {
+  const lvl = Math.max(1, t.level || 1);
+  return STRAAL_PER_LEVEL[lvl] || (STRAAL_PER_LEVEL[lvl] = TANK_RADIUS * Math.pow(1.01, lvl - 1));
+}
 const BULLET_SPEED = 420;
 const BULLET_LIFE = 1800;      // ms
 const RESPAWN_MS = 2500;
@@ -296,34 +310,56 @@ try {
  * en dan werd het bestand zolang de les liep nooit geschreven — sloot je het
  * zwarte venster, dan was het werk van de hele les weg.
  */
+/*
+ * Het schrijven zelf gebeurt op de achtergrond. Synchroon schrijven liet het
+ * hele spel wachten op de schijf — en op een Windows-laptop kan een
+ * virusscanner of OneDrive een vers bestand even vasthouden. In een test met
+ * een volle klas stond de wereld daardoor één keer een derde seconde stil.
+ * Alleen bij het afsluiten schrijven we synchroon: dan moet het er gewoon nog
+ * op staan voor het venster dichtgaat.
+ */
 let schrijfTimer = null;
-function schrijfProjectenNu() {
-  clearTimeout(schrijfTimer);
+let bezigMetSchrijven = false;
+let nogEensSchrijven = false;
+const TIJDELIJK_BESTAND = PROJECT_BESTAND + '.tmp';
+
+function meldSchrijffout(err) { console.log(`   ⚠ Projecten bewaren mislukt: ${err.message}`); }
+
+async function schrijfProjecten() {
   schrijfTimer = null;
+  if (bezigMetSchrijven) { nogEensSchrijven = true; return; }
+  bezigMetSchrijven = true;
   const inhoud = JSON.stringify(projecten);
-  // eerst naar een tijdelijk bestand en dan in één keer omwisselen: valt de
-  // stroom weg tijdens het schrijven, dan blijft de vorige versie heel
-  const tijdelijk = PROJECT_BESTAND + '.tmp';
   try {
-    fs.writeFileSync(tijdelijk, inhoud);
-    fs.renameSync(tijdelijk, PROJECT_BESTAND);
+    // eerst naar een tijdelijk bestand en dan in één keer omwisselen: valt de
+    // stroom weg tijdens het schrijven, dan blijft de vorige versie heel
+    await fs.promises.writeFile(TIJDELIJK_BESTAND, inhoud);
+    await fs.promises.rename(TIJDELIJK_BESTAND, PROJECT_BESTAND);
   } catch {
     // OneDrive houdt het bestand soms even vast; dan rechtstreeks schrijven
-    try { fs.writeFileSync(PROJECT_BESTAND, inhoud); } catch (err) {
-      console.log(`   ⚠ Projecten bewaren mislukt: ${err.message}`);
-    }
+    try { await fs.promises.writeFile(PROJECT_BESTAND, inhoud); } catch (err) { meldSchrijffout(err); }
   }
+  bezigMetSchrijven = false;
+  if (nogEensSchrijven) { nogEensSchrijven = false; bewaarProjectenOpSchijf(); }
 }
 function bewaarProjectenOpSchijf() {
   if (schrijfTimer) return;   // er staat al een schrijfbeurt klaar
-  schrijfTimer = setTimeout(schrijfProjectenNu, 1500);
+  schrijfTimer = setTimeout(schrijfProjecten, 1500);
+}
+function schrijfProjectenNuMetZekerheid() {
+  try {
+    fs.writeFileSync(TIJDELIJK_BESTAND, JSON.stringify(projecten));
+    fs.renameSync(TIJDELIJK_BESTAND, PROJECT_BESTAND);
+  } catch {
+    try { fs.writeFileSync(PROJECT_BESTAND, JSON.stringify(projecten)); } catch (err) { meldSchrijffout(err); }
+  }
 }
 /* Sluit je het venster of druk je Ctrl+C, dan eerst nog wegschrijven wat er
    klaarstaat. (SIGHUP = het venster dichtklikken op Windows, SIGTERM = een
    herstart bij een online server.) */
 for (const sein of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(sein, () => {
-    if (schrijfTimer) schrijfProjectenNu();
+    if (schrijfTimer || bezigMetSchrijven || nogEensSchrijven) schrijfProjectenNuMetZekerheid();
     process.exit(0);
   });
 }
@@ -527,13 +563,25 @@ function lesgeverZetTeams(n) {
 
 function wijsTeamToe(room, t) {
   if (!room.teamModus) { t.team = null; return; }
-  /* Alle tanks tellen mee — spelers én robots. Zo blijft het 6 tegen 6 in
-     plaats van dat de robots per ongeluk allemaal aan dezelfde kant staan. */
+  /* Een robot gaat naar het team met de minste tanks (spelers én robots
+     samen), zodat het 6 tegen 6 blijft. Een LEERLING gaat naar het team met de
+     minste leerlingen: robots verdwijnen als de klas binnenkomt, en telden we
+     ze mee, dan belandden de eerste zes kinderen allemaal in hetzelfde team. */
   const telling = new Array(room.teamModus).fill(0);
+  const spelersPerTeam = new Array(room.teamModus).fill(0);
   for (const ander of room.tanks.values()) {
-    if (ander.team !== null && ander.team !== undefined && ander.id !== t.id) telling[ander.team]++;
+    if (ander.team === null || ander.team === undefined || ander.id === t.id) continue;
+    telling[ander.team]++;
+    if (!ander.ai) spelersPerTeam[ander.team]++;
   }
-  t.team = telling.indexOf(Math.min(...telling));
+  const kies = (lijst, daarna) => {
+    let beste = 0;
+    for (let i = 1; i < lijst.length; i++) {
+      if (lijst[i] < lijst[beste] || (lijst[i] === lijst[beste] && daarna[i] < daarna[beste])) beste = i;
+    }
+    return beste;
+  };
+  t.team = t.ai ? kies(telling, spelersPerTeam) : kies(spelersPerTeam, telling);
   t.kleur = TEAM_KLEUREN[t.team];
   const zone = teamZones(room).find((z) => z.team === t.team);
   if (zone) {
@@ -555,11 +603,19 @@ const VORMRASTER = 240;
    zonde van het geheugen (en van de opruimtijd achteraf). */
 const buurVormen = [];
 
+/*
+ * Het nummer van een vakje: kolom × 4096 + rij. Eerst was dat een stukje
+ * tekst ("12,7"), maar dan maak je elke tik duizenden nieuwe tekstjes aan om
+ * ze meteen weer weg te gooien — in een volle klas was dat een achtste van
+ * alle rekentijd van de server. (De arena is nooit 4096 vakjes hoog.)
+ */
+const vakNr = (cx, cy) => cx * 4096 + cy;
+
 function bouwVormRaster(room) {
   const vakjes = new Map();
   for (const v of room.vormen) {
     if (v.weg) continue;
-    const k = ((v.x / VORMRASTER) | 0) + ',' + ((v.y / VORMRASTER) | 0);
+    const k = vakNr((v.x / VORMRASTER) | 0, (v.y / VORMRASTER) | 0);
     let lijst = vakjes.get(k);
     if (!lijst) vakjes.set(k, (lijst = []));
     lijst.push(v);
@@ -575,7 +631,7 @@ function vormenRondom(room, x, y, uit) {
   const cx = (x / VORMRASTER) | 0, cy = (y / VORMRASTER) | 0;
   for (let dx = -1; dx <= 1; dx++) {
     for (let dy = -1; dy <= 1; dy++) {
-      const lijst = raster.get((cx + dx) + ',' + (cy + dy));
+      const lijst = raster.get(vakNr(cx + dx, cy + dy));
       if (lijst) for (const v of lijst) uit.push(v);
     }
   }
@@ -784,9 +840,14 @@ function duwVormInDeArena(room, type, def, x, y) {
 /* ------------------------------------------------------------------ */
 /* Tanks (spelers én AI)                                               */
 /* ------------------------------------------------------------------ */
+/* Elke tank krijgt een kort nummer voor in de pakketjes. Intern blijft de
+   verbindingscode zijn sleutel, maar die is twintig tekens lang en ging bij
+   elke tank én bij elke kogel twintig keer per seconde over de wifi. */
+let volgendTankNr = 1;
+
 function nieuweTank(id, naam) {
   return {
-    id, naam,
+    id, naam, nr: volgendTankNr++,
     kleur: '#3498db', vorm: 'cirkel', klasse: 'basis', team: null,
     score: 0, level: 1, statPunten: 0,
     stats: legeStats(),
@@ -1103,6 +1164,32 @@ function zorgVoorAI(room) {
     const t = maakAiTank(room, n);
     room.tanks.set(t.id, t);
   }
+  if (!room.solo && huidige > doel) ruimRobotsOp(room, huidige - doel);
+}
+
+/*
+ * Te veel robots: de klas komt één voor één binnen, en voor elke leerling die
+ * er nog niet was reed er een robot. Die bleven staan tot ze toevallig
+ * kapotgeschoten werden — met 25 leerlingen reden er zo 36 tanks rond in
+ * plaats van 25. Nu verdwijnt het teveel vanzelf, maar alleen robots die ver
+ * van elke leerling rijden: niemand ziet een tegenstander zomaar oplossen.
+ * In teams nemen we eerst een robot weg uit het team met de meeste tanks.
+ */
+const ROBOT_WEG_AFSTAND = 1800;
+function ruimRobotsOp(room, teveel) {
+  const spelers = [...room.tanks.values()].filter((t) => !t.ai);
+  const perTeam = new Map();
+  for (const t of room.tanks.values()) if (t.team !== null) perTeam.set(t.team, (perTeam.get(t.team) || 0) + 1);
+  const kandidaten = [...room.tanks.values()]
+    .filter((r) => r.ai)
+    .map((r) => ({ r, d: Math.min(...spelers.map((s) => Math.hypot(s.x - r.x, s.y - r.y))) }))
+    .filter((k) => k.d > ROBOT_WEG_AFSTAND);
+  for (let i = 0; i < teveel && kandidaten.length; i++) {
+    kandidaten.sort((a, b) => ((perTeam.get(b.r.team) || 0) - (perTeam.get(a.r.team) || 0)) || b.d - a.d);
+    const { r } = kandidaten.shift();
+    room.tanks.delete(r.id);
+    if (r.team !== null) perTeam.set(r.team, perTeam.get(r.team) - 1);
+  }
 }
 
 function maakAiTank(room, n) {
@@ -1212,10 +1299,13 @@ function stuurAI(room, t, nu) {
     return;
   }
 
-  // rustig zwerven en vormen farmen
+  // rustig zwerven en vormen farmen. Alleen de vakjes rondom bekijken: elke
+  // robot liep vroeger elke tik álle vormen van de arena af (honderden tot
+  // duizenden) om er één in de buurt te vinden. Ligt er niets dichtbij, dan
+  // zwerft hij gewoon verder tot hij er wel een tegenkomt.
   let vorm = null, dVorm = Infinity;
-  for (const v of room.vormen) {
-    if (v.type === 'muur') continue;
+  for (const v of vormenRondom(room, t.x, t.y, buurVormen)) {
+    if (v.weg || v.type === 'muur') continue;
     const d = Math.hypot(v.x - t.x, v.y - t.y);
     if (d < dVorm) { dVorm = d; vorm = v; }
   }
@@ -1272,7 +1362,7 @@ io.on('connection', (socket) => {
      * seconde, per leerling. Nu sturen we per vorm alleen nog wat verandert.
      */
     socket.emit('welkom', {
-      id: socket.id, arena: room.arena, modus, vormSoorten: VORM_INFO,
+      id: t.nr, arena: room.arena, modus, vormSoorten: VORM_INFO,
       versie: codeStempel(), verouderd: codeGewijzigdNaStart(),
     });
     zorgVoorAI(room);
@@ -1603,7 +1693,16 @@ const BRONBESTANDEN = [
   path.join(__dirname, 'public', 'js'),
   path.join(__dirname, 'public', 'index.html'),
 ];
+/* Hooguit om de tien seconden opnieuw op de schijf kijken. Elke leerling die
+   binnenkwam en elke update van het dashboard (om de 1,5 s) liep anders alle
+   bestanden af — in een map die OneDrive ook nog eens bijhoudt. */
+let gewijzigdCache = { tot: 0, waarde: 0 };
 function codeGewijzigdNaStart() {
+  if (Date.now() < gewijzigdCache.tot) return gewijzigdCache.waarde;
+  gewijzigdCache = { tot: Date.now() + 10000, waarde: kijkOfCodeGewijzigdIs() };
+  return gewijzigdCache.waarde;
+}
+function kijkOfCodeGewijzigdIs() {
   let nieuwste = 0;
   const kijk = (pad) => {
     try {
@@ -1747,7 +1846,31 @@ function meldFout(waar, err) {
 }
 process.on('uncaughtException', (err) => meldFout('server', err));
 
-setInterval(() => {
+/*
+ * EEN KLOK DIE OOK OP WINDOWS KLOPT. Op Windows gaat een timer van Node maar
+ * om de 15,6 ms af. setInterval(…, 33) liep daardoor 21 keer per seconde in
+ * plaats van 30, en de wereld ging 16 keer per seconde naar de leerlingen in
+ * plaats van 20 (gemeten op de lesgeverslaptop). Alles bewoog schokkeriger dan
+ * nodig. Deze klok onthoudt wanneer de volgende beurt had moeten komen: komt
+ * een beurt te laat, dan wacht de volgende korter. Zo haal je gemiddeld
+ * precies het gevraagde aantal per seconde. Online (Linux) verandert er niets.
+ */
+function elke(ms, fn) {
+  let volgende = performance.now() + ms;
+  const beurt = () => {
+    fn();
+    volgende += ms;
+    const nu = performance.now();
+    // lag de laptop even te slapen? dan niet alles inhalen, gewoon verder
+    if (nu - volgende > ms * 5) volgende = nu + ms;
+    const wacht = volgende - nu;
+    if (wacht <= 1) setImmediate(beurt);
+    else setTimeout(beurt, wacht);
+  };
+  setTimeout(beurt, ms);
+}
+
+elke(1000 / 30, () => {
   const nu = Date.now();
   const dt = Math.min(0.1, (nu - vorigeTick) / 1000);
   vorigeTick = nu;
@@ -1755,7 +1878,7 @@ setInterval(() => {
   for (const room of rooms.values()) {
     try { tickRoom(room, nu, dt); } catch (err) { meldFout(`arena ${room.id}`, err); }
   }
-}, 1000 / 30);
+});
 
 function tickRoom(room, nu, dt) {
   /*
@@ -1783,8 +1906,13 @@ function tickRoom(room, nu, dt) {
     room.gestartOm += Math.round(dt * 1000);   // opwarmtijd loopt niet door
     return;
   }
+  // het tijdstip van deze stand van de wereld (gaat mee in elk pakketje)
+  room.tickTijd = nu;
   zorgVoorAI(room);
-  vulVormenAan(room);
+  // vormen bijleggen hoeft geen dertig keer per seconde: om de halve seconde
+  // merkt niemand, en zo telt de server niet elke tik de hele arena na
+  room.vulTeller = ((room.vulTeller || 0) + 1) % 15;
+  if (room.vulTeller === 1) vulVormenAan(room);
   bouwVormRaster(room);   // eerst de vakjes vullen, dan pas rekenen
 
   for (const v of room.vormen) {
@@ -2399,7 +2527,7 @@ function munitieTegenMunitie(room) {
   const vakjes = new Map();
   for (const b of room.bullets) {
     if (b.weg) continue;
-    const k = ((b.x / RASTER) | 0) + ',' + ((b.y / RASTER) | 0);
+    const k = vakNr((b.x / RASTER) | 0, (b.y / RASTER) | 0);
     let lijst = vakjes.get(k);
     if (!lijst) vakjes.set(k, (lijst = []));
     lijst.push(b);
@@ -2409,7 +2537,7 @@ function munitieTegenMunitie(room) {
     const cx = (b.x / RASTER) | 0, cy = (b.y / RASTER) | 0;
     for (let dx = -1; dx <= 1 && !b.weg; dx++) {
       for (let dy = -1; dy <= 1 && !b.weg; dy++) {
-        const lijst = vakjes.get((cx + dx) + ',' + (cy + dy));
+        const lijst = vakjes.get(vakNr(cx + dx, cy + dy));
         if (!lijst) continue;
         for (const c of lijst) {
           // elk paar één keer, en twee stilliggende traps doen elkaar niets
@@ -2528,124 +2656,167 @@ const beamers = new Set();
 const ZICHT_RAND = 300;   // extra wereld buiten je scherm
 
 let tikTeller = 0;
-setInterval(() => {
+elke(1000 / 20, () => {
   const nu = Date.now();
   tikTeller++;
   for (const room of rooms.values()) {
     try { stuurWereld(room, nu); } catch (err) { meldFout(`versturen ${room.id}`, err); }
   }
-}, 1000 / 20);
+});
 
+const afr1 = (n) => Math.round(n * 10) / 10;
+const afr2 = (n) => Math.round(n * 100) / 100;
+
+/*
+ * HOE ZWAAR IS EEN PAKKETJE? Met 25 leerlingen in de arena woog elk pakketje
+ * 30 KB: elke tank ging mee met álle velden (564 bytes), ook de statpunten,
+ * klassekeuze en XP van je klasgenoten, en een richthoek met vijftien cijfers
+ * na de komma. Keer twintig per seconde keer 25 leerlingen is dat zo'n
+ * 100 Mbit/s over de schoolwifi — daar hapert elk accesspoint van.
+ *
+ * Nu krijgt elke leerling:
+ *  - van zichzelf: alles;
+ *  - van tanks in beeld: alleen wat je nodig hebt om ze te tekenen;
+ *  - van tanks ver weg: alleen plek, naam en score (minikaart en scorebord);
+ *  - van kogels: geen lege velden meer, en een kort nummer voor de eigenaar
+ *    in plaats van een verbindingscode van twintig tekens.
+ * Velden die leeg of "nee" zijn, gaan niet mee; de browser leest een
+ * ontbrekend veld vanzelf als "nee".
+ */
 function stuurWereld(room, nu) {
-  {
-    const gedeeld = {
-      arena: room.arena,
-      teamModus: room.teamModus,
-      zones: teamZones(room),
-      basis: basisVan(room),
-      nest: nestVan(room),
-      statLijst: STAT_LIJST,
-      statMax: MAX_STAT,
-      // loopt er een ronde? dan de klok en het doel mee (voor het scorebord)
-      ronde: room.ronde
-        ? { over: Math.max(0, Math.round((room.ronde.eind - nu) / 1000)), doel: room.ronde.doel }
-        : null,
-      tanks: [...room.tanks.values()].map((t) => ({
-        id: t.id, naam: t.naam, kleur: t.kleur, vorm: t.vorm, klasse: t.klasse,
-        statMax: statMaxVan(t),   // Smashers mogen 10 i.p.v. 7 per stat
-        r: Math.round(straalVan(t) * 10) / 10,   // tanks groeien met hun level
-        ai: !!t.ai, elite: !!(t.ai && t.ai.elite), level: t.level, team: t.team,
-        x: Math.round(t.x), y: Math.round(t.y), angle: t.angle,
-        // waar kijkt het automatische torentje naartoe? (Auto 3 / Auto 5)
-        autoHoek: t.autoHoek === undefined ? null : Math.round(t.autoHoek * 100) / 100,
-        hp: Math.max(0, Math.round(t.hp)), maxHp: Math.round(t.maxHp),
-        score: t.score, rondePunten: t.rondePunten || 0,
-        dood: nu < t.deadUntil, onzichtbaar: !!t.onzichtbaar,
-        respawnOver: nu < t.deadUntil ? Math.ceil((t.deadUntil - nu) / 1000) : 0,
-        flits: nu < t.flashUntil ? t.flashKleur : null,
-        schild: isVeilig(room, t, nu),
-        zeg: nu < t.sayUntil ? t.sayText : null,
-        stats: t.ai ? null : t.stats,
-        statPunten: t.statPunten,
-        klasseAanbod: t.ai ? [] : klasseAanbod(t),
-        xpVolgend: xpVoorLevel(t.level + 1),
-        xpDit: xpVoorLevel(t.level),
-      })),
-      bullets: null,   // per speler ingevuld: enkel wat hij kan zien
-      vormen: null,
-    };
+  const gedeeld = {
+    // het tijdstip van de wereld: de browser schuift hiermee alles vloeiend
+    // tussen twee pakketjes in
+    t: room.tickTijd || nu,
+    arena: room.arena,
+    teamModus: room.teamModus,
+    zones: teamZones(room),
+    basis: basisVan(room),
+    nest: nestVan(room),
+    statLijst: STAT_LIJST,
+    statMax: MAX_STAT,
+    // loopt er een ronde? dan de klok en het doel mee (voor het scorebord)
+    ronde: room.ronde
+      ? { over: Math.max(0, Math.round((room.ronde.eind - nu) / 1000)), doel: room.ronde.doel }
+      : null,
+  };
 
-    /*
-     * Vroeger maakten we van ALLE vormen een pakketje en filterden we dat per
-     * speler. In een arena van 229 miljoen pixels zijn dat bijna vierduizend
-     * objecten, twintig keer per seconde — puur weggegooid werk, want elke
-     * speler ziet er maar een vijftigtal. Nu filteren we eerst op wat je kan
-     * zien en maken we pas daarna het pakketje.
-     */
-    const pakVorm = (v) => {
-      const o = {
-        id: v.id, type: v.type, x: Math.round(v.x), y: Math.round(v.y),
-        hoek: Math.round(v.hoek * 100) / 100,
-      };
-      if (v.hp < v.maxHp) o.hp = Math.round(v.hp);
-      if (nu < (v.hitUntil || 0)) o.hit = true;
-      return o;
+  // wat iedereen van een tank in beeld ziet, en wat er van een verre tank overblijft
+  const publiek = new Map();
+  const ver = new Map();
+  for (const t of room.tanks.values()) {
+    const o = {
+      id: t.nr, naam: t.naam, kleur: t.kleur, vorm: t.vorm, klasse: t.klasse,
+      r: afr1(straalVan(t)),   // tanks groeien met hun level
+      level: t.level, x: Math.round(t.x), y: Math.round(t.y), angle: afr2(t.angle),
+      hp: Math.max(0, Math.round(t.hp)), maxHp: Math.round(t.maxHp), score: t.score,
     };
-    const pakKogel = (b) => ({
-      id: b.id, eigenaar: b.eigenaar, soort: b.soort || 'kogel', vorm: b.vorm || null,
-      rand: b.rand || null,   // Necromancer-drones houden de kleur van hun vorm
-      x: Math.round(b.x), y: Math.round(b.y), kleur: b.kleur, r: b.r,
+    if (t.rondePunten) o.rondePunten = t.rondePunten;
+    if (t.ai) { o.ai = true; if (t.ai.elite) o.elite = true; }
+    if (t.team !== null && t.team !== undefined) o.team = t.team;
+    // waar kijkt het automatische torentje naartoe? (Auto 3 / Auto 5)
+    if (t.autoHoek !== undefined) o.autoHoek = afr2(t.autoHoek);
+    if (nu < t.deadUntil) o.dood = true;
+    if (t.onzichtbaar) o.onzichtbaar = true;
+    if (nu < t.flashUntil) o.flits = t.flashKleur;
+    if (isVeilig(room, t, nu)) o.schild = true;
+    if (nu < t.sayUntil) o.zeg = t.sayText;
+    publiek.set(t, o);
+    const v = { id: o.id, naam: o.naam, kleur: o.kleur, x: o.x, y: o.y, score: o.score };
+    for (const k of ['rondePunten', 'ai', 'team', 'dood', 'onzichtbaar']) if (o[k] !== undefined) v[k] = o[k];
+    ver.set(t, v);
+  }
+  // van jezelf: ook je statpunten, je klassekeuze en je XP
+  const eigen = (t) => Object.assign({}, publiek.get(t), {
+    statMax: statMaxVan(t),   // Smashers mogen 10 i.p.v. 7 per stat
+    stats: t.stats,
+    statPunten: t.statPunten,
+    klasseAanbod: klasseAanbod(t),
+    xpVolgend: xpVoorLevel(t.level + 1),
+    xpDit: xpVoorLevel(t.level),
+    respawnOver: nu < t.deadUntil ? Math.ceil((t.deadUntil - nu) / 1000) : 0,
+  });
+
+  /*
+   * Vroeger maakten we van ALLE vormen een pakketje en filterden we dat per
+   * speler. In een arena van 229 miljoen pixels zijn dat bijna vierduizend
+   * objecten, twintig keer per seconde — puur weggegooid werk, want elke
+   * speler ziet er maar een vijftigtal. Nu filteren we eerst op wat je kan
+   * zien en maken we pas daarna het pakketje — en elk pakketje maar één keer,
+   * ook als vijf leerlingen dezelfde kogel zien.
+   */
+  const vormKlaar = new Map();
+  const pakVorm = (v) => {
+    let o = vormKlaar.get(v);
+    if (o) return o;
+    o = { id: v.id, type: v.type, x: Math.round(v.x), y: Math.round(v.y), hoek: afr2(v.hoek) };
+    if (v.hp < v.maxHp) o.hp = Math.round(v.hp);
+    if (nu < (v.hitUntil || 0)) o.hit = true;
+    vormKlaar.set(v, o);
+    return o;
+  };
+  const kogelKlaar = new Map();
+  const pakKogel = (b) => {
+    let o = kogelKlaar.get(b);
+    if (o) return o;
+    o = { id: b.id, x: Math.round(b.x), y: Math.round(b.y), r: afr1(b.r), kleur: b.kleur };
+    const baas = b.eigenaar !== null && b.eigenaar !== undefined ? room.tanks.get(b.eigenaar) : null;
+    if (baas) o.eigenaar = baas.nr;
+    if (b.soort && b.soort !== 'kogel') {
+      o.soort = b.soort;
       // een raket wijst de kant op waarheen hij vliegt, zodat zijn uitlaat klopt
-      hoek: b.soort === 'raket' ? Math.round(Math.atan2(b.vy, b.vx) * 100) / 100
-        : (b.hoek ? Math.round(b.hoek * 100) / 100 : 0),
-      tl: b.dood === Infinity ? 9999 : Math.max(0, b.dood - nu),
-    });
-
-    /*
-     * De beamer toont de hele arena op één scherm: daar is een vierkantje nog
-     * geen twee pixels groot. Alles opsturen kostte 238 KB per pakketje —
-     * bijna vijf megabyte per seconde voor een handvol stipjes. Hij krijgt nu
-     * een greep uit de vormen (hooguit 600), en die maar vier keer per
-     * seconde. De tanks komen wél elke keer mee: die moet je vlot zien lopen.
-     */
-    let beamerPakket = null;
-    for (const id of beamers) {
-      if (!room.tanks.has(id) && room.id !== 'arena') continue;
-      if (!beamerPakket) {
-        const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
-        const vormen = [];
-        if (tikTeller % 5 === 0) {
-          for (let i = 0; i < room.vormen.length; i += stap) {
-            if (!room.vormen[i].weg) vormen.push(pakVorm(room.vormen[i]));
-          }
-        }
-        beamerPakket = Object.assign({}, gedeeld, {
-          vormen: tikTeller % 5 === 0 ? vormen : null,   // null = houd wat je had
-          bullets: room.bullets.map(pakKogel),
-        });
-      }
-      io.to(id).emit('state', beamerPakket);
+      o.hoek = afr2(b.soort === 'raket' ? Math.atan2(b.vy, b.vx) : (b.hoek || 0));
     }
+    if (b.vorm) o.vorm = b.vorm;
+    if (b.rand) o.rand = b.rand;   // Necromancer-drones houden de kleur van hun vorm
+    // bijna op? dan mag hij uitdoven
+    if (b.dood !== Infinity && b.dood - nu < 300) o.tl = Math.max(0, Math.round(b.dood - nu));
+    kogelKlaar.set(b, o);
+    return o;
+  };
 
-    for (const t of room.tanks.values()) {
-      if (t.ai) continue;
-      const kijk = t.kijk || { w: 2600, h: 1600 };
-      const hw = kijk.w / 2 + ZICHT_RAND, hh = kijk.h / 2 + ZICHT_RAND;
+  /*
+   * De beamer toont de hele arena op één scherm: daar is een vierkantje nog
+   * geen twee pixels groot. Alles opsturen kostte 238 KB per pakketje —
+   * bijna vijf megabyte per seconde voor een handvol stipjes. Hij krijgt nu
+   * een greep uit de vormen (hooguit 600), en die maar vier keer per
+   * seconde. De tanks komen wél elke keer mee: die moet je vlot zien lopen.
+   */
+  let beamerPakket = null;
+  for (const id of beamers) {
+    if (room.id !== 'arena') break;
+    if (!beamerPakket) {
+      const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
       const vormen = [];
-      for (const v of room.vormen) {
-        if (v.weg) continue;
-        const dx = v.x - t.x, dy = v.y - t.y;
-        if (dx > hw || dx < -hw || dy > hh || dy < -hh) continue;
-        vormen.push(pakVorm(v));
+      if (tikTeller % 5 === 0) {
+        for (let i = 0; i < room.vormen.length; i += stap) {
+          if (!room.vormen[i].weg) vormen.push(pakVorm(room.vormen[i]));
+        }
       }
-      const bullets = [];
-      for (const b of room.bullets) {
-        const dx = b.x - t.x, dy = b.y - t.y;
-        if (dx > hw || dx < -hw || dy > hh || dy < -hh) continue;
-        bullets.push(pakKogel(b));
-      }
-      io.to(t.id).emit('state', Object.assign({}, gedeeld, { vormen, bullets }));
+      beamerPakket = Object.assign({}, gedeeld, {
+        tanks: [...publiek.values()],
+        vormen: tikTeller % 5 === 0 ? vormen : null,   // null = houd wat je had
+        bullets: room.bullets.filter((b) => !b.weg).map(pakKogel),
+      });
     }
+    io.to(id).emit('state', beamerPakket);
+  }
+
+  for (const ik of room.tanks.values()) {
+    if (ik.ai) continue;
+    const kijk = ik.kijk || { w: 2600, h: 1600 };
+    const hw = kijk.w / 2 + ZICHT_RAND, hh = kijk.h / 2 + ZICHT_RAND;
+    const inBeeld = (x, y) => !(x - ik.x > hw || x - ik.x < -hw || y - ik.y > hh || y - ik.y < -hh);
+    const tanks = [];
+    for (const t of room.tanks.values()) {
+      if (t === ik) tanks.push(eigen(t));
+      else tanks.push(inBeeld(t.x, t.y) ? publiek.get(t) : ver.get(t));
+    }
+    const vormen = [];
+    for (const v of room.vormen) if (!v.weg && inBeeld(v.x, v.y)) vormen.push(pakVorm(v));
+    const bullets = [];
+    for (const b of room.bullets) if (!b.weg && inBeeld(b.x, b.y)) bullets.push(pakKogel(b));
+    io.to(ik.id).emit('state', Object.assign({}, gedeeld, { tanks, vormen, bullets }));
   }
 }
 

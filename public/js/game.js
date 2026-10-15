@@ -69,8 +69,9 @@ const spel = {
     if (!ik || !staat) return null;
     let beste = null, besteD = Infinity;
     for (const t of staat.tanks) {
-      if (t.id === mijnId || t.dood) continue;
-      if (t.team !== null && t.team === ik.team) continue; // teamgenoten niet
+      // onzichtbaar = niet te zien, dus ook niet om op te mikken (zoals de koepels op de server)
+      if (t.id === mijnId || t.dood || t.onzichtbaar) continue;
+      if (t.team !== undefined && t.team !== null && t.team === ik.team) continue; // teamgenoten niet
       const d = Math.hypot(t.x - ik.x, t.y - ik.y);
       if (d < besteD) { besteD = d; beste = t; }
     }
@@ -181,6 +182,9 @@ socket.on('connect', () => {
 let vormSoorten = {};
 socket.on('welkom', (d) => {
   mijnId = d.id; arena = d.arena; vormSoorten = d.vormSoorten || {};
+  // nieuwe arena (of herstarte server): de oude standen horen er niet meer bij
+  tussenstanden.length = 0;
+  klokVerschil = null;
   /* Welke versie draait er op de server? Node leest zijn code alleen bij het
      starten: verversen in de browser helpt dan niet en je speelt met oude
      regels verder. Met dit stempeltje zie je in één blik of dat het geval is. */
@@ -208,9 +212,89 @@ socket.on('state', (s) => {
     if (v.hp === undefined) v.hp = info.maxHp;
   }
   staat = s; arena = s.arena;
+  bewaarTussenstand(s);
   // wisselt de lesgever van teamopstelling, dan hoort de leerling dat te zien
   if (typeof meldTeamstand === 'function') meldTeamstand();
 });
+
+/* ---------------- vloeiend bewegen ----------------
+ * De server stuurt de wereld twintig keer per seconde; het scherm tekent er
+ * zestig. Vroeger stond alles drie beeldjes stil en sprong het dan verder: een
+ * kogel maakte sprongen van zo'n 25 pixels, en via de wifi van een klas komen
+ * pakketjes ook nog eens onregelmatig binnen. Nu tekenen we een fractie van een
+ * seconde "in het verleden" en schuiven we elke tank, kogel en vorm vloeiend
+ * tussen de twee standen in waar dat moment tussen valt — zoals diep.io dat
+ * ook doet. Elk pakketje draagt daarvoor het tijdstip van de server mee (t).
+ *
+ * Alleen het TEKENEN gebeurt zo. Het programma van de leerling, de vinkjes en
+ * de minikaart blijven de nieuwste stand gebruiken.
+ */
+const tussenstanden = [];   // de laatste paar standen: { t, s, tanks, bullets, vormen }
+let klokVerschil = null;    // servertijd min eigen tijd
+let gemGat = 50;            // gemiddelde tijd tussen twee standen (ms)
+
+function bewaarTussenstand(s) {
+  if (typeof s.t !== 'number') return;
+  const verschil = s.t - performance.now();
+  /* De snelste aankomst is de eerlijkste schatting: wat later binnenkwam, had
+     onderweg vertraging. Trager meeschuiven blijft mogelijk (de klokken van
+     server en chromebook lopen nooit helemaal gelijk). */
+  if (klokVerschil === null || verschil > klokVerschil) klokVerschil = verschil;
+  else klokVerschil += (verschil - klokVerschil) * 0.02;
+  const stand = {
+    t: s.t, s,
+    tanks: new Map(s.tanks.map((x) => [x.id, x])),
+    bullets: new Map(s.bullets.map((x) => [x.id, x])),
+    vormen: new Map(s.vormen.map((x) => [x.id, x])),
+  };
+  const laatste = tussenstanden[tussenstanden.length - 1];
+  // dezelfde stand nog eens (de wereld staat op pauze): vervangen, niet stapelen
+  if (laatste && s.t <= laatste.t) { tussenstanden[tussenstanden.length - 1] = stand; return; }
+  if (laatste) gemGat += (Math.min(200, s.t - laatste.t) - gemGat) * 0.1;
+  tussenstanden.push(stand);
+  if (tussenstanden.length > 6) tussenstanden.shift();
+}
+
+/* Tussen welke twee standen valt "nu min een klein beetje", en hoe ver? */
+function huidigeTussenstand() {
+  const n = tussenstanden.length;
+  if (!n) return null;
+  if (n < 2 || klokVerschil === null) return { a: tussenstanden[n - 1], b: tussenstanden[n - 1], f: 1 };
+  // anderhalve keer de tijd tussen twee pakketjes: zo is de volgende er bijna altijd al
+  const vertraging = Math.max(40, Math.min(150, gemGat * 1.5));
+  const tijdstip = performance.now() + klokVerschil - vertraging;
+  for (let i = n - 1; i > 0; i--) {
+    const a = tussenstanden[i - 1];
+    if (a.t <= tijdstip) {
+      const b = tussenstanden[i];
+      // kwam het volgende pakketje te laat, dan blijft alles op de nieuwste stand staan
+      return { a, b, f: Math.min(1, (tijdstip - a.t) / Math.max(1, b.t - a.t)) };
+    }
+  }
+  return { a: tussenstanden[0], b: tussenstanden[1], f: 0 };
+}
+
+const SPRONG = 400;   // verder dan dit in één stap is een sprong (respawn): niet glijden
+function tussenWaarde(a, b, f) { return Math.abs(b - a) > SPRONG ? b : a + (b - a) * f; }
+function tussenHoek(a, b, f) {
+  const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));   // altijd de korte kant om
+  return a + d * f;
+}
+/* Een kopie van "nieuw" op de plek tussen "oud" en "nieuw" in. Stond hij stil,
+   dan gewoon het origineel (dat scheelt honderden kopietjes per beeldje). */
+function opTussenplek(nieuw, oud, f, hoekVeld) {
+  if (!oud || f >= 1) return nieuw;
+  const draait = hoekVeld && typeof oud[hoekVeld] === 'number' && oud[hoekVeld] !== nieuw[hoekVeld];
+  if (oud.x === nieuw.x && oud.y === nieuw.y && !draait) return nieuw;
+  const o = Object.assign({}, nieuw);
+  o.x = tussenWaarde(oud.x, nieuw.x, f);
+  o.y = tussenWaarde(oud.y, nieuw.y, f);
+  if (draait) o[hoekVeld] = tussenHoek(oud[hoekVeld], nieuw[hoekVeld], f);
+  if (typeof oud.autoHoek === 'number' && typeof nieuw.autoHoek === 'number') {
+    o.autoHoek = tussenHoek(oud.autoHoek, nieuw.autoHoek, f);
+  }
+  return o;
+}
 const scorePopups = []; // zwevende "+10"-tekstjes
 /* ---------------- ronde: klok, start en uitslag ---------------- */
 socket.on('rondeStart', (d) => {
@@ -997,16 +1081,17 @@ function maatAanpassen() {
 window.addEventListener('resize', maatAanpassen);
 
 /*
- * Camera, muis-wereldpositie en HUD lopen op een vaste tik, LOS van het
- * tekenen: requestAnimationFrame pauzeert in verborgen tabbladen en de
- * spellogica mag daar nooit van afhangen.
+ * De camera volgt je tank. Dat gebeurt nu bij elk beeldje (zestig keer per
+ * seconde) en niet meer dertig keer per seconde in een losse tik: anders
+ * schoof de hele wereld in schokjes onder je door, ook al bewogen de tanks
+ * zelf vloeiend. Hoe snel hij bijtrekt hangt af van de echte tijd tussen twee
+ * beeldjes, zodat het op een trage chromebook even snel aanvoelt.
  */
-setInterval(() => {
-  if (canvas.width !== podium.clientWidth || canvas.height !== podium.clientHeight) maatAanpassen();
-  const ik = spel.mijnTank();
+function werkCameraBij(dt, ik) {
   if (ik) {
-    camera.x += (ik.x - camera.x) * 0.15;
-    camera.y += (ik.y - camera.y) * 0.15;
+    const k = 1 - Math.exp(-dt * 4.9);   // ≈ 15% per dertigste seconde, zoals vroeger
+    camera.x += (ik.x - camera.x) * k;
+    camera.y += (ik.y - camera.y) * k;
   }
   /*
    * De camera blijft binnen de arena. Zonder deze klem stond je bij de start
@@ -1020,7 +1105,7 @@ setInterval(() => {
      podium je eigen tank nauwelijks nog ziet. Bij 0.30 is de romp nog altijd
      een pixel of tien groot. */
   zoomDoel = ik ? Math.max(0.30, ZOOM / zichtVan(ik.klasse, ik.level)) : ZOOM;
-  zoom += (zoomDoel - zoom) * 0.06;
+  zoom += (zoomDoel - zoom) * (1 - Math.exp(-dt * 1.86));   // ≈ 6% per dertigste seconde
   const zichtB = canvas.width / zoom, zichtH = canvas.height / zoom;
   /* De server stuurt alleen wat je kan zien, dus moet hij weten hoe groot je
      venster is. Dat verandert zelden (schermgrootte, uitzoomen bij een
@@ -1030,9 +1115,15 @@ setInterval(() => {
     gemeldZicht = { w: zichtB, h: zichtH };
     socket.emit('kijk', { w: Math.round(zichtB), h: Math.round(zichtH) });
   }
+  /* ...maar niet helemaal tot tegen de rand. Klemden we de camera precies op
+     de rand, dan stond je tank bij de start (je basis ligt in de hoek
+     linksonder) ook op je scherm in de hoek linksonder — precies onder de
+     statbalken, waardoor je je eigen tank niet zag. Nu mag de camera een
+     stukje (30% van het beeld) over de rand kijken. */
   const halfB = zichtB / 2, halfH = zichtH / 2;
-  camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB, Math.min(arena.w - halfB, camera.x));
-  camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH, Math.min(arena.h - halfH, camera.y));
+  const overRand = Math.min(zichtB, zichtH) * 0.3;
+  camera.x = arena.w <= zichtB ? arena.w / 2 : Math.max(halfB - overRand, Math.min(arena.w - halfB + overRand, camera.x));
+  camera.y = arena.h <= zichtH ? arena.h / 2 : Math.max(halfH - overRand, Math.min(arena.h - halfH + overRand, camera.y));
   /* Even doorschudden als je geraakt wordt: een paar pixels, kort. Meer is
      hinderlijk als je net probeert te mikken. */
   let schokX = 0, schokY = 0;
@@ -1042,6 +1133,19 @@ setInterval(() => {
     schokY = (Math.random() - 0.5) * schok.kracht * rest * 2;
   }
   tekenOffset = { x: canvas.width / 2 - camera.x * zoom + schokX, y: canvas.height / 2 - camera.y * zoom + schokY };
+}
+
+/*
+ * Muis-wereldpositie, HUD en de vinkjes van de les lopen op een vaste tik, LOS
+ * van het tekenen: requestAnimationFrame pauzeert in verborgen tabbladen en de
+ * spellogica mag daar nooit van afhangen.
+ */
+let laatsteTekenbeurt = 0;
+setInterval(() => {
+  if (canvas.width !== podium.clientWidth || canvas.height !== podium.clientHeight) maatAanpassen();
+  const ik = spel.mijnTank();
+  // er wordt niet getekend (tabblad op de achtergrond)? dan hier de camera bijhouden
+  if (performance.now() - laatsteTekenbeurt > 250) werkCameraBij(1 / 30, ik);
   werkMuisWereldBij();
   vernieuwHud(ik);
   // de waarnemer kijkt mee voor de checkpoints van de les
@@ -1051,17 +1155,28 @@ setInterval(() => {
 
 function teken() {
   requestAnimationFrame(teken);
+  const nuMs = performance.now();
+  const dt = laatsteTekenbeurt ? Math.min(0.1, (nuMs - laatsteTekenbeurt) / 1000) : 1 / 60;
+  laatsteTekenbeurt = nuMs;
 
   // buiten de arena: een tint donkerder dan de vloer, zoals in diep.io
   ctx.fillStyle = ARENA_BUITEN;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (!staat) return;
+  const zicht = huidigeTussenstand();
+  if (!staat || !zicht) return;
 
+  // alles op zijn tussenplek: zie "vloeiend bewegen" bovenaan
+  const { a, b, f } = zicht;
+  const tanks = b.s.tanks.map((t) => opTussenplek(t, a.tanks.get(t.id), f, 'angle'));
+  const kogels = b.s.bullets.map((k) => opTussenplek(k, a.bullets.get(k.id), f, 'hoek'));
+  const vormen = b.s.vormen.map((v) => opTussenplek(v, a.vormen.get(v.id), f, 'hoek'));
+
+  werkCameraBij(dt, tanks.find((t) => t.id === mijnId) || spel.mijnTank());
   const ox = tekenOffset.x;
   const oy = tekenOffset.y;
 
   const nu = Date.now();
-  bijwerkAnimaties(nu);
+  bijwerkAnimaties(nu, kogels, vormen);
 
   ctx.save();
   ctx.translate(ox, oy);
@@ -1075,7 +1190,7 @@ function teken() {
   if (staat.basis) drawZones(ctx, [Object.assign({ team: 0 }, staat.basis)]);
 
   // vormen: zachtjes pulseren, wit flitsen bij een treffer
-  for (const v of staat.vormen) {
+  for (const v of vormen) {
     v.__pulse = v.type === 'muur' ? 1 : 1 + 0.05 * Math.sin(nu / 350 + v.id * 1.7);
     drawVormObj(ctx, v);
   }
@@ -1092,7 +1207,7 @@ function teken() {
   }
 
   // kogels: pop bij afvuren, gloed onderweg, uitdoven op het einde
-  for (const b of staat.bullets) {
+  for (const b of kogels) {
     const leeftijd = nu - (kogelGeboorte.get(b.id) || nu);
     const pop = leeftijd < 120 ? 1.45 - (leeftijd / 120) * 0.45 : 1;
     const alpha = b.tl < 300 ? Math.max(0.15, b.tl / 300) : 1;
@@ -1103,7 +1218,7 @@ function teken() {
   }
 
   // tanks: terugstoot bij schieten, schudden bij een treffer
-  for (const t of staat.tanks) {
+  for (const t of tanks) {
     if (t.dood) continue;
     const schud = t.flits === '#ff5252' ? 2.5 : 0;
     t.__recoil = nu - (terugstoot.get(t.id) || 0) < 110;
@@ -1152,10 +1267,13 @@ const terugstoot = new Map();     // tank-id -> laatst geschoten
 const brokstukken = [];           // deeltjes van kapotte vormen
 let vorigeVormen = new Map();
 
-function bijwerkAnimaties(nu) {
+/* Gebeurt op wat er GETEKEND wordt (niet op de nieuwste stand): anders vloog
+   een vorm al in brokstukken terwijl hij nog een fractie van een seconde in
+   beeld stond. */
+function bijwerkAnimaties(nu, kogels, vormen) {
   // nieuwe kogels registreren (voor de pop + terugstoot van de schutter)
   const levend = new Set();
-  for (const b of staat.bullets) {
+  for (const b of kogels) {
     levend.add(b.id);
     if (!kogelGeboorte.has(b.id)) {
       kogelGeboorte.set(b.id, nu);
@@ -1167,7 +1285,7 @@ function bijwerkAnimaties(nu) {
 
   // verdwenen vormen -> brokstukken
   const huidige = new Map();
-  for (const v of staat.vormen) huidige.set(v.id, v);
+  for (const v of vormen) huidige.set(v.id, v);
   /* Een vorm kan ook uit je beeld schuiven (de server stuurt enkel wat je
      ziet). Dan is hij niet kapot — daar horen dus geen brokstukken bij. We
      maken ze alleen voor vormen die ruim binnen je scherm stonden. */
@@ -1260,7 +1378,8 @@ function tekenMinimap() {
 
   // de andere tanks als stipje in hun teamkleur
   for (const t of staat.tanks) {
-    if (t.dood || t.id === mijnId) continue;
+    // een onzichtbare Sluiper of Landmijn verraden we ook niet op de kaart
+    if (t.dood || t.onzichtbaar || t.id === mijnId) continue;
     ctx.fillStyle = t.kleur;
     ctx.beginPath();
     ctx.arc(px(t.x), py(t.y), t.ai ? 2.2 : 3.2, 0, Math.PI * 2);
