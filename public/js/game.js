@@ -672,13 +672,13 @@ function kiesModus(m) {
   const metJoystick = window.joystickStaatAan && window.joystickStaatAan();
   if (welkeLes === 2) {
     toast(metJoystick
-      ? '🎮 Rijden met de joystick, mikken en schieten door op het speelveld te tikken — dat werkt hier meteen.'
+      ? '🎮 Rijden met de linker joystick, mikken en schieten met de rechter — dat werkt hier meteen.'
       : '🎮 Rijden met de pijltjes, mikken en schieten met de muis — dat werkt hier meteen.');
   } else if (metJoystick && !joystickUitgelegd) {
     /* Op een tablet zegt de les "pijltje omhoog" en "klik met je muis". Eén
        keer uitleggen wat daar op dit toestel mee bedoeld wordt. */
     joystickUitgelegd = true;
-    toast('🕹️ Geen toetsenbord? De joystick linksonder zijn jouw pijltjestoetsen, en tikken op het speelveld is je muis.');
+    toast('🕹️ Geen toetsenbord? De joystick links zijn jouw pijltjestoetsen, de joystick rechts is je muis: mikken en schieten.');
   }
 }
 let joystickUitgelegd = false;
@@ -739,8 +739,38 @@ stopKnop.addEventListener('click', () => {
  * schieten niet stoppen — dat gebeurde wel met één gewone "muis los".
  */
 const vingersOpSpeelveld = new Set();
+
+/*
+ * De richtjoystick (rechts, op tablets) is óók "de muis". Hij zet het
+ * mikpunt in de arena op een afstand van je tank, in de richting waarin je
+ * hem duwt, en zolang je duwt is "muis ingedrukt?" waar. Laat je los, dan
+ * blijft het geschut die kant op wijzen — tot je weer op het speelveld tikt
+ * of een echte muis beweegt; die nemen het dan over.
+ *   spel.richtStok = { x, y (richting, lengte 1), afstand, vuurt } of null
+ */
+spel.richtStok = null;
+function werkMuisKnopBij() {
+  spel.muisKnop = vingersOpSpeelveld.size > 0 || !!(spel.richtStok && spel.richtStok.vuurt);
+}
+spel.zetRichtStok = (stok) => {
+  spel.richtStok = stok;
+  werkMuisKnopBij();
+  werkMuisWereldBij();
+};
+
 /* Waar in de arena staat de muis (of de vinger)? */
 function werkMuisWereldBij() {
+  const stok = spel.richtStok;
+  const ik = stok && spel.mijnTank();
+  if (stok && ik) {
+    // vanaf je tank, dus het mikpunt rijdt met je mee
+    spel.muisWereld.x = ik.x + stok.x * stok.afstand;
+    spel.muisWereld.y = ik.y + stok.y * stok.afstand;
+    // ook het punt op het scherm, voor wie straks weer met een muis verdergaat
+    spel.muisScherm.x = spel.muisWereld.x * zoom + tekenOffset.x;
+    spel.muisScherm.y = spel.muisWereld.y * zoom + tekenOffset.y;
+    return;
+  }
   spel.muisWereld.x = (spel.muisScherm.x - tekenOffset.x) / zoom;
   spel.muisWereld.y = (spel.muisScherm.y - tekenOffset.y) / zoom;
 }
@@ -751,26 +781,51 @@ function werkMuisWereldBij() {
  * schot op een iPad nog naar de plek waar je vóórdien had getikt.
  */
 function zetMuisScherm(e) {
+  // een echte muis of een vinger op het speelveld neemt het over van de richtjoystick
+  if (spel.richtStok && !spel.richtStok.vuurt) spel.richtStok = null;
+  if (spel.richtStok) return;   // de richtjoystick wordt nog vastgehouden: die wint
   const r = canvas.getBoundingClientRect();
   spel.muisScherm.x = (e.clientX - r.left) * (canvas.width / r.width);
   spel.muisScherm.y = (e.clientY - r.top) * (canvas.height / r.height);
   werkMuisWereldBij();
 }
 canvas.addEventListener('pointermove', zetMuisScherm);
+/*
+ * Een klik telt minstens een tiende van een seconde. Het programma van de
+ * leerling kijkt dertig keer per seconde of de muis ingedrukt is; een tikje op
+ * het touchpad van een chromebook (tikken-om-te-klikken) duurt soms maar 10 à
+ * 30 ms, en dan zag het programma de klik nooit en kwam er geen kogel uit.
+ */
+const KORTSTE_KLIK_MS = 100;
+const ingedruktSinds = new Map();   // vinger/muis → wanneer ingedrukt
 canvas.addEventListener('pointerdown', (e) => {
   zetMuisScherm(e);
   vingersOpSpeelveld.add(e.pointerId);
-  spel.muisKnop = true;
+  ingedruktSinds.set(e.pointerId, performance.now());
+  werkMuisKnopBij();
   // een vinger: niet ook nog laten scrollen, zoomen of een vergrootglas tonen
   if (e.pointerType !== 'mouse') e.preventDefault();
 });
 function laatVingerLos(e) {
-  vingersOpSpeelveld.delete(e.pointerId);
-  spel.muisKnop = vingersOpSpeelveld.size > 0;
+  if (!vingersOpSpeelveld.has(e.pointerId)) return;   // deze vinger stond niet op het speelveld
+  const nogEven = KORTSTE_KLIK_MS - (performance.now() - (ingedruktSinds.get(e.pointerId) || 0));
+  ingedruktSinds.delete(e.pointerId);
+  const los = () => {
+    // intussen opnieuw ingedrukt (dubbelklik)? dan die tweede klik niet afbreken
+    if (ingedruktSinds.has(e.pointerId)) return;
+    vingersOpSpeelveld.delete(e.pointerId);
+    werkMuisKnopBij();
+  };
+  if (nogEven > 0) setTimeout(los, nogEven); else los();
 }
 window.addEventListener('pointerup', laatVingerLos);
 window.addEventListener('pointercancel', laatVingerLos);
-window.addEventListener('blur', () => { vingersOpSpeelveld.clear(); spel.muisKnop = false; });
+window.addEventListener('blur', () => {
+  vingersOpSpeelveld.clear();
+  ingedruktSinds.clear();
+  if (spel.richtStok) spel.richtStok.vuurt = false;
+  werkMuisKnopBij();
+});
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* ---------------- upgrade-popups ---------------- */
@@ -1077,6 +1132,16 @@ function toast(tekst, ms) {
 function maatAanpassen() {
   canvas.width = podium.clientWidth;
   canvas.height = podium.clientHeight;
+  /* Met de joysticks aan staan de statbalken linksboven en de spatieknop
+     linksonder. Op een liggende iPad (Safari neemt bovenaan ook ruimte in)
+     kwamen ze over elkaar te liggen. De balkjes worden dus zo hoog als er
+     plaats is: 26 px als het kan, kleiner als het moet. */
+  const stokMaat = document.body.classList.contains('podium-klein') ? 104 : 128;
+  const vrij = canvas.height - (14 + stokMaat + 10 + 40) - 10 - 8;   // onder de spatieknop af, boven een randje
+  const rij = Math.max(14, Math.min(26, Math.floor(vrij / 8) - 3));
+  document.getElementById('stat-balken').style.setProperty('--sb-hoogte', rij + 'px');
+  // de joysticks zijn kleiner op een klein speelveld
+  if (spel.meetRichtstokOpnieuw) spel.meetRichtstokOpnieuw();
 }
 window.addEventListener('resize', maatAanpassen);
 
@@ -1336,10 +1401,45 @@ function bijwerkAnimaties(nu, kogels, vormen) {
  * confettivlek. Wat er wel bij staat en in diep.io niet: de andere tanks. In
  * een arena van elf kilometer breed moeten klasgenoten elkaar kunnen vinden.
  */
-function tekenMinimap() {
-  const mw = Math.round(Math.min(240, Math.max(150, canvas.width * 0.2)));
+/*
+ * Staat de richtjoystick rechtsonder? Dan schuift de kaart erboven. De hoogte
+ * meten we hooguit één keer per seconde: elk beeldje opvragen dwong de browser
+ * om de hele pagina opnieuw op te meten (de HUD verandert ondertussen), en dat
+ * kost op een oudere iPad merkbaar tijd.
+ */
+let richtstokRuimte = 0, richtstokGemeten = 0;
+// joysticks aan/uit of een ander formaat speelveld: meteen opnieuw meten
+spel.meetRichtstokOpnieuw = () => { richtstokGemeten = 0; };
+function ruimteVoorRichtstok() {
+  const nu = performance.now();
+  if (nu - richtstokGemeten > 1000) {
+    richtstokGemeten = nu;
+    const stok = document.getElementById('richtstok');
+    richtstokRuimte = stok && !stok.classList.contains('verborgen') ? stok.offsetHeight + 24 : 0;
+  }
+  return richtstokRuimte;
+}
+
+/*
+ * Waar staat de minikaart (en hoe groot)? Op één plek uitgerekend, zodat het
+ * tekenen en de rest het altijd eens zijn. Op het kleine speelveld (▫) is ze
+ * kleiner; staan daar ook nog de joysticks, dan laten we haar weg — in 320
+ * pixels breed passen twee joysticks, een spatieknop en een kaart gewoon niet
+ * naast elkaar. Op een klein speelveld ben je vooral aan het programmeren.
+ */
+function minikaartPlek() {
+  const klein = document.body.classList.contains('podium-klein');
+  if (klein && ruimteVoorRichtstok()) return null;
+  const mw = Math.round(Math.min(240, Math.max(klein ? 100 : 150, canvas.width * 0.2)));
   const mh = Math.round(mw * (arena.h / arena.w));
-  const mx = canvas.width - mw - 14, my = canvas.height - mh - 14;
+  return { x: canvas.width - mw - 14, y: canvas.height - mh - 14 - ruimteVoorRichtstok(), w: mw, h: mh };
+}
+spel.minikaartPlek = minikaartPlek;
+
+function tekenMinimap() {
+  const plek = minikaartPlek();
+  if (!plek) return;
+  const { w: mw, h: mh, x: mx, y: my } = plek;
   const s = mw / arena.w;
   const px = (wx) => mx + wx * s, py = (wy) => my + wy * s;
   ctx.save();
@@ -1445,7 +1545,9 @@ function tekenScorebord() {
     teams.push(...[...som.entries()].sort((a, b) => b[1] - a[1]));
   }
 
-  const B = 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
+  // op het kleine speelveld smaller, anders botst hij met de statbalken
+  const klein = document.body.classList.contains('podium-klein');
+  const B = klein ? 132 : 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
   const klokH = ronde ? 26 : 0;
   const H = 24 + klokH + kopH + rijen.length * regel + 6;
   const x = canvas.width - B - 12, y = 12;
@@ -1501,7 +1603,7 @@ function tekenScorebord() {
     const isIk = ik && t.id === ik.id;
     ctx.font = (isIk ? 'bold ' : '') + '12px Segoe UI, sans-serif';
     ctx.fillStyle = isIk ? '#ffd54f' : '#cfd6e4';
-    const naam = String(t.naam || '').slice(0, 13);
+    const naam = String(t.naam || '').slice(0, klein ? 9 : 13);
     ctx.fillText(naam, x + 10, ry);
     ctx.textAlign = 'right';
     ctx.fillText(String(punt(t)), x + B - 10, ry);

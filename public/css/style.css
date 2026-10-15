@@ -112,6 +112,12 @@ body.speelmodus #podium-balk { padding: 3px 10px; }
 /* het "toon upgradescherm"-blok wijst de balken even aan */
 #stat-balken.let-op .stat-balk-rij.kan .sb-plus { animation: pulse 1.1s infinite; }
 body.speelmodus .sb-balk { width: 168px; height: 20px; }
+/* Op het kleine speelveld (▫) compacter: daar moeten ze naast het scorebord
+   (en op een tablet boven de joysticks) passen. Ook met een vinger blijft het
+   plusje groot genoeg om op te tikken. */
+body.podium-klein .sb-balk { width: 104px; height: 15px !important; }
+body.podium-klein .sb-tekst { font-size: .52rem; }
+body.podium-klein #stat-balken { gap: 2px; }
 body.speelmodus .sb-tekst { font-size: .68rem; }
 body.speelmodus .sb-plus { width: 24px; font-size: 1rem; }
 
@@ -604,6 +610,12 @@ body.les-nog-niet-gestart #stap-nr { background: #3d2d63; color: #fff; }
   position: relative;   /* het pauze-label hangt hieraan */
 }
 body.podium-klein #podium { flex-basis: 320px; }
+/* De knoppenbalk boven het speelveld (vlag, stop, score, level, XP, statpunten,
+   formaat) is samen ruim 430 px breed. Mocht het podium daar niet onder, dan
+   bleef "klein" gewoon even breed als "normaal". Nu loopt de balk op een klein
+   speelveld over twee regels. */
+#podium { min-width: 0; }
+body.podium-klein #podium-balk { flex-wrap: wrap; row-gap: 6px; }
 body.speelmodus #podium { flex: 1 1 auto; }
 
 #podium-balk {
@@ -665,14 +677,15 @@ body.speelmodus #podium { flex: 1 1 auto; }
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 
-/* ---------- joystick voor tablets ----------
-   Linksonder, onder de linkerduim. Halfdoorzichtig, zodat je de arena erachter
-   nog ziet. De statbalken (die daar normaal staan) schuiven naar linksboven. */
+/* ---------- twee joysticks voor tablets ----------
+   Linksonder rijden (onder de linkerduim), rechtsonder mikken en schieten
+   (onder de rechterduim) — zoals in de diep.io-app. Halfdoorzichtig, zodat je
+   de arena erachter nog ziet. De statbalken (die linksonder staan) schuiven
+   naar linksboven, de minikaart schuift boven de richtjoystick. */
 #podium { --js-maat: 128px; }
 body.podium-klein #podium { --js-maat: 104px; }
-#joystick {
+.stok {
   position: absolute;
-  left: 14px;
   bottom: 14px;
   width: var(--js-maat);
   height: var(--js-maat);
@@ -685,8 +698,12 @@ body.podium-klein #podium { --js-maat: 104px; }
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-#joystick.actief { background: rgba(28, 32, 44, .42); }
-#joystick-duim {
+#joystick { left: 14px; }
+#richtstok { right: 14px; }
+.stok.actief { background: rgba(28, 32, 44, .42); }
+/* de richtjoystick kleurt rood zolang je schiet */
+#richtstok.actief { background: rgba(200, 50, 50, .35); border-color: rgba(255, 170, 160, .8); }
+.stok-duim {
   position: absolute;
   left: 50%; top: 50%;
   width: 42%; height: 42%;
@@ -698,7 +715,19 @@ body.podium-klein #podium { --js-maat: 104px; }
   pointer-events: none;
   transition: transform .12s ease-out;   /* terugveren naar het midden */
 }
-#joystick.actief #joystick-duim { transition: none; }
+.stok.actief .stok-duim { transition: none; }
+/* "mik" bovenaan de richtjoystick, zodat je weet welke welke is */
+.stok-label {
+  position: absolute;
+  top: 5px; left: 0; right: 0;
+  text-align: center;
+  font: 800 11px 'Segoe UI', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  pointer-events: none;
+}
 /* de vier pijltjes: lichten op als de joystick die toets indrukt */
 .js-pijl {
   position: absolute;
@@ -737,6 +766,8 @@ body.podium-klein #podium { --js-maat: 104px; }
 }
 #spatie-knop.aan { background: #ffd54f; color: #5b4400; border-color: #ffd54f; }
 body.joystick-aan #stat-balken { top: 10px; bottom: auto; }
+/* zo hoog als er plaats is boven de spatieknop (zie maatAanpassen in game.js) */
+body.joystick-aan .sb-balk { height: var(--sb-hoogte, 26px) !important; }
 /* zonder toetsenbord heb je niets aan "[1]".."[8]" naast de balkjes */
 body.joystick-aan .sb-toets { display: none; }
 #joystick-schakel {
@@ -1113,14 +1144,26 @@ body.gepauzeerd #podium::after {
   pointer-events: none;   /* een melding mag nooit een tik op het speelveld opvangen */
   z-index: 14;
 }
-/* Met de joystick aan staat de melding rechts ervan, niet erover. */
+/* Met de joysticks aan staat de melding tussen de twee in, niet erover. */
 body.joystick-aan #toast {
   left: calc(14px + var(--js-maat) + 14px);
-  right: 14px;
+  right: calc(14px + var(--js-maat) + 14px);
   bottom: 14px;
   transform: none;
   max-width: none;
   width: auto;
+  /* de ruimte tussen de joysticks is smal: iets kleiner, anders wordt een
+     lange melding een hoge toren tekst midden in het speelveld */
+  font-size: .82rem;
+  padding: 8px 12px;
+}
+/* Op een klein speelveld past ze daar niet: dan erboven, over de hele breedte,
+   net boven de spatieknop. (De minikaart staat daar dan niet: zie
+   minikaartPlek in game.js.) */
+body.joystick-aan.podium-klein #toast {
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + var(--js-maat) + 60px);
 }
 
 /* Smalle schermen: onder elkaar, maar dan moet de pagina wél kunnen scrollen

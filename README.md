@@ -13,7 +13,7 @@ Een diep.io-geïnspireerd workshopspel voor leerlingen van 8–13 jaar. Leerling
 
 Geen internet, geen accounts nodig: alles (ook Blockly) wordt lokaal geserveerd.
 
-**Chromebooks én iPads.** Op een tablet zonder toetsenbord verschijnt vanzelf een joystick op het speelveld. Die drukt dezelfde pijltjestoetsen in als een toetsenbord, en tikken op het speelveld is de muis — de blokken uit de les werken dus ongewijzigd. Met de 🕹️-knop boven het speelveld zet je hem aan of uit (onthouden per toestel).
+**Chromebooks én iPads.** Op een tablet zonder toetsenbord verschijnen vanzelf twee joysticks op het speelveld, zoals in de diep.io-app. De linker drukt dezelfde pijltjestoetsen in als een toetsenbord; de rechter is de muis (mikken, en schieten zolang je duwt). Tikken op het speelveld kan ook. De blokken uit de les werken dus ongewijzigd. Met de 🕹️-knop boven het speelveld zet je ze aan of uit (onthouden per toestel).
 
 **Documenten:** [LESPLAN_LES1.md](docs/LESPLAN_LES1.md) (deel 1: stappen 1–10) · [LESPLAN_DEEL2.md](docs/LESPLAN_DEEL2.md) (deel 2: stappen 11–15 + toernooi) · [LESPLAN_LES2.md](docs/LESPLAN_LES2.md) (losse vervolgsessie: multiplayer + teams) · [VOORBEREIDING.md](docs/VOORBEREIDING.md) (checklist vóór de workshopdag) · [OPLOSSING.md](docs/OPLOSSING.md) (volledige voorbeeldcode voor de lesgever — ook in het spel via de knop **👩‍🏫 Voorbeeldoplossing**) · [ONLINE.md](docs/ONLINE.md) (het spel online zetten).
 
@@ -58,7 +58,7 @@ tank-arena/
         ├── game.js       # podium: tekenen, HUD, startmenu, upgrade-pop-ups
         ├── klassen.js    # diep.io-klassen + upgradeboom (gedeeld met de server)
         ├── tekenen.js    # gedeelde tekenfuncties (tanks, vormen, zones, arena)
-        ├── joystick.js   # joystick + spatieknop voor tablets (drukt virtuele toetsen in)
+        ├── joystick.js   # twee joysticks + spatieknop voor tablets (rijden = pijltjes, mikken = muis)
         ├── codetekst.js  # programma → leesbare tekst (voor projectie op de beamer)
         └── geluid.js     # korte geluidjes via WebAudio
 ```

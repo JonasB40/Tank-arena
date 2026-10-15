@@ -135,7 +135,7 @@ const STAPPEN = [
       'Sleep {{waa|toets ↑ ingedrukt?}} in het zeshoekige gaatje van het als-blok (blauwe {{waa|Waarnemen}}).',
       'Zet in de opening van het als-blok: {{bew|richt naar 0 graden}}.',
       'Zet daaronder je {{bew|neem 10 stappen}} terug — óók binnen het als-blok.',
-      'Druk op 🚩 en houd het pijltje omhoog ingedrukt (op een tablet: duw de joystick omhoog).',
+      'Druk op 🚩 en houd het pijltje omhoog ingedrukt (op een tablet: duw de linker joystick omhoog).',
     ].join('\n'),
     hint: 'Kijk goed of je stappen-blok écht ín het als-blok zit: het als-blok heeft een opening, en je blokken moeten daarbinnen inspringen. Zit het eronder in plaats van erin, dan rijdt je tank altijd — ook zonder toets.\n\nDe graden zijn dezelfde als in Scratch: 0 is omhoog, 90 is rechts, 180 is omlaag, -90 is links. Klik op het getal om het te veranderen.\n\nWerkt het nog niet? Kijk of je twee stapeltjes hebt staan. Alles hoort onder één 🚩-blok.',
     check: {
@@ -189,7 +189,7 @@ const STAPPEN = [
     doel: [
       'Zoek {{bew|richt het geschut naar de muis}} in de blauwe categorie {{bew|Beweging}}.',
       'Sleep het IN je {{bes|herhaal}}, als ALLEREERSTE blok — dus BOVEN je {{bes|als}}-blokken.',
-      'Klik op 🚩 en beweeg je muis rond je tank (op een tablet: tik naast je tank).',
+      'Klik op 🚩 en beweeg je muis rond je tank (op een tablet: draai met de rechter joystick).',
     ].join('\n'),
     /* Kinderen lezen "bovenaan" makkelijk over. Een plaatje van de juiste
        stapel laat in een oogopslag zien waar het blok hoort. */
@@ -227,7 +227,7 @@ const STAPPEN = [
       'Zet onderaan in je {{bes|herhaal}} een {{bes|als … dan}}-blok.',
       'Sleep {{waa|muis ingedrukt?}} in het zeshoekige gaatje.',
       'Zet {{gev|schiet}} in het als-blok.',
-      'Druk op 🚩 en klik met je linkermuisknop op het speelveld (op een tablet: tik erop).',
+      'Druk op 🚩 en klik met je linkermuisknop op het speelveld (op een tablet: duw de rechter joystick).',
     ].join('\n'),
     hint: 'Dit is precies hetzelfde patroon als bij het sturen, alleen kijk je nu naar de muisknop in plaats van naar een toets. {{waa|muis ingedrukt?}} staat bij {{waa|Waarnemen}}, {{gev|schiet}} bij de roze {{gev|Gevecht}}.',
     check: {
@@ -450,7 +450,7 @@ const STAPPEN = [
       'Zet een {{bes|herhaal ( ) keer}} om het {{gev|schiet}}-blok en typ 3 in het vakje.',
       'Zet onder {{gev|schiet}} een {{bes|wacht 0.2 sec.}} — anders komen de drie kogels tegelijk.',
     ].join('\n'),
-    hint: 'Rijden en schieten zijn nu twee aparte programmaatjes die naast elkaar lopen — precies zoals in Scratch. Test het: houd een pijltjestoets én je muisknop ingedrukt (op een tablet: de joystick én een vinger op het speelveld). Je moet nu kunnen rijden én schieten tegelijk.',
+    hint: 'Rijden en schieten zijn nu twee aparte programmaatjes die naast elkaar lopen — precies zoals in Scratch. Test het: houd een pijltjestoets én je muisknop ingedrukt (op een tablet: allebei de joysticks tegelijk). Je moet nu kunnen rijden én schieten tegelijk.',
     check: {
       structuur: (p) => {
         const salvo = (s) => alleCmds(s.body).some((c) => c.t === 'herhaal' && alleCmds(c.body).some((x) => x.t === 'schiet'));
@@ -480,7 +480,7 @@ const LES2_STAPPEN = [
     nr: 1,
     titel: 'Ik zie ze te laat',
     concept: 'Waarnemen over het netwerk',
-    probleem: 'Rijden en schieten werkt hier meteen — pijltjes (of de joystick) om te rijden, muis (of je vinger) om te mikken en te schieten. Maar je speelt nu tegen échte klasgenoten: ze komen van alle kanten, en meestal merk je ze pas als je al geraakt bent.',
+    probleem: 'Rijden en schieten werkt hier meteen — pijltjes (of de linker joystick) om te rijden, muis (of de rechter joystick) om te mikken en te schieten. Maar je speelt nu tegen échte klasgenoten: ze komen van alle kanten, en meestal merk je ze pas als je al geraakt bent.',
     ontdekking: 'Je tank kan meten hoe ver de dichtstbijzijnde vijand is. Dat werkt nu op echte spelers — jouw computer krijgt hun posities van de server. Zo kan je jezelf laten waarschuwen.',
     doel: [
       'Sleep een {{geb|🚩}}-blok op een lege plek en hang er een {{bes|herhaal}} onder.',

@@ -130,12 +130,19 @@
              een toetsenbord, dus "als toets pijltje omhoog ingedrukt?" werkt
              gewoon — een kind op een iPad bouwt exact hetzelfde programma.
              De pijltjes lichten op zodat je ziet welke toets je nu indrukt. -->
-        <div id="joystick" class="verborgen" aria-hidden="true">
+        <div id="joystick" class="stok verborgen" aria-hidden="true">
           <span class="js-pijl" data-toets="ArrowUp">↑</span>
           <span class="js-pijl" data-toets="ArrowRight">→</span>
           <span class="js-pijl" data-toets="ArrowDown">↓</span>
           <span class="js-pijl" data-toets="ArrowLeft">←</span>
-          <div id="joystick-duim"></div>
+          <div id="joystick-duim" class="stok-duim"></div>
+        </div>
+        <!-- Rechts: mikken en schieten. Voor het programma is dit "de muis":
+             "richt het geschut naar de muis" en "muis ingedrukt?" werken dus
+             gewoon. Tikken op het speelveld kan ook nog. -->
+        <div id="richtstok" class="stok verborgen" aria-hidden="true">
+          <span class="stok-label">mik</span>
+          <div id="richtstok-duim" class="stok-duim"></div>
         </div>
         <!-- de spatiebalk (voor "wanneer toets spatiebalk wordt ingedrukt") -->
         <button id="spatie-knop" class="verborgen">spatie</button>

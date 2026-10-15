@@ -18,7 +18,12 @@ De app begeleidt dit: boven de blokken staat een **stappenpaneel** met het probl
 
 **De gereedschapskist groeit mee.** Bij stap 1 liggen er maar twee blokken klaar; elke stap ontgrendelt precies wat er nodig is. Een leerling kan dus niet verdwalen tussen blokken die hij nog niet kent — en jij hoeft nooit te zeggen "die gebruiken we straks pas". Wat ontgrendeld is blijft staan. Wil iemand vooruit? De schakelaar **🚀 Expert** toont in één klik alles.
 
-**Op een iPad of tablet** staat er linksonder op het speelveld een joystick. Die drukt de pijltjestoetsen voor je in: duw hem omhoog en voor het spel is *pijltje omhoog* ingedrukt (het pijltje licht geel op). Tikken op het speelveld is de muis: daar mik je naartoe, en zolang je vinger erop staat is `muis ingedrukt?` waar. De blokken zijn dus exact dezelfde als op een chromebook — een kind op een iPad bouwt hetzelfde programma als zijn buur. De knop **spatie** boven de joystick is voor de proef van stap 6. Zolang de besturing nog niet gebouwd is (stap 1–2), doet de joystick niets; net als de pijltjestoetsen.
+**Op een iPad of tablet** staan er twee joysticks op het speelveld, zoals in de diep.io-app:
+
+- **Links: rijden.** Hij drukt de pijltjestoetsen voor je in: duw hem omhoog en voor het spel is *pijltje omhoog* ingedrukt (het pijltje licht geel op).
+- **Rechts: mikken en schieten ("MIK").** Hij is de muis: het geschut draait de kant op waarin je duwt, en zolang je duwt is `muis ingedrukt?` waar (de joystick kleurt dan rood). Laat je los, dan blijft het geschut die kant op wijzen. Tikken op het speelveld werkt ook als muis.
+
+De blokken zijn dus exact dezelfde als op een chromebook — een kind op een iPad bouwt hetzelfde programma als zijn buur. De knop **spatie** boven de linker joystick is voor de proef van stap 6. Zolang de besturing nog niet gebouwd is (stap 1–2), doen de joysticks niets; net als de pijltjestoetsen en de muis.
 
 **Schermindeling, zoals in Scratch:** blokken links, speelveld rechtsboven, en rechtsonder zie je wélke sprite je programmeert. Met de knopjes ▫ ◻ ⛶ boven het speelveld kies je klein / normaal / volledig scherm — op **klein** is er het meeste plaats om te bouwen. Uitleg over een blok verschijnt alleen als je erop klikt (en verdwijnt vanzelf), zodat er niet permanent extra tekst op het scherm staat.
 
