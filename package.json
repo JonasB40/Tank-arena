@@ -6,10 +6,11 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test"
   },
   "dependencies": {
-    "blockly": "^11.2.1",
+    "blockly": "11.2.2",
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
   }

@@ -4,9 +4,11 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
 
 ## Minstens enkele dagen vooraf
 
+- [ ] **Staat de map in OneDrive?** Klik met de rechtermuisknop op de map `tank-arena` → **Altijd op dit apparaat bewaren**. OneDrive laat anders bestanden die lang niet gebruikt zijn alleen in de cloud staan — en zonder internet in de klas start de server dan niet.
 - [ ] **Node.js op je laptop** — staat het er? Dubbelklik `start.bat`; zie je "STEMazing Tank Arena draait!" dan is alles goed. Foutmelding "poort al in gebruik"? Sluit het andere zwarte venster.
 - [ ] **Proefdraai op je eigen netwerk:** start de server, open op een tweede toestel (gsm werkt ook) het adres uit de console (bv. `http://192.168.x.x:3000`). Typ een naam, open **meer opties → 👩‍🏫 Voorbeeldoplossing**, klik ▶ Start de les en druk op 🚩. Rij rond met de pijltjes en schiet een vorm kapot. *(Het werkblad van een leerling begint leeg — zonder blokken doet de vlag niets, dat is de bedoeling van stap 1.)*
 - [ ] **Dashboard testen:** open `http://localhost:3000/lesgever` op je laptop. Zie je je testleerling? Klik bij hem op **blokken**, sleep er een blok bij en klik **📤 stuur terug** — verschijnt de melding op het testtoestel?
+- [ ] **Iets aangepast aan de code?** Typ `npm test` in een opdrachtvenster in de map. Na ±35 seconden moet er `fail 0` staan.
 - [ ] **Beamerpagina testen:** open `http://localhost:3000/beamer` — zie je de arena, het scorebord en de teamknoppen (uit/2/4)?
 - [ ] **Teams testen met 2 toestellen:** kies op beide **meer opties → 🏆 Les 2 — samen spelen**, en klik op de beamer "Teams: 2" → krijgen beide tanks een teamkleur en een zone?
 
@@ -28,6 +30,7 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
 - [ ] Zelf 1 minuut proefspelen vanaf een Chromebook van de klas.
 - [ ] Teams op **uit** laten staan voor les 1.
 - [ ] **Na de les:** sluit het zwarte venster pas als de leerlingen klaar zijn. De server schrijft de projecten nog weg bij het sluiten, maar wie nog aan het bouwen is, verliest de laatste seconden.
+- [ ] **Aan het eind van een lessenreeks:** dashboard → **📋 Rapport** → onderaan **🗑 Alle projecten nu wissen**. In de projecten staan de voornamen van de kinderen. Vergeet je het, dan wist de server een project vanzelf als het 90 dagen niet meer gebruikt is.
 
 ## Reserve-scenario's
 

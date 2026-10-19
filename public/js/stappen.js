@@ -720,7 +720,7 @@ const waarnemer = {
 
 window.STAPPEN = STAPPEN;
 window.LES2_STAPPEN = LES2_STAPPEN;
-// game.js gebruikt deze twee om te zien of de tank al kan rijden
+// spel-menu.js gebruikt deze twee om te zien of de tank al kan rijden
 window.alleCmdsVanProject = alleCmdsVanProject;
 window.isRijden = isRijden;
 window.stapWaarnemer = waarnemer;

@@ -766,7 +766,7 @@ body.podium-klein #podium { --js-maat: 104px; }
 }
 #spatie-knop.aan { background: #ffd54f; color: #5b4400; border-color: #ffd54f; }
 body.joystick-aan #stat-balken { top: 10px; bottom: auto; }
-/* zo hoog als er plaats is boven de spatieknop (zie maatAanpassen in game.js) */
+/* zo hoog als er plaats is boven de spatieknop (zie maatAanpassen in spel-tekenen.js) */
 body.joystick-aan .sb-balk { height: var(--sb-hoogte, 26px) !important; }
 /* zonder toetsenbord heb je niets aan "[1]".."[8]" naast de balkjes */
 body.joystick-aan .sb-toets { display: none; }
@@ -1159,7 +1159,7 @@ body.joystick-aan #toast {
 }
 /* Op een klein speelveld past ze daar niet: dan erboven, over de hele breedte,
    net boven de spatieknop. (De minikaart staat daar dan niet: zie
-   minikaartPlek in game.js.) */
+   minikaartPlek in spel-tekenen.js.) */
 body.joystick-aan.podium-klein #toast {
   left: 14px;
   right: 14px;
@@ -1334,3 +1334,17 @@ body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }
   font-weight: 700;
   border-radius: 5px;
 }
+
+/* ---------- zien wat je programma doet (editor.js) ---------- */
+/* Het blok dat nu uitgevoerd wordt, krijgt een gele rand — zoals in Scratch.
+   Geen gloed-filter: dat moet de browser bij elk beeldje opnieuw uitrekenen,
+   en een herhaal-lus laat twintig blokken tegelijk oplichten. */
+.blok-actief > .blocklyPath { stroke: #ffd500 !important; stroke-width: 4px !important; }
+/* een stapeltje zonder geel startblok doet niets: dat moet je ook zien */
+.blok-los { opacity: .45; }
+/* je blokken zijn veranderd terwijl het programma loopt: druk opnieuw op de vlag */
+#vlag.opnieuw { animation: vlag-opnieuw 1s ease-in-out infinite; }
+@keyframes vlag-opnieuw { 50% { box-shadow: 0 0 0 6px rgba(76, 191, 86, .55); transform: scale(1.08); } }
+/* Blockly geeft een geselecteerd blok een gele gloed. Geel betekent bij ons
+   "dit blok draait nu", dus de selectie wordt blauw. */
+[id^="blocklySelectedGlowFilter"] feFlood { flood-color: #4C97FF !important; }

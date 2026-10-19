@@ -20,7 +20,7 @@ De `.gitignore` houdt `node_modules` en `projecten.json` buiten de repository. D
 
 ## Stap 2 — Maak de Render-service
 
-In de map staat een **`render.yaml`**: daarin staan alle instellingen al (Node, gratis plan, regio Frankfurt, `npm install`, `node server.js`). Je hoeft in Render dus niets meer in te typen.
+In de map staat een **`render.yaml`**: daarin staan alle instellingen al (Node, gratis plan, regio Frankfurt, `npm ci`, `node server.js`). Je hoeft in Render dus niets meer in te typen.
 
 1. Account op [render.com](https://render.com) — inloggen met GitHub is het makkelijkst.
 2. **New → Blueprint** (niet "Web Service").
@@ -28,7 +28,7 @@ In de map staat een **`render.yaml`**: daarin staan alle instellingen al (Node, 
 4. Render toont wat hij gaat maken: één web service, `stemazing-tank-arena`, gratis plan. Klik **Apply**.
 5. Na een paar minuten staat je URL klaar, bijvoorbeeld `https://stemazing-tank-arena.onrender.com`.
 
-> Liever handmatig? Dan kies je **New → Web Service** en vul je zelf in: runtime **Node**, build command `npm install`, start command `node server.js`, instance type **Free**.
+> Liever handmatig? Dan kies je **New → Web Service** en vul je zelf in: runtime **Node**, build command `npm ci`, start command `node server.js`, instance type **Free**.
 
 ## Stap 3 — De lesgeverscode instellen
 
@@ -66,7 +66,7 @@ Het dashboard onthoudt de code per toestel, dus je typt hem maar één keer.
 
 Je kan de map dus niet zomaar met FTP naar one.com kopiëren: er is daar niets dat `node server.js` start.
 
-**Met een VPS van one.com: ja.** Een (unmanaged) Linux-VPS geeft je root-toegang en draait Node.js. Daar zet je het spel op zoals hierboven bij Render: repository klonen, `npm install`, `node server.js`, en een reverse proxy ervoor. Let op dat de *managed* VPS standaard met een PHP-stack komt — daar moet je Node zelf op zetten.
+**Met een VPS van one.com: ja.** Een (unmanaged) Linux-VPS geeft je root-toegang en draait Node.js. Daar zet je het spel op zoals hierboven bij Render: repository klonen, `npm ci`, `node server.js`, en een reverse proxy ervoor. Let op dat de *managed* VPS standaard met een PHP-stack komt — daar moet je Node zelf op zetten.
 
 ### Hoeveel leerlingen kan dat aan?
 
@@ -82,6 +82,6 @@ In een gewone les 1 (lagere levels, 1 tot 3 robots) ligt het een stuk lager. De 
 ### Twee dingen om te weten als je hem publiek zet
 
 - **Er is geen slot op de spelersdeur.** Iedereen die de URL heeft, kan meedoen en komt in dezelfde gedeelde arena. Prima voor een klas, minder prettig als het adres rondslingert. Het dashboard en de teamknoppen zijn wél op slot: die vragen de lesgeverscode (`LESGEVER_SLEUTEL`, zie stap 3 hierboven).
-- **Projectcodes staan in een bestand** (`projecten.json`) naast de server. Op een VPS blijft dat gewoon staan; op een gratis plan bij Render is het weg na elke herstart.
+- **Projectcodes staan in een bestand** (`projecten.json`) naast de server. Op een VPS blijft dat gewoon staan; op een gratis plan bij Render is het weg na elke herstart. Een project dat 90 dagen niet gebruikt is, wist de server vanzelf; wil je een andere termijn, zet dan de omgevingsvariabele `PROJECT_BEWAARDAGEN` (in dagen, `0` = nooit wissen).
 
 > **Voor de workshop zelf blijft lokaal de beste keuze:** `start.bat` op jouw laptop, leerlingen op het adres uit de console. Geen internet nodig, de snelste verbinding, en de projectcodes blijven tussen les 1 en les 2 bewaard.

@@ -46,9 +46,17 @@
     #spreiding .staaf span { position: absolute; top: -13px; left: 0; right: 0; text-align: center; font-size: .62rem; color: #9aa3bd; }
 
     /* ---------- hulpwachtrij ---------- */
-    #hulpbalk { display: none; gap: 10px; align-items: center; padding: 9px 16px; background: #4a2b18; border-bottom: 2px solid #a5642a; flex-wrap: wrap; }
-    #hulpbalk.aan { display: flex; }
-    .hulp-chip { background: #ffd54f; color: #4a3200; border-radius: 20px; padding: 5px 8px 5px 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    /* De hulpbalk staat er altijd en is altijd één regel hoog. Dook hij pas op
+       als iemand zijn hand opstak (en werd hij hoger bij meer handen), dan
+       schoof de hele klaslijst naar beneden — net op het moment dat je ergens
+       wilde klikken. Veel handen? Dan schuif je opzij. */
+    #hulpbalk { display: flex; gap: 10px; align-items: center; padding: 6px 16px; min-height: 46px; background: #232736; border-bottom: 2px solid #343a52; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: thin; }
+    #hulpbalk.aan { background: #4a2b18; border-bottom-color: #a5642a; }
+    #hulpbalk .geen-hulp { color: #6b7490; font-size: .85rem; }
+    #hulpbalk.aan .geen-hulp { display: none; }
+    #hulpbalk:not(.aan) .hulp-kop { display: none; }
+    #hulplijst { display: flex; gap: 8px; flex-wrap: nowrap; }
+    .hulp-chip { background: #ffd54f; color: #4a3200; border-radius: 20px; padding: 5px 8px 5px 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; flex: none; }
     .hulp-chip button { background: #4a3200; color: #ffd54f; font-size: .75rem; padding: 3px 9px; }
 
     /* ---------- hoofdvlak ---------- */
@@ -61,6 +69,8 @@
     .kaart.bezig { border-left-color: #ffd54f; }
     .kaart.vast { border-left-color: #e74c3c; background: #3a2430; }
     .kaart.hulp { border-left-color: #ffd54f; background: #4a3a18; box-shadow: 0 0 0 2px #ffd54f inset; }
+    /* het kind met wie je nu bezig bent: zo vind je zijn kaartje meteen terug */
+    .kaart.gekozen { outline: 3px solid #4fc3f7; outline-offset: 1px; }
     .kaart .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .kaart .naam { font-weight: 700; font-size: 1rem; }
     .kaart .stap { background: #343a52; border-radius: 6px; padding: 1px 8px; font-size: .78rem; margin-left: auto; }
@@ -87,11 +97,20 @@
       border-left: none; box-shadow: 0 0 0 100vmax rgba(10,12,18,.6);
     }
     body.blokken-groot #tipvak { display: none; }
+    /* Eén regel, wat er ook in de titel staat: liep hij over twee regels, dan
+       sprong het werkblad eronder omlaag zodra je iets aanpaste. */
     #code-kop { padding: 9px 13px; background: #232736; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    #code-titel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #code-kop button { flex: none; white-space: nowrap; }
+    /* nog niet verstuurd: de knop vraagt om aandacht */
+    #stuur-blokken.wacht { background: #ffd54f; color: #4a3200; animation: wacht-puls 1.4s ease-in-out infinite; }
+    @keyframes wacht-puls { 50% { box-shadow: 0 0 0 5px rgba(255,213,79,.35); } }
     #code-weergave { flex: 1; background: #f9f9f9; overflow: auto; }
     #blok-paneel { flex: 1; position: relative; background: #f9f9f9; min-height: 0; }
     #blocklyDiv { position: absolute; inset: 0; }
-    #blok-leeg { position: absolute; inset: 0; background: #f9f9f9; }
+    /* boven de blokkenlade van Blockly (die staat op z-index 70): zonder
+       leerling valt er nog niets te slepen */
+    #blok-leeg { position: absolute; inset: 0; background: #f9f9f9; z-index: 80; }
     #blok-paneel.bezig #blok-leeg { display: none; }
     /* de stukjes van de leerlingeditor die editor.js verwacht maar die wij
        hier niet tonen */
@@ -99,10 +118,10 @@
     #code-weergave pre { padding: 14px; font-size: 1rem; line-height: 1.5; color: #2d3436; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; }
 
     /* tipvak: hiermee help je vanachter je eigen scherm */
-    #tipvak { border-top: 2px solid #343a52; background: #232736; padding: 10px 13px; }
-    #tipvak .kop { margin-bottom: 6px; }
-    #tiptekst { width: 100%; height: 58px; resize: none; border-radius: 8px; border: 1px solid #3d4560; background: #1a1d27; color: #eef0f6; padding: 7px 9px; font-family: inherit; font-size: .9rem; }
-    #tipknoppen { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+    #tipvak { border-top: 2px solid #343a52; background: #232736; padding: 8px 13px; }
+    #tipvak .kop { margin-bottom: 5px; }
+    #tiptekst { width: 100%; height: 46px; resize: none; border-radius: 8px; border: 1px solid #3d4560; background: #1a1d27; color: #eef0f6; padding: 7px 9px; font-family: inherit; font-size: .9rem; }
+    #tipknoppen { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
     #tipknoppen button { font-size: .8rem; }
     .knop-primair { background: #4fc3f7; color: #06283d; }
     .knop-hint { background: #47506b; color: #eef0f6; }
@@ -111,7 +130,8 @@
     .leeg { color: #6b7490; padding: 18px; font-style: italic; }
 
     /* ---------- rapport ---------- */
-    #rapport { position: fixed; inset: 0; background: rgba(10,12,18,.88); display: none; align-items: center; justify-content: center; z-index: 50; }
+    /* boven de categorielijst van Blockly (z-index 70), die anders door het rapport heen stak */
+    #rapport { position: fixed; inset: 0; background: rgba(10,12,18,.88); display: none; align-items: center; justify-content: center; z-index: 150; }
     #rapport.aan { display: flex; }
     #rapport-vak { background: #232736; border-radius: 14px; padding: 18px 20px; width: min(760px, 92%); max-height: 86vh; overflow: auto; }
     #rapport h2 { font-size: 1.1rem; margin-bottom: 12px; }
@@ -119,8 +139,17 @@
     #rapport th, #rapport td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #343a52; }
     #rapport th { color: #9aa3bd; font-weight: 600; }
     #rapport .traag { color: #ffb74d; }
+    /* privacy: de bewaarde projecten (met voornamen) kunnen hier weg */
+    #privacy { margin-top: 18px; padding-top: 12px; border-top: 1px solid #343a52; }
+    #privacy p { font-size: .85rem; color: #9aa3bd; margin: 6px 0 10px; line-height: 1.45; }
+    .knop-gevaar { background: #5a2430; color: #ffc4c4; }
+    .knop-gevaar:disabled { opacity: .45; }
 
     .verborgen { display: none !important; }
+    /* zoals bij de leerling: een stapeltje zonder startblok verbleekt (editor.js) */
+    .blok-los { opacity: .45; }
+    .blok-actief > .blocklyPath { stroke: #ffd500 !important; stroke-width: 4px !important; }
+    [id^="blocklySelectedGlowFilter"] feFlood { flood-color: #4C97FF !important; }
     #mijn-code { background: rgba(0,0,0,.22); padding: 4px 10px; border-radius: 7px; font-size: .85rem; font-family: monospace; letter-spacing: .08em; }
     #mijn-code:empty { display: none; }
 
@@ -193,8 +222,9 @@
   </div>
 
   <div id="hulpbalk">
-    <span>✋ <b>Wie steekt zijn hand op:</b></span>
-    <div id="hulplijst" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    <span class="hulp-kop">✋ <b>Wie steekt zijn hand op:</b></span>
+    <span class="geen-hulp">✋ Niemand steekt zijn hand op</span>
+    <div id="hulplijst"></div>
   </div>
 
   <main>
@@ -214,7 +244,7 @@
            ziet. Je kan er zelf in slepen en het resultaat terugsturen. -->
       <div id="blok-paneel">
         <div id="blocklyDiv"></div>
-        <div id="blok-leeg" class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te openen.</div>
+        <div id="blok-leeg" class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te openen, of op "👁 volg" om live mee te kijken.</div>
       </div>
       <div id="code-weergave" style="display:none"><div class="leeg">—</div></div>
       <div id="tipvak">
@@ -238,6 +268,12 @@
       <div style="margin-top:14px;display:flex;gap:8px">
         <button id="rapport-kopieer" class="knop-primair">📄 Kopieer als tekst</button>
         <button id="rapport-sluit" class="knop-hint">Sluiten</button>
+      </div>
+      <!-- Privacy: in de projecten staan de voornamen van de leerlingen. -->
+      <div id="privacy">
+        <div class="kop">🔒 Bewaarde projecten</div>
+        <p id="privacy-tekst">—</p>
+        <button id="wis-projecten" class="knop-gevaar">🗑 Alle projecten nu wissen</button>
       </div>
     </div>
   </div>
@@ -286,6 +322,8 @@
     /* Op het dashboard toont de editor exact wat de leerling bouwde. Blokken
        die onder een herhaal-lus hangen, laten we dus staan waar ze staan. */
     window.geenAutoReparatie = true;
+    // de blokkenlade blijft dicht tot je een categorie aanklikt: meer plaats voor het programma
+    window.ladeDicht = true;
   </script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/stappen.js"></script>
@@ -293,6 +331,9 @@
   <script src="/blockly/blockly_compressed.js"></script>
   <script src="/blockly/blocks_compressed.js"></script>
   <script src="/blockly/msg/nl.js"></script>
+  <script src="js/blokken.js"></script>
+  <script src="js/compiler.js"></script>
+  <script src="js/voorbeeld.js"></script>
   <script src="js/editor.js"></script>
   <script>
     const socket = io();
@@ -452,6 +493,7 @@
     function zetTipDoel(id, naam, stap, les) {
       gekozen = id; gekozenStap = stap || 1; gekozenLes = les || 1;
       document.getElementById('tip-doel').textContent = id ? `— naar ${naam}` : '— naar de hele klas';
+      vernieuwKaartjes();
     }
     document.getElementById('tip-klas').addEventListener('click', () => zetTipDoel(null));
     document.getElementById('tip-hint').addEventListener('click', () => {
@@ -493,6 +535,34 @@
     for (const vlak of [rooster, hulplijst]) {
       vlak.addEventListener('pointerdown', () => { knopIngedrukt = true; });
     }
+
+    /*
+     * De volgorde van de kaartjes ligt vast zolang je met het dashboard bezig
+     * bent. De kaartjes worden gesorteerd op wie je nodig heeft — maar
+     * verandert de status van een leerling terwijl jij net op "blokken" bij
+     * Emma wil klikken, dan schoof een ander kaartje onder je muis en klikte je
+     * bij een ander kind. Ook als je bij Aaron op "tip" klikt, rechts je tip
+     * typt en terugkomt om hem een stap verder te zetten, staat hij nog op
+     * dezelfde plek. De inhoud blijft gewoon verversen; alleen de volgorde
+     * wacht tot je even niets doet (en je muis niet boven de lijst hangt).
+     * Wie intussen zijn hand opsteekt, staat meteen in de balk bovenaan.
+     */
+    const BEZIG_MS = 8000;
+    let laatsteBezigheid = 0;
+    let muisInLijst = false;
+    let getoondeVolgorde = [];
+    // muis bewegen, tikken, typen of scrollen, waar ook op het dashboard
+    for (const soort of ['pointermove', 'pointerdown', 'keydown', 'wheel']) {
+      window.addEventListener(soort, () => { laatsteBezigheid = performance.now(); }, { capture: true, passive: true });
+    }
+    // de muis stil boven de lijst = je leest: dan ook niet schuiven
+    rooster.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') muisInLijst = true; });
+    rooster.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') muisInLijst = false; });
+    const volgordeVast = () => muisInLijst || performance.now() - laatsteBezigheid < BEZIG_MS;
+    /* De handen staan in volgorde van binnenkomst: wie het eerst zijn hand
+       opstak, staat vooraan — zoals een wachtrij. Alfabetisch schoof een nieuwe
+       hand anders tussen de andere in, en verschoven de knoppen. */
+    let hulpVolgorde = [];
     window.addEventListener('pointerup', () => {
       if (!knopIngedrukt) return;
       // eerst de klik laten afhandelen, dan pas bijwerken
@@ -544,14 +614,18 @@
       if (!leerlingen.length) {
         zetHtml(rooster, '<div class="leeg">Nog geen leerlingen verbonden…</div>', 'rooster');
         document.getElementById('hulpbalk').classList.remove('aan');
+        zetHtml(hulplijst, '', 'hulp');
         document.getElementById('samenvatting').textContent = '—';
         tekenSpreiding([]);
         return;
       }
 
-      // ---- hulpwachtrij: wie steekt zijn hand op? ----
-      const hulp = leerlingen.filter(l => l.hulp);
-      const nuHulp = new Set(hulp.map(l => l.id));
+      // ---- hulpwachtrij: wie steekt zijn hand op? (wie eerst kwam, staat vooraan) ----
+      const perId = new Map(leerlingen.map(l => [l.id, l]));
+      hulpVolgorde = hulpVolgorde.filter(id => perId.has(id) && perId.get(id).hulp);
+      for (const l of leerlingen) if (l.hulp && !hulpVolgorde.includes(l.id)) hulpVolgorde.push(l.id);
+      const hulp = hulpVolgorde.map(id => perId.get(id));
+      const nuHulp = new Set(hulpVolgorde);
       for (const id of nuHulp) if (!vorigeHulp.has(id)) piep(true);   // nieuwe hand omhoog
       vorigeHulp = nuHulp;
       document.getElementById('hulpbalk').classList.toggle('aan', hulp.length > 0);
@@ -564,6 +638,12 @@
          stilstaat. Zo staat bovenaan altijd degene die jou nodig heeft. */
       const gewicht = (l) => (l.hulp ? 0 : l.status === 'vast' ? 1 : l.stilMs > 60000 ? 2 : l.status === 'klaar' ? 4 : 3);
       const gesorteerd = [...leerlingen].sort((a, b) => gewicht(a) - gewicht(b) || a.naam.localeCompare(b.naam));
+      if (volgordeVast() && getoondeVolgorde.length) {
+        // je bent bezig: dezelfde volgorde houden, nieuwkomers achteraan
+        const plek = new Map(getoondeVolgorde.map((id, i) => [id, i]));
+        gesorteerd.sort((a, b) => (plek.has(a.id) ? plek.get(a.id) : 1e6) - (plek.has(b.id) ? plek.get(b.id) : 1e6));
+      }
+      getoondeVolgorde = gesorteerd.map(l => l.id);
 
       zetHtml(rooster, gesorteerd.map(l => {
         const stil = Math.round((l.stilMs || 0) / 1000);
@@ -572,8 +652,10 @@
         const spel = l.speelt ? `lvl ${l.lvl} · ${l.punten} ptn · ❤️ ${l.hp}%` : 'nog niet in het spel';
         const les = l.les === 2 ? 2 : 1;
         const volgt = gevolgdId === l.id;
+        // met wie ben je bezig? (blokken rechts open, of je tip gaat naar hem)
+        const bezigMet = l.id === gekozen || (getoondeLeerling && getoondeLeerling.id === l.id);
         const naam = esc(l.naam);
-        return `<div class="kaart ${l.hulp ? 'hulp' : l.status}">
+        return `<div class="kaart ${l.hulp ? 'hulp' : l.status}${bezigMet ? ' gekozen' : ''}">
           <div class="top">
             <span class="naam">${l.hulp ? '✋ ' : ''}${naam}</span>
             <span class="code">${esc(l.code || '')}</span>
@@ -695,10 +777,14 @@
 
     function zetTitel(extra) {
       const live = getoondeLeerling && gevolgdId === getoondeLeerling.id && !zelfAangepast ? ' · live' : '';
-      const bewerkt = zelfAangepast ? ' · jouw aanpassing (nog niet verstuurd)' : '';
-      document.getElementById('code-titel').textContent = getoondeLeerling
+      const bewerkt = zelfAangepast ? ' · ✏️ aangepast, nog niet verstuurd' : '';
+      const titel = getoondeLeerling
         ? `🔍 ${getoondeLeerling.naam}${live}${bewerkt}${extra ? ' · ' + extra : ''}` : '🔍 Blokken van een leerling';
+      const vak = document.getElementById('code-titel');
+      vak.textContent = titel;
+      vak.title = titel;   // valt hij af door plaatsgebrek, dan zie je hem bij de muis
       stuurKnop.disabled = !getoondeLeerling || werkbladVan !== getoondeLeerling.id;
+      stuurKnop.classList.toggle('wacht', zelfAangepast && !stuurKnop.disabled);
     }
 
     /* Vraag de blokken van een leerling op. Geeft false als je liever bleef. */
@@ -829,7 +915,40 @@
         .catch(() => { document.getElementById('rapport-kopieer').textContent = 'kopiëren lukte niet'; });
     });
 
+    /*
+     * Privacy. In elk bewaard project staat de voornaam van een leerling. De
+     * server wist een project vanzelf als het lang niet meer gebruikt is; aan
+     * het eind van een lessenreeks kan je hier alles in één keer wissen.
+     */
+    function toonPrivacy() {
+      const p = laatsteOverzicht && laatsteOverzicht.projecten;
+      const tekst = document.getElementById('privacy-tekst');
+      const knop = document.getElementById('wis-projecten');
+      if (!p) { tekst.textContent = '—'; knop.disabled = true; return; }
+      tekst.textContent = `Er ${p.aantal === 1 ? 'staat 1 project' : `staan ${p.aantal} projecten`} bewaard, elk met de voornaam van de leerling. `
+        + (p.bewaarDagen
+          ? `Een project dat ${p.bewaarDagen} dagen niet meer gebruikt is, wordt vanzelf gewist. `
+          : 'Ze worden niet vanzelf gewist (PROJECT_BEWAARDAGEN staat op 0). ')
+        + 'Klaar met deze lessenreeks? Wis ze dan hier — daarna kan niemand nog verder met zijn projectcode.';
+      knop.disabled = !p.aantal;
+    }
+    document.getElementById('wis-projecten').addEventListener('click', () => {
+      const p = laatsteOverzicht && laatsteOverzicht.projecten;
+      const antwoord = prompt(`Alle ${p ? p.aantal : ''} projecten definitief wissen?
+De leerlingen kunnen daarna niet meer verder met hun projectcode.
+
+Typ WIS om te bevestigen.`);
+      if (!antwoord || antwoord.trim().toUpperCase() !== 'WIS') return;
+      socket.emit('lesCommando', { type: 'wisProjecten', bevestig: 'WIS' });
+    });
+    socket.on('projectenGewist', (d) => {
+      if (laatsteOverzicht && laatsteOverzicht.projecten) laatsteOverzicht.projecten.aantal = 0;
+      toonPrivacy();
+      document.getElementById('privacy-tekst').textContent = `✓ ${d.aantal === 1 ? '1 project' : `${d.aantal} projecten`} gewist.`;
+    });
+
     socket.on('klasrapport', (r) => {
+      toonPrivacy();
       laatsteRapport = r;
       const vak = document.getElementById('rapport-inhoud');
       if (!r.leerlingen.length) { vak.innerHTML = '<div class="leeg">Nog geen gegevens — er heeft nog niemand meegedaan.</div>'; }

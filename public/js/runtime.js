@@ -41,7 +41,20 @@ const runtime = {
    */
   basisBesturing: false,
   angleGezet: false,        // heeft het programma zelf gericht deze tik?
+  /*
+   * Welke blokken zijn net uitgevoerd? (blok-id → tijdstip) De editor laat
+   * die oplichten, zoals Scratch een lopend stapeltje laat gloeien. In een
+   * als-blok licht alleen de tak op die écht gekozen wordt.
+   */
+  actief: new Map(),
+  /* Het programma zoals het gestart is. Verandert een kind zijn blokken terwijl
+     het loopt, dan rijdt de tank nog met dít programma tot hij opnieuw op de
+     groene vlag drukt (editor.js vergelijkt en zet dan "verouderd"). */
+  programmaTekst: '',
+  verouderd: false,
 };
+
+function markeer(id, nu) { if (id) runtime.actief.set(id, nu); }
 
 /* ---------------- toetsen bijhouden (invoer!) ---------------- */
 window.addEventListener('keydown', (e) => {
@@ -62,10 +75,13 @@ function normToets(k) { return k.length === 1 ? k.toLowerCase() : k; }
 /* ---------------- starten / stoppen ---------------- */
 function runtimeStart() {
   runtime.scripts = window.compileerProject();
+  runtime.programmaTekst = JSON.stringify(runtime.scripts);
+  runtime.verouderd = false;
   runtime.threads = [];
   runtime.vars = {};
   runtime.verborgenVars.clear();
   runtime.signaalWachtrij = [];
+  runtime.actief.clear();
   runtime.startTijd = Date.now(); // voor de stopwatch ⏱
   runtime.draait = true;
   for (const s of runtime.scripts) {
@@ -76,6 +92,7 @@ function runtimeStart() {
 function runtimeStop() {
   runtime.draait = false;
   runtime.threads = [];
+  runtime.actief.clear();
   runtime.intent = { mx: 0, my: 0, angle: runtime.intent.angle, shoot: false };
   spel.stuurIntent(runtime.intent);
 }
@@ -188,6 +205,13 @@ setInterval(() => {
     stapThread(th, nu);
   }
   runtime.threads = runtime.threads.filter((th) => th.stack.length > 0);
+  /* Een stapeltje dat nog loopt, gloeit helemaal: zijn startblok, de lussen
+     en als-blokken waar het nu in zit, en een wacht-blok waar het op wacht. */
+  for (const th of runtime.threads) {
+    markeer(th.script.id, nu);
+    for (const frame of th.stack) markeer(frame.id, nu);
+    if (nu < th.wachtTot) markeer(th.wachtBlok, nu);
+  }
 
   if (runtime.basisBesturing) pasBasisBesturingToe(runtime.intent);
   spel.stuurIntent(runtime.intent);
@@ -195,6 +219,7 @@ setInterval(() => {
 
 /* Eén thread laten lopen tot hij klaar is, moet wachten, of "yieldt". */
 function stapThread(th, nu) {
+  markeer(th.script.id, nu);
   let ops = 0;
   while (th.stack.length > 0) {
     if (++ops > 500) return; // stok erachter
@@ -211,6 +236,7 @@ function stapThread(th, nu) {
     }
 
     const c = frame.cmds[frame.i++];
+    markeer(c.id, nu);
     switch (c.t) {
       case 'beweeg':
         if (c.r === 'omhoog') runtime.intent.my -= 1;
@@ -277,6 +303,7 @@ function stapThread(th, nu) {
       case 'veranderVar': runtime.vars[c.naam] = (runtime.vars[c.naam] || 0) + evalueer(c.v); break;
       case 'wacht':
         th.wachtTot = nu + Math.max(0, evalueer(c.v)) * 1000;
+        th.wachtBlok = c.id;
         return;
       case 'wachtTot':
         if (!evalueer(c.c)) { frame.i--; return; } // volgende tik opnieuw checken
@@ -284,15 +311,15 @@ function stapThread(th, nu) {
       case 'geefStat': stuurStatMet(c.stat); runtime.telStat++; break;
       case 'zendSignaal': runtimeSignaal(c.naam); runtime.telSignaal++; break;
       case 'als':
-        th.stack.push({ cmds: evalueer(c.c) ? c.dan : c.anders, i: 0, soort: 'seq' });
+        th.stack.push({ cmds: evalueer(c.c) ? c.dan : c.anders, i: 0, soort: 'seq', id: c.id });
         break;
       case 'herhaal': {
         const n = Math.min(1000, Math.max(0, Math.round(evalueer(c.n))));
-        if (n > 0) th.stack.push({ cmds: c.body, i: 0, soort: 'repeat', rest: n });
+        if (n > 0) th.stack.push({ cmds: c.body, i: 0, soort: 'repeat', rest: n, id: c.id });
         break;
       }
       case 'forever':
-        th.stack.push({ cmds: c.body, i: 0, soort: 'forever' });
+        th.stack.push({ cmds: c.body, i: 0, soort: 'forever', id: c.id });
         break;
     }
   }

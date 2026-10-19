@@ -10,7 +10,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt          # dichtst bij België: minste vertraging in de klas
-    buildCommand: npm install
+    buildCommand: npm ci       # precies de versies uit package-lock.json, nooit stilletjes nieuwere
     startCommand: node server.js
     healthCheckPath: /
     autoDeployTrigger: commit  # nieuwe versie online zodra je pusht

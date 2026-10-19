@@ -64,6 +64,9 @@ De blokken zijn dus exact dezelfde als op een chromebook — een kind op een iPa
 | **blokken** | Opent de blokken van die leerling rechts in een echte editor. Je kan ze aanpassen (blok bijslepen, variabele maken, …) en met **📤 stuur terug** naar de leerling sturen. Zijn programma start meteen opnieuw met jouw versie, en hij kan met **↩** zijn eigen versie terugzetten. Met 📄 zie je hetzelfde als grote leesbare tekst — ideaal om te projecteren. |
 | **👁 volg** | Hetzelfde, maar de blokken worden elke twee seconden live bijgewerkt. Eén leerling tegelijk. Begin je zelf te slepen, dan stopt het bijwerken tot je terugstuurt. |
 | **💬 tip** | Een bericht dat op het scherm van die leerling blijft staan tot hij het wegklikt. 💡 vult meteen de hint van zijn stap in. |
+| **📋 Rapport** | Hoe ver kwam elke leerling, en waar bleef de klas het langst hangen. Onderaan staat hoeveel projecten er bewaard zijn (met de voornamen van de kinderen): aan het eind van een lessenreeks wis je ze daar in één keer. Anders wist de server ze vanzelf na 90 dagen zonder gebruik. |
+
+> 🔦 **Kijken wat de computer doet.** Na een klik op 🚩 licht elk blok dat uitgevoerd wordt geel op, zoals in Scratch. In een als-blok licht alleen de tak op die echt gekozen wordt. Een stapeltje zonder geel startblok erboven wordt bleek. En verandert een kind zijn blokken terwijl het programma loopt, dan knippert de groene vlag: de tank rijdt nog met het oude programma. Gebruik dat bij elke 🔬 Stukmaken: *"Kijk naar je blokken terwijl je tank rijdt. Welke lichten op?"*
 
 > ⚠ Vraag altijd toestemming aan het kind voor je zijn code projecteert. Bespreek fouten als *"kijk wat een interessant probleem"*, nooit als *"kijk wat er fout is"*.
 
@@ -83,14 +86,14 @@ Laat ze eerst op 🚩 drukken. Er gebeurt niets. **Vraag de klas: waarom niet?**
 
 Samen: 🚩-blok + `neem 10 stappen`. ✓ Check springt op groen.
 
-**🔬 Stukmaken:** haal het 🚩-blok weg. Werkt het nog? *Waarom niet?*
+**🔬 Stukmaken:** haal het 🚩-blok weg. Werkt het nog? *Waarom niet?* (Het stappen-blok wordt meteen bleek. Vraag: *waarom zou het spel het bleek maken?*)
 
 ### 0:18–0:28 · Stap 2: herhaling
 De tank zet één stapje en stopt. **Dit is hét moment voor de herhalingslus.**
 
 Bouw samen: `herhaal` eromheen. Nu blijft hij rijden.
 
-**🔬 Stukmaken:** sleep het stappen-blok *onder* het herhaal-blok in plaats van erin. Wat gebeurt er? Laat twee leerlingen uitleggen aan elkaar wat het verschil is tussen *in* de lus en *onder* de lus.
+**🔬 Stukmaken:** sleep het stappen-blok *onder* het herhaal-blok in plaats van erin. Wat gebeurt er? Laat twee leerlingen uitleggen aan elkaar wat het verschil is tussen *in* de lus en *onder* de lus. Na een nieuwe klik op 🚩 zie je het bewijs: het herhaal-blok blijft geel oplichten, het stappen-blok eronder nooit. De lus is nooit klaar.
 
 ### 0:28–0:40 · Stap 3: als-dan
 De tank rijdt eindeloos de muur in. Je kan niet sturen. → `als <toets ↑ ingedrukt?> dan richt naar 0 graden + neem 10 stappen`.
@@ -98,6 +101,8 @@ De tank rijdt eindeloos de muur in. Je kan niet sturen. → `als <toets ↑ inge
 **Bouw alleen ↑ samen voor.** Eén werkende als-dan is het hele doel van deze stap.
 
 > 💡 De graden zijn dezelfde als in Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.
+
+Laat ze het pijltje ingedrukt houden en naar hun blokken kijken: de blokken ín het als-blok lichten alleen op zolang de toets ingedrukt is. Zo zie je de computer kiezen.
 
 **🔬 Stukmaken:** zet het als-blok buiten de lus. Werkt die toets nog?
 
