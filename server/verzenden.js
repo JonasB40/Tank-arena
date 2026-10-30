@@ -4,7 +4,7 @@
 const { staat, rooms, beamers } = require('./staat');
 const { straalVan, MAX_STAT, STAT_LIJST, xpVoorLevel, statMaxVan, klasseAanbod } = require('./regels');
 const { meldFout, elke } = require('./klok');
-const { basisVan, teamZones, nestVan, isVeilig } = require('./wereld');
+const { basisVan, teamZones, nestVan, isVeilig, heuvelVan, inhaalFactor, gemiddeldSpelerLevel } = require('./wereld');
 
 /*
  * De wereld naar de spelers sturen — maar alleen het stuk dat ze kunnen zien.
@@ -62,8 +62,10 @@ function stuurWereld(room, nu) {
     statMax: MAX_STAT,
     // loopt er een ronde? dan de klok en het doel mee (voor het scorebord)
     ronde: room.ronde
-      ? { over: Math.max(0, Math.round((room.ronde.eind - nu) / 1000)), doel: room.ronde.doel }
+      ? { over: Math.max(0, Math.round((room.ronde.eind - nu) / 1000)), doel: room.ronde.doel, soort: room.ronde.soort }
       : null,
+    // heuvelronde: waar ligt de heuvel, en wie houdt hem? (null = geen heuvelronde)
+    heuvel: heuvelVan(room) ? Object.assign(heuvelVan(room), room.heuvelStand || { betwist: false, houder: null, aantal: 0 }) : null,
   };
 
   // wat iedereen van een tank in beeld ziet, en wat er van een verre tank overblijft
@@ -86,13 +88,20 @@ function stuurWereld(room, nu) {
     if (nu < t.flashUntil) o.flits = t.flashKleur;
     if (isVeilig(room, t, nu)) o.schild = true;
     if (nu < t.sayUntil) o.zeg = t.sayText;
+    // de kroon: de leerling met de meeste punten (wie hem verslaat, krijgt dubbel)
+    if (room.koning === t.id) o.kroon = true;
+    // net een level omhoog? dan tekent elke browser een ring rond de tank
+    if (nu < (t.levelUpTot || 0)) o.lu = t.level;
     publiek.set(t, o);
     const v = { id: o.id, naam: o.naam, kleur: o.kleur, x: o.x, y: o.y, score: o.score };
-    for (const k of ['rondePunten', 'ai', 'team', 'dood', 'onzichtbaar']) if (o[k] !== undefined) v[k] = o[k];
+    for (const k of ['rondePunten', 'ai', 'team', 'dood', 'onzichtbaar', 'kroon']) if (o[k] !== undefined) v[k] = o[k];
     ver.set(t, v);
   }
   // van jezelf: ook je statpunten, je klassekeuze en je XP
+  const gemLevel = gemiddeldSpelerLevel(room);
   const eigen = (t) => Object.assign({}, publiek.get(t), {
+    // levert een vorm nu anderhalve keer zoveel op? (inhaalbonus, zie regels.js)
+    inhaal: inhaalFactor(room, t, gemLevel) > 1,
     statMax: statMaxVan(t),   // Smashers mogen 10 i.p.v. 7 per stat
     stats: t.stats,
     statPunten: t.statPunten,

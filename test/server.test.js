@@ -331,6 +331,90 @@ describe('het lesgeversdashboard', () => {
     await overzichtMet((x) => x.teamModus === 0);
   });
 
+  it('een heuvelronde: de heuvel zit in het pakketje en staat op het dashboard', async () => {
+    const speler = await leerlingIn(server, 'Heuvel', 'samen');
+    open.push(speler.s);
+    const start = wachtOp(speler.s, 'rondeStart');
+    commando({ type: 'ronde', minuten: 5, doel: 0, soort: 'heuvel' });
+    assert.equal((await start).soort, 'heuvel');
+    const st = await wachtOp(speler.s, 'state', (x) => !!x.heuvel);
+    assert.equal(st.heuvel.x, Math.round(st.arena.w / 2));
+    assert.ok(st.heuvel.r > 300);
+    assert.equal(st.ronde.soort, 'heuvel');
+    const d = await overzichtMet((x) => x.ronde && x.ronde.soort === 'heuvel');
+    assert.ok('heuvel' in d.ronde);
+    const klaar = wachtOp(speler.s, 'rondeKlaar');
+    commando({ type: 'rondeStop' });
+    await klaar;
+  });
+
+  it('het geluid van de hele klas uit — ook voor wie later binnenkomt — en weer aan', async () => {
+    const beide = Promise.all([aaron.s, bram.s].map((s) => wachtOp(s, 'lesStuur', (x) => x.type === 'geluid' && x.aan === false)));
+    commando({ type: 'geluid', aan: false });
+    await beide;
+    await overzichtMet((x) => x.klasStil === true);
+    let gehoord = null;
+    const laat = await verbind(server.poort, (s) => s.on('lesStuur', (x) => { if (x.type === 'geluid') gehoord = x; }));
+    open.push(laat);
+    await wacht(300);
+    assert.deepEqual(gehoord, { type: 'geluid', aan: false });
+    const weer = wachtOp(aaron.s, 'lesStuur', (x) => x.type === 'geluid' && x.aan === true);
+    commando({ type: 'geluid', aan: true });
+    await weer;
+    await overzichtMet((x) => x.klasStil === false);
+  });
+
+  it('ziet welke stappen een leerling al haalde, en of zijn hint openstaat', async () => {
+    aaron.s.emit('lesStatus', {
+      naam: 'Aaron', les: 1, stap: 4, status: 'bezig', blokken: 12, stilMs: 0, checkS: true, checkG: false,
+      code: 'TANK-AB12', gehaald: [3, 1, 2, 2, 99, 'x', -1], hint: true,
+    });
+    const d = await overzichtMet((x) => kaartVan(x, 'Aaron') && kaartVan(x, 'Aaron').stap === 4);
+    assert.deepEqual(kaartVan(d, 'Aaron').gehaald, [1, 2, 3], 'dubbel, onzin en buiten bereik vallen weg');
+    assert.equal(kaartVan(d, 'Aaron').hint, true);
+  });
+
+  it('ziet wat er opvalt aan zijn programma (los, geen startblok, staat uit, niet herstart)', async () => {
+    bram.s.emit('lesStatus', {
+      naam: 'Bram', les: 1, stap: 5, status: 'vast', blokken: 9, stilMs: 0, checkS: false, checkG: false,
+      los: 3, geenStart: true, draait: true, verouderd: true,
+    });
+    let d = await overzichtMet((x) => kaartVan(x, 'Bram') && kaartVan(x, 'Bram').los === 3);
+    const b = kaartVan(d, 'Bram');
+    assert.equal(b.status, 'vast');
+    assert.equal(b.geenStart, true);
+    assert.equal(b.draait, true);
+    assert.equal(b.verouderd, true);
+    // onzin wordt netjes een getal binnen de grenzen
+    bram.s.emit('lesStatus', { naam: 'Bram', les: 1, stap: 5, status: 'bezig', los: 'veel', draait: 0 });
+    d = await overzichtMet((x) => kaartVan(x, 'Bram') && kaartVan(x, 'Bram').status === 'bezig');
+    assert.equal(kaartVan(d, 'Bram').los, 0);
+    assert.equal(kaartVan(d, 'Bram').draait, false);
+    bram.s.emit('lesStatus', { naam: 'Bram', les: 1, stap: 5, status: 'bezig', los: 5000 });
+    d = await overzichtMet((x) => kaartVan(x, 'Bram') && kaartVan(x, 'Bram').los > 0);
+    assert.equal(kaartVan(d, 'Bram').los, 99);
+  });
+
+  it('telt hoe vaak een leerling zijn hand opsteekt (ook in het rapport)', async () => {
+    const kaart = kaartVan(await overzichtMet((x) => !!kaartVan(x, 'Bram')), 'Bram');
+    const voor = kaart.hulpKeer;
+    bram.s.emit('hulpVraag', true);
+    bram.s.emit('hulpVraag', true);   // nog eens drukken terwijl hij al omhoog is: telt niet dubbel
+    await overzichtMet((x) => kaartVan(x, 'Bram') && kaartVan(x, 'Bram').hulpKeer === voor + 1);
+    await wacht(1700);                // een volledig overzicht later: nog altijd maar één keer
+    assert.equal(kaartVan(await overzichtMet((x) => !!kaartVan(x, 'Bram')), 'Bram').hulpKeer, voor + 1);
+    commando({ type: 'hulpKlaar', id: kaart.id });
+    await overzichtMet((x) => kaartVan(x, 'Bram') && !kaartVan(x, 'Bram').hulp);
+    bram.s.emit('hulpVraag', true);
+    const d = await overzichtMet((x) => kaartVan(x, 'Bram') && kaartVan(x, 'Bram').hulpKeer === voor + 2);
+    assert.equal(kaartVan(d, 'Bram').hulp, true);
+    bram.s.emit('hulpVraag', false);
+    const rapport = wachtOp(lesgever, 'klasrapport');
+    commando({ type: 'rapport' });
+    const r = await rapport;
+    assert.equal(r.leerlingen.find((l) => l.naam === 'Bram').hulp, voor + 2);
+  });
+
   it('het klasrapport kent elke leerling en zijn hoogste stap', async () => {
     const rapport = wachtOp(lesgever, 'klasrapport');
     commando({ type: 'rapport' });

@@ -164,6 +164,16 @@ body.speelmodus .sb-plus { width: 24px; font-size: 1rem; }
 .logo { font-size: 1.1rem; }
 .logo strong { color: #ffd54f; }
 
+/* Wordt het krap (iPad rechtop, een lange naam), dan krimpen de naam en de
+   meldingen — nooit de knoppen: die moeten heel en aantikbaar blijven. */
+#topbar > * { flex-shrink: 0; }
+#topbar > .logo, #naam-weergave, #modus-badge, #serverversie, #project-code {
+  flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* eerst de melding en het logo, pas als laatste je naam */
+#topbar > #serverversie { flex-shrink: 12; }
+#topbar > .logo { flex-shrink: 6; }
+#topbar > #modus-badge { flex-shrink: 3; }
 #naam-weergave { font-weight: 700; font-size: 1rem; }
 
 #modus-badge { font-size: .95rem; opacity: .95; }
@@ -250,7 +260,10 @@ body.speelmodus .sb-plus { width: 24px; font-size: 1rem; }
   position: absolute;
   top: 8px; right: 10px;
   display: flex; gap: 6px;
-  z-index: 12;
+  /* boven de blokkenlade (z-index 20): die zoomt mee met het werkblad en lag
+     bij een ver ingezoomd werkblad over deze knoppen — net over de Zoom-knop
+     die je er weer uit moest halen */
+  z-index: 22;
 }
 /* Volledig ondoorzichtig: deze knopjes zweven boven de blokken, en met een
    doorschijnende achtergrond las je de knop én het blok eronder half. */
@@ -556,11 +569,13 @@ body.les-nog-niet-gestart #stap-nr { background: #3d2d63; color: #fff; }
 
 /* Uitleg bij een blok: zweeft alleen als je erop klikt, en verdwijnt vanzelf.
    Zo staat er niet permanent extra tekst op het scherm. */
+/* Links van de zoomknoppen en de prullenbak van Blockly (rechtsonder): die
+   moeten altijd bereikbaar blijven, ook als de uitleg in beeld staat. */
 #blok-uitleg {
   position: absolute;
-  right: 14px;
+  right: 80px;
   bottom: 14px;
-  max-width: 420px;
+  max-width: min(420px, 60%);
   padding: 12px 16px;
   background: #fffbea;
   border: 3px solid #ffc400;
@@ -1166,19 +1181,39 @@ body.joystick-aan.podium-klein #toast {
   bottom: calc(14px + var(--js-maat) + 60px);
 }
 
-/* Smalle schermen: onder elkaar, maar dan moet de pagina wél kunnen scrollen
-   (anders "zit het scherm vast" en kan je niet bij de onderste blokken). */
+/*
+ * iPad rechtop: blokken boven, speelveld onder — en alles past in het scherm.
+ * Vroeger werd de pagina hier langer dan het scherm en moest je scrollen.
+ * Maar scrollen kan alleen als je náást het werkblad en het speelveld tikt
+ * (daar gebruikt een vinger zelf de aanraking), en die plek was er bijna
+ * niet: het scherm leek vast te zitten. Met ▫ ◻ ⛶ kies je zelf hoeveel plaats
+ * het speelveld krijgt — die knopjes moeten hier dus ook zichtbaar blijven,
+ * anders zat je in volledig scherm vast zonder weg terug.
+ */
 @media (max-width: 900px) {
+  #hoofd { flex-direction: column; }
+  /* Het werkblad zit in een houder die zelf een flex-rij is. Zonder
+     "flex: 1 1 auto" kreeg het daarin de breedte van zijn inhoud — en dat is
+     0, want Blockly tekent alles absoluut. Op een iPad rechtop (768-834 px
+     breed) was het werkblad daardoor onzichtbaar: geen lade, geen blokken. */
+  #werkveld-houder { flex: 1 1 auto; min-height: 160px; }
+  #blocklyDiv { height: 100%; flex: 1 1 auto; min-width: 0; }
+  /* de opdracht scrollt zelf; zo blijft er een werkblad over waarop je kan bouwen */
+  #stap-paneel, body.heeft-filmpje #stap-paneel { max-height: 27vh; }
+  #podium { flex: 0 0 34%; min-width: 0; min-height: 0; border-left: none; border-top: 3px solid #d9c7f5; }
+  body.podium-klein #podium { flex-basis: 24%; }
+  body.speelmodus #podium { flex: 1 1 auto; border-top: none; }
+  /* "Je programmeert: jouw tank" kost hier een strook speelveld */
+  #sprite-paneel { display: none; }
+}
+/* Een telefoon is te klein om alles tegelijk te tonen: daar mag de pagina
+   wél scrollen (dan "zit het scherm niet vast" en kan je overal bij). */
+@media (max-width: 600px) {
   body { height: auto; min-height: 100vh; overflow-y: auto; }
-  #hoofd { flex-direction: column; overflow: visible; }
+  #hoofd { overflow: visible; }
   #editor-kolom { overflow: visible; }
   #werkveld-houder { height: 60vh; flex: none; }
-  /* Het werkblad zit in een houder die zelf een flex-rij is. Met "flex: none"
-     kreeg het daarin de breedte van zijn inhoud — en dat is 0, want Blockly
-     tekent alles absoluut. Op een iPad rechtop (768-834 px breed) was het
-     werkblad daardoor onzichtbaar: geen lade, geen blokken. */
-  #blocklyDiv { height: 100%; flex: 1 1 auto; min-width: 0; }
-  #podium { flex: none; height: 70vh; min-width: 0; border-left: none; border-top: 3px solid #d9c7f5; }
+  #podium { flex: none; height: 70vh; }
   #grootte-knoppen { display: none; }
 }
 
@@ -1215,6 +1250,16 @@ body.joystick-aan.podium-klein #toast {
 
   /* Op een touchscreen bestaat "hoveren" niet, dus die kleurwissels ook niet. */
   #werk-knoppen button:hover { background: #fff; }
+
+  /* Lang op een knop drukken selecteerde op de iPad de tekst erop (met een
+     vergrootglas en een menuutje erbij) in plaats van de knop in te drukken. */
+  button, #topbar, #podium-balk, #stap-kop, #stap-knoppen, #werk-knoppen, #grootte-knoppen {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  /* De uitleg bij een aangetikt blok mag nooit in de weg zitten: je vinger
+     gaat er dwars doorheen naar het blok eronder (hij verdwijnt bij de
+     volgende tik vanzelf). */
+  #blok-uitleg { pointer-events: none; }
 }
 
 /*
@@ -1348,3 +1393,21 @@ body.les-nog-niet-gestart .blocklyTreeIcon { visibility: hidden !important; }
 /* Blockly geeft een geselecteerd blok een gele gloed. Geel betekent bij ons
    "dit blok draait nu", dus de selectie wordt blauw. */
 [id^="blocklySelectedGlowFilter"] feFlood { flood-color: #4C97FF !important; }
+
+/* ---------- zoom (zoom.js) ---------- */
+/* De pagina zelf kan je niet meer inzoomen met twee vingers (iPad): de knoppen
+   schoven dan buiten beeld. Het werkblad, het speelveld en de joysticks
+   regelen hun eigen aanraking; daar verandert niets. */
+html, body { touch-action: pan-x pan-y; }
+/* Ingezoomd toch? Deze knop blijft altijd in beeld (zoom.js zet de plaats). */
+#zoom-zweef {
+  position: fixed; left: 0; top: 0; z-index: 9999; transform-origin: 0 0;
+  background: #ffd54f; color: #3d2d00; font-weight: 700; font-size: 1rem;
+  padding: 10px 16px; border-radius: 12px; border: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+}
+/* de inhaalbonus in de HUD */
+#hud-inhaal { color: #ffd54f; font-weight: 700; }
+/* het werkblad staat ver in- of uitgezoomd: de Zoom-knop vraagt om aandacht */
+#knop-zoom.opvallend { background: #ffd54f; color: #3d2d00; animation: zoom-puls 1.2s ease-in-out infinite; }
+@keyframes zoom-puls { 50% { box-shadow: 0 0 0 5px rgba(255, 213, 79, .45); } }

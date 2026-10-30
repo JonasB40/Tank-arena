@@ -5,6 +5,10 @@
  */
 let audioCtx = null;
 let gedempt = localStorage.getItem('tankGeluidUit') === '1';
+/* De lesgever kan het geluid van de hele klas uitzetten (dashboard). Dat wint
+   van de eigen 🔊-knop, maar verandert die keuze niet: zet de lesgever het
+   weer aan, dan krijgt elk kind zijn eigen instelling terug. */
+let klasStil = false;
 let laatsteGeluid = 0;
 
 function haalAudioCtx() {
@@ -24,7 +28,7 @@ window.addEventListener('pointerdown', function ontgrendel() {
 }, true);
 
 function toon(freq, duur, golf, volume, glijNaar) {
-  if (gedempt) return;
+  if (gedempt || klasStil) return;
   try {
     const c = haalAudioCtx();
     const o = c.createOscillator();
@@ -42,6 +46,8 @@ function toon(freq, duur, golf, volume, glijNaar) {
 
 const GELUIDEN = {
   pew: () => toon(900, 0.1, 'square', 0.045, 320),
+  // raak: je kogel trof een andere tank — kort en hoog, anders dan "geraakt"
+  raak: () => toon(1500, 0.045, 'square', 0.035, 1100),
   tik: () => toon(220, 0.07, 'sawtooth', 0.07, 120),
   plop: () => toon(320, 0.14, 'sine', 0.11, 80),
   boing: () => toon(140, 0.28, 'sine', 0.11, 620),
@@ -66,3 +72,5 @@ function zetGeluid(aan) {
   if (aan) { try { haalAudioCtx(); } catch { /* geen audio beschikbaar */ } }
 }
 function geluidStaatAan() { return !gedempt; }
+function zetKlasStil(stil) { klasStil = !!stil; }
+function klasIsStil() { return klasStil; }

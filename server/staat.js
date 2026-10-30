@@ -2,9 +2,10 @@
  * Wat alle onderdelen van de server samen delen.
  * io: de verbinding met alle browsers (zet server.js bij het starten).
  * bevroren: staat "ogen op mij" aan? Dan staat elke arena stil.
+ * klasStil: heeft de lesgever het geluid van de hele klas uitgezet?
  */
 
-const staat = { io: null, bevroren: false };
+const staat = { io: null, bevroren: false, klasStil: false };
 
 /* Alle arena's: 'arena' (samen spelen) en 'solo-<verbinding>' per leerling. */
 const rooms = new Map();

@@ -52,7 +52,7 @@ function maakRapport() {
       const eind = i + 1 < stappen.length ? r.stapTijden[stappen[i + 1]] : r.laatst;
       duur[nr] = Math.max(0, Math.round((eind - r.stapTijden[nr]) / 1000));
     });
-    return { naam: r.naam, les: r.les, maxStap: r.maxStap, minuten: Math.round((r.laatst - r.begonnen) / 60000), duur };
+    return { naam: r.naam, les: r.les, maxStap: r.maxStap, minuten: Math.round((r.laatst - r.begonnen) / 60000), duur, hulp: r.hulp || 0 };
   }).sort((a, b) => b.les - a.les || b.maxStap - a.maxStap || a.naam.localeCompare(b.naam));
   // gemiddelde tijd per stap over de hele klas ("2-3" = les 2, stap 3)
   const perStap = {};
@@ -78,20 +78,27 @@ function stuurKlasoverzicht() {
       blokken: l.blokken || 0, stilMs: l.stilMs || 0,
       minuten: Math.floor((nu - l.sinds) / 60000),
       checkS: !!l.checkS, checkG: !!l.checkG, code: l.code || '',
+      // welke stappen heeft hij al gehaald? (zo zie je of hij voor of achter zit)
+      gehaald: l.gehaald || [], hint: !!l.hint,
+      // wat valt er op aan zijn programma? (losse stapeltjes, geen startblok, staat het uit?)
+      los: l.los || 0, geenStart: !!l.geenStart, draait: !!l.draait, verouderd: !!l.verouderd,
       lvl: l.lvl || 0, punten: l.punten || 0, hp: l.hp || 0, klasse: l.klasse, speelt: !!l.speelt,
       hulp: !!l.hulp, hulpMin: l.hulp && l.hulpSinds ? Math.floor((nu - l.hulpSinds) / 60000) : 0,
+      hulpKeer: l.hulpKeer || 0,   // hoe vaak stak hij al zijn hand op?
     }))
     .sort((a, b) => a.naam.localeCompare(b.naam));
   const arena = rooms.get('arena');
   staat.io.to('lesgevers').emit('klasoverzicht', {
     leerlingen: lijst,
     bevroren: staat.bevroren,
+    klasStil: staat.klasStil,   // heeft de lesgever het geluid van de klas uitgezet?
     teamModus: arena ? arena.teamModus : 0,
     inArena: arena ? [...arena.tanks.values()].filter((t) => !t.ai).length : 0,
     // loopt er een ronde? dan de klok en de tussenstand mee
     ronde: arena && arena.ronde
       ? { over: Math.max(0, Math.round((arena.ronde.eind - nu) / 1000)),
-          doel: arena.ronde.doel, teams: rondeStand(arena).teams }
+          doel: arena.ronde.doel, soort: arena.ronde.soort, teams: rondeStand(arena).teams,
+          heuvel: arena.heuvelStand || null }
       : null,
     verouderd: codeGewijzigdNaStart(),   // code aangepast sinds het starten?
     // hoeveel projecten (met namen van kinderen) staan er bewaard, en hoe lang?
@@ -104,6 +111,7 @@ function koppelKlaslokaal(socket) {
   /* Wie binnenkomt terwijl de lesgever "ogen op mij" heeft aangezet (of zijn
      pagina ververst), hoort ook meteen stil te staan. */
   if (staat.bevroren) socket.emit('lesStuur', { type: 'bevries', aan: true });
+  if (staat.klasStil) socket.emit('lesStuur', { type: 'geluid', aan: false });
 
   /* ---------------- de les: klasoverzicht voor de lesgever ---------------- */
   socket.on('lesStatus', (d) => {
@@ -128,6 +136,19 @@ function koppelKlaslokaal(socket) {
          (gedrag) — je weet wat je moet zeggen nog voor je bij de tafel bent. */
       checkS: !!d.checkS,
       checkG: !!d.checkG,
+      // de stappen die hij al haalde (getallen 1-20), en of zijn hint openstaat
+      gehaald: Array.isArray(d.gehaald)
+        ? [...new Set(d.gehaald.slice(0, 40).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b)
+        : [],
+      hint: !!d.hint,
+      /* Wat valt er op aan zijn programma? Zijn toestel kijkt het na: hoeveel
+         stapeltjes hangen los, staat er nergens een startblok, loopt het
+         programma, en is het veranderd zonder opnieuw te starten? De meeste
+         "hij doet niets!"-vragen zijn precies een van die vier. */
+      los: klem(Math.round(Number(d.los)) || 0, 0, 99),
+      geenStart: !!d.geenStart,
+      draait: !!d.draait,
+      verouderd: !!d.verouderd,
       code: String(d.code || '').slice(0, 12),
       // hoe staat hij ervoor in het spel zelf?
       lvl: t ? t.level : 0,
@@ -137,6 +158,7 @@ function koppelKlaslokaal(socket) {
       speelt: !!t,
       hulp: !!oud.hulp,
       hulpSinds: oud.hulpSinds || 0,
+      hulpKeer: oud.hulpKeer || 0,
       sinds: oud.stap === stap && oud.les === les ? oud.sinds || Date.now() : Date.now(),
       bijgewerkt: Date.now(),
     });
@@ -148,8 +170,16 @@ function koppelKlaslokaal(socket) {
   socket.on('hulpVraag', (aan) => {
     const l = klas.get(socket.id);
     if (!l) return;
+    if (aan && !l.hulp) {
+      /* Tellen hoe vaak: wie om het kwartier zijn hand opsteekt, heeft meer
+         nodig dan een tip — dat zie je op zijn kaartje en in het rapport. */
+      l.hulpKeer = (l.hulpKeer || 0) + 1;
+      const r = rapport.get(`${l.les}|${l.naam}`);
+      if (r) r.hulp = (r.hulp || 0) + 1;
+    }
+    // nog eens "hand op" terwijl hij al omhoog was: de wachttijd loopt gewoon door
+    l.hulpSinds = aan ? (l.hulp && l.hulpSinds) || Date.now() : 0;
     l.hulp = !!aan;
-    l.hulpSinds = aan ? Date.now() : 0;
   });
 
   /* De lesgever kijkt mee en stuurt de klas — maar alleen met de juiste code
@@ -176,6 +206,11 @@ function koppelKlaslokaal(socket) {
     } else if (d.type === 'bevries') {
       staat.bevroren = !!d.aan;
       staat.io.emit('lesStuur', { type: 'bevries', aan: staat.bevroren });
+    } else if (d.type === 'geluid') {
+      /* Vijfentwintig laptops die bij elk schot "pew" doen: de lesgever zet het
+         geluid van de hele klas in één keer uit (en weer aan). */
+      staat.klasStil = !d.aan;
+      staat.io.emit('lesStuur', { type: 'geluid', aan: !staat.klasStil });
     } else if (d.type === 'toonCode') {
       staat.io.to(d.id).emit('lesStuur', { type: 'stuurCode' }); // vraag de leerling zijn blokken
     } else if (d.type === 'volg') {
@@ -213,7 +248,7 @@ function koppelKlaslokaal(socket) {
       staat.io.emit('lesStuur', { type: 'naarArena', teams: [0, 2, 4].includes(Number(d.teams)) ? Number(d.teams) : 0 });
     } else if (d.type === 'ronde') {
       if (!rooms.has('arena')) maakRoom('arena', false);
-      startRonde(rooms.get('arena'), Number(d.minuten) || 10, Number(d.doel) || 0);
+      startRonde(rooms.get('arena'), Number(d.minuten) || 10, Number(d.doel) || 0, d.soort === 'heuvel' ? 'heuvel' : 'punten');
     } else if (d.type === 'rondeStop') {
       const arena = rooms.get('arena');
       if (arena && arena.ronde) stopRonde(arena, 'lesgever');

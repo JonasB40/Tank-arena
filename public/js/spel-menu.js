@@ -7,6 +7,8 @@
 const geluidKnop = document.getElementById('geluid-knop');
 geluidKnop.textContent = geluidStaatAan() ? '🔊' : '🔇';
 geluidKnop.addEventListener('click', () => {
+  // heeft de lesgever het geluid van de klas uitgezet? dan blijft het stil
+  if (klasIsStil()) { toast('🔇 De lesgever heeft het geluid van de klas uitgezet.'); return; }
   zetGeluid(!geluidStaatAan());
   geluidKnop.textContent = geluidStaatAan() ? '🔊' : '🔇';
 });

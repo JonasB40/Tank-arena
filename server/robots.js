@@ -2,7 +2,7 @@
  * De computertegenstanders: hoeveel er zijn, hoe sterk, en hoe ze zich gedragen.
  */
 const { KLASSEN, TANKS_IN_ARENA, DETECTIE_R, ONTSNAP_R, AGGRO_MS, AI_PROFIELEN, OPWARM_MS, NIVEAUS, robotKlasseVoorLevel, randInt, klem } = require('./regels');
-const { wijsTeamToe, buurVormen, vormenRondom, vrijeRobotNaam, nieuweTank, spawnTank, isVeilig } = require('./wereld');
+const { wijsTeamToe, buurVormen, vormenRondom, vrijeRobotNaam, nieuweTank, spawnTank, isVeilig, heuvelVan, opHeuvel } = require('./wereld');
 
 function hoogsteSpelerScore(room) {
   let hoog = 0;
@@ -215,10 +215,21 @@ function stuurAI(room, t, nu) {
     if (d < dVorm) { dVorm = d; vorm = v; }
   }
   if (!a.doelPunt || Math.hypot(a.doelPunt.x - t.x, a.doelPunt.y - t.y) < 60 || nu > a.doelPuntTot) {
-    a.doelPunt = vorm && Math.random() < 0.7
-      ? { x: vorm.x, y: vorm.y }
-      : { x: 200 + Math.random() * (room.arena.w - 400), y: 200 + Math.random() * (room.arena.h - 400) };
-    a.doelPuntTot = nu + 4000;
+    /* Tijdens een heuvelronde trekken robots geregeld naar de heuvel en
+       blijven ze er meestal: zo is er ook met een kleine klas iets te
+       veroveren, en vechten de robots van elk team mee om de heuvel. */
+    const heuvel = heuvelVan(room);
+    const erop = heuvel && opHeuvel(room, t);
+    if (heuvel && (erop ? Math.random() < 0.85 : Math.random() < 0.3)) {
+      const hoek = Math.random() * Math.PI * 2, afstand = Math.random() * heuvel.r * 0.8;
+      a.doelPunt = { x: heuvel.x + Math.cos(hoek) * afstand, y: heuvel.y + Math.sin(hoek) * afstand };
+      a.doelPuntTot = nu + (erop ? 4000 : 120000);   // de heuvel ligt ver: onderweg niet opgeven
+    } else {
+      a.doelPunt = vorm && Math.random() < 0.7
+        ? { x: vorm.x, y: vorm.y }
+        : { x: 200 + Math.random() * (room.arena.w - 400), y: 200 + Math.random() * (room.arena.h - 400) };
+      a.doelPuntTot = nu + 4000;
+    }
   }
   const naar = Math.atan2(a.doelPunt.y - t.y, a.doelPunt.x - t.x);
   const richt = vorm && dVorm < 260 ? Math.atan2(vorm.y - t.y, vorm.x - t.x) : naar;

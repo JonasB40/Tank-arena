@@ -154,6 +154,7 @@
 
       drawArena(ctx, arena, 1 / s);
       drawZones(ctx, staat.zones);
+      drawHeuvel(ctx, staat.heuvel, Date.now());   // alleen tijdens een heuvelronde
 
       for (const v of vormenCache) {
         const info = vormSoorten[v.type];
@@ -195,10 +196,20 @@
         const m = Math.floor(ronde.over / 60), sec = String(ronde.over % 60).padStart(2, '0');
         html += `<div class="klok ${ronde.over <= 30 ? 'bijna' : ''}">⏱ ${m}:${sec}`
           + `${ronde.doel ? `<small>tot ${ronde.doel} ptn</small>` : ''}</div>`;
+        // heuvelronde: wie houdt de heuvel?
+        const h = staat.heuvel;
+        if (h) {
+          const wie = h.betwist ? 'betwist!' : !h.houder ? 'nog vrij'
+            : h.houder.team !== undefined ? `${TEAM_NAAM[h.houder.team]} houdt hem` : `${esc(h.houder.naam)} houdt hem`;
+          html += `<div class="rij"><span>🏔 Heuvel: ${wie}</span><span></span></div>`;
+        }
       }
       if (staat.teamModus) {
         const totalen = new Map();
-        for (const t of spelers) {
+        // alle tanks van een team tellen mee, ook de robots: net als op het
+        // scorebord in het spel en op het dashboard (anders stond het hier 0-0
+        // terwijl de robots van een team de heuvel hielden)
+        for (const t of staat.tanks) {
           if (t.team === null || t.team === undefined) continue;
           totalen.set(t.team, (totalen.get(t.team) || 0) + punt(t));
         }
@@ -212,7 +223,8 @@
         html += '<div class="kop">Spelers</div>';
       }
       html += top.map((t, i) =>
-        `<div class="rij ${i === 0 ? 'goud' : ''}"><span>${i === 0 ? '👑 ' : ''}${esc(t.naam)}</span><span>${punt(t)}</span></div>`
+        // de kroon hoort bij wie hem in de arena echt draagt (wie hem verslaat, krijgt dubbel)
+        `<div class="rij ${i === 0 ? 'goud' : ''}"><span>${t.kroon ? '👑 ' : ''}${esc(t.naam)}</span><span>${punt(t)}</span></div>`
       ).join('') || '<div class="rij">Nog geen spelers...</div>';
       // alleen vervangen als er iets veranderde: 60 keer per seconde de hele
       // lijst opnieuw opbouwen is zonde van de beamerlaptop

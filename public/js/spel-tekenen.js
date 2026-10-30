@@ -21,6 +21,22 @@ function zetGrootte(g) {
 for (const k of document.querySelectorAll('.gr-knop')) {
   k.addEventListener('click', () => zetGrootte(k.dataset.grootte));
 }
+/* Volledig scherm verlaten zonder onze knop — met Esc, het kruisje van de
+   browser, of op de iPad naar beneden vegen — zet ook het speelveld terug
+   naast je blokken. Anders bleven de blokken verborgen terwijl het volledig
+   scherm al weg was, en zocht een kind de weg terug. */
+for (const soort of ['fullscreenchange', 'webkitfullscreenchange']) {
+  document.addEventListener(soort, () => {
+    const vol = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!vol && document.body.classList.contains('speelmodus')) zetGrootte('normaal');
+  });
+}
+/* Op een liggende iPad (1024-1180 px breed) bleef er naast het gewone
+   speelveld maar een smalle strook werkblad over: na de blokkenlade amper
+   250 px om te bouwen. Rechtop was het werkblad om dezelfde reden laag. Op
+   zulke schermen begint het speelveld klein; met ◻ of ⛶ maak je het groter
+   zodra je wil spelen. (Een telefoon scrolt, daar hoeft dit niet.) */
+if (window.innerWidth > 600 && window.innerWidth < 1200) zetGrootte('klein');
 
 /* ---------------- toast-meldingen ---------------- */
 let toastTimer = null;
@@ -158,6 +174,7 @@ function teken() {
   });
   drawZones(ctx, staat.zones);
   if (staat.basis) drawZones(ctx, [Object.assign({ team: 0 }, staat.basis)]);
+  drawHeuvel(ctx, staat.heuvel, nu);   // alleen tijdens een heuvelronde
 
   // vormen: zachtjes pulseren, wit flitsen bij een treffer
   for (const v of vormen) {
@@ -197,6 +214,7 @@ function teken() {
     drawTank(ctx, t, t.id === mijnId);
     ctx.restore();
   }
+  tekenLevelRingen(tanks, nu);
 
   // zwevende "+punten"
   for (const p of scorePopups) {
@@ -209,14 +227,16 @@ function teken() {
     ctx.lineJoin = 'round';
     ctx.lineWidth = 4;
     ctx.strokeStyle = 'rgba(20,24,32,.8)';
-    ctx.strokeText(`+${p.n}`, p.x, p.y - d * 46);
+    const tekst = `+${p.n}${p.premie ? ' 👑' : ''}`;
+    ctx.strokeText(tekst, p.x, p.y - d * 46);
     ctx.fillStyle = '#ffd54f';
-    ctx.fillText(`+${p.n}`, p.x, p.y - d * 46);
+    ctx.fillText(tekst, p.x, p.y - d * 46);
     ctx.restore();
   }
 
   ctx.restore();
 
+  tekenRaakMarker();
   tekenMinimap();
   /*
    * Het scorebord hoort bij het SPEL, niet bij de les. Wie in zijn eigen
@@ -292,6 +312,71 @@ function bijwerkAnimaties(nu, kogels, vormen) {
   for (let i = scorePopups.length - 1; i >= 0; i--) {
     if (nu - scorePopups[i].start > 900) scorePopups.splice(i, 1);
   }
+}
+
+/* ---------------- level omhoog en raak ----------------
+ * Een level omhoog: een gouden ring die uitdijt rond de tank. Iedereen in de
+ * buurt ziet het (de server zet "lu" een seconde in het pakketje); bij een
+ * nieuwe klasse (level 15, 30, 45) is de ring groter en staat er voor jezelf
+ * bij dat je mag kiezen. Vroeger kwam er alleen een melding onderaan.
+ */
+const levelRingen = new Map();   // tank-id → { level, start }
+const KLASSE_LEVELS = [15, 30, 45];
+function tekenLevelRingen(tanks, nu) {
+  for (const t of tanks) {
+    if (!t.lu || t.dood) continue;
+    const ring = levelRingen.get(t.id);
+    if (!ring || ring.level !== t.lu) levelRingen.set(t.id, { level: t.lu, start: nu });
+  }
+  for (const [id, ring] of levelRingen) {
+    const d = (nu - ring.start) / 1000;
+    const t = tanks.find((x) => x.id === id);
+    if (d > 1 || !t) { if (d > 1) levelRingen.delete(id); continue; }
+    const groot = KLASSE_LEVELS.includes(ring.level);
+    const r = (t.r || 22) * (1.15 + d * (groot ? 3.2 : 2));
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - d);
+    ctx.strokeStyle = groot ? '#ffcf33' : '#fff3a6';
+    ctx.lineWidth = groot ? 9 : 5;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    if (id === mijnId) {
+      const tekst = groot ? `⬆ LEVEL ${ring.level} — kies een nieuwe tank!` : `⬆ LEVEL ${ring.level}`;
+      ctx.font = `bold ${groot ? 22 : 18}px Segoe UI, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(20,24,32,.85)';
+      const ty = t.y - (t.r || 22) - 46 - d * 30;
+      ctx.strokeText(tekst, t.x, ty);
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillText(tekst, t.x, ty);
+    }
+    ctx.restore();
+  }
+}
+
+/* Raak: een klein wit kruisje rond je mikpunt (zie raakMarker in spel-verbinding.js). */
+function tekenRaakMarker() {
+  const over = raakMarker.tot - performance.now();
+  if (over <= 0) return;
+  const { x, y } = spel.muisScherm;
+  const binnen = 5 + (220 - over) / 50, buiten = binnen + 7;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, over / 120);
+  ctx.lineCap = 'round';
+  for (const [kleur, dikte] of [['rgba(20,24,32,.7)', 5], ['#ffffff', 2.5]]) {
+    ctx.strokeStyle = kleur;
+    ctx.lineWidth = dikte;
+    ctx.beginPath();
+    for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      ctx.moveTo(x + sx * binnen, y + sy * binnen);
+      ctx.lineTo(x + sx * buiten, y + sy * buiten);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /* ---------------- minikaart ---------------- */
@@ -378,6 +463,18 @@ function tekenMinimap() {
     ctx.fillRect(px(staat.nest.x), py(staat.nest.y), staat.nest.w * s, staat.nest.h * s);
   }
 
+  // de heuvel: een stip in de kleur van wie hem houdt, wit omrand als hij betwist is
+  if (staat.heuvel) {
+    const h = staat.heuvel;
+    const houder = h.houder;
+    ctx.fillStyle = !houder ? 'rgba(138,148,173,.8)'
+      : houder.team !== undefined ? (TEAM_ZONE_KLEUREN[houder.team] || '#fff') : (houder.kleur || '#fff');
+    ctx.beginPath();
+    ctx.arc(px(h.x), py(h.y), Math.max(4, h.r * s), 0, Math.PI * 2);
+    ctx.fill();
+    if (h.betwist) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+
   const ik = staat.tanks.find((t) => t.id === mijnId);
 
   // de andere tanks als stipje in hun teamkleur
@@ -390,6 +487,14 @@ function tekenMinimap() {
     ctx.fill();
     // echte spelers krijgen een randje: die zijn belangrijker dan de robots
     if (!t.ai) { ctx.strokeStyle = 'rgba(20,24,34,.8)'; ctx.lineWidth = 1; ctx.stroke(); }
+    // de koning: een gouden ring, zodat je weet waar de premie rondrijdt
+    if (t.kroon) {
+      ctx.strokeStyle = '#ffcf33';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px(t.x), py(t.y), 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   // jijzelf: een zwart pijltje dat wijst waar je kijkt (zoals diep.io)
@@ -452,7 +557,8 @@ function tekenScorebord() {
   // op het kleine speelveld smaller, anders botst hij met de statbalken
   const klein = document.body.classList.contains('podium-klein');
   const B = klein ? 132 : 168, regel = 17, kopH = teams.length ? teams.length * regel + 8 : 0;
-  const klokH = ronde ? 26 : 0;
+  const heuvel = staat.heuvel;
+  const klokH = (ronde ? 26 : 0) + (heuvel ? 16 : 0);
   const H = 24 + klokH + kopH + rijen.length * regel + 6;
   const x = canvas.width - B - 12, y = 12;
   /* De variabelen-tellertjes staan ook rechtsboven. Het scorebord groeit met
@@ -487,6 +593,18 @@ function tekenScorebord() {
       ctx.fillText(`tot ${ronde.doel} ptn`, x + B - 10, y + 38);
       ctx.textAlign = 'left';
     }
+    // heuvelronde: wie houdt de heuvel nu?
+    if (heuvel) {
+      const houder = heuvel.houder;
+      ctx.font = 'bold 11px Segoe UI, sans-serif';
+      ctx.fillStyle = heuvel.betwist ? '#ffffff'
+        : !houder ? '#9aa3bb'
+          : houder.team !== undefined ? (TEAM_ZONE_KLEUREN[houder.team] || '#fff') : (houder.kleur || '#fff');
+      const wie = heuvel.betwist ? 'betwist!'
+        : !houder ? 'nog vrij'
+          : houder.team !== undefined ? (TEAM_NAAM_CLIENT[houder.team] || 'Team ' + houder.team) : houder.naam;
+      ctx.fillText(`🏔 heuvel: ${String(wie).slice(0, 14)}`, x + 10, y + 55);
+    }
     ry += klokH;
   }
   for (const [team, punten] of teams) {
@@ -507,7 +625,7 @@ function tekenScorebord() {
     const isIk = ik && t.id === ik.id;
     ctx.font = (isIk ? 'bold ' : '') + '12px Segoe UI, sans-serif';
     ctx.fillStyle = isIk ? '#ffd54f' : '#cfd6e4';
-    const naam = String(t.naam || '').slice(0, klein ? 9 : 13);
+    const naam = (t.kroon ? '👑' : '') + String(t.naam || '').slice(0, klein ? 9 : 13);
     ctx.fillText(naam, x + 10, ry);
     ctx.textAlign = 'right';
     ctx.fillText(String(punt(t)), x + B - 10, ry);
@@ -552,6 +670,8 @@ function vernieuwHud(ik) {
 
   document.getElementById('hud-score').textContent = ik.score;
   document.getElementById('hud-level').textContent = ik.level;
+  // inhaalbonus actief? dan zie je dat: vormen leveren anderhalve keer zoveel op
+  document.getElementById('hud-inhaal').classList.toggle('verborgen', !ik.inhaal);
   const balk = document.getElementById('xp-balk-vul');
   const deel = Math.max(0, Math.min(1, (ik.score - ik.xpDit) / Math.max(1, ik.xpVolgend - ik.xpDit)));
   balk.style.width = `${Math.round(deel * 100)}%`;

@@ -194,7 +194,7 @@ function toonStap() {
   elStap.breek.classList.toggle('verborgen', !(stapKlaar && s.breek));
   elStap.volgende.disabled = !stapKlaar;
   elStap.volgende.textContent = stapIndex === stappen().length - 1 ? 'klaar! 🏆' : 'volgende ▶';
-  meldStatusAanLesgever('bezig');
+  meldStatusAanLesgever(huidigeStatus());
   // Een stap met een lange uitleg maakt dit paneel hoger, dus het werkblad
   // lager. Zonder dit bleef de blokkenlade even hoog als bij de vorige stap:
   // hij stak dan onder het scherm uit en je kon niet meer bij de onderste
@@ -279,7 +279,8 @@ document.getElementById('stap-vorige').addEventListener('click', () => {
 });
 document.getElementById('stap-hint').addEventListener('click', () => {
   elStap.hint.classList.toggle('verborgen');
-  if (!elStap.hint.classList.contains('verborgen')) meldStatusAanLesgever('vast');
+  // meteen melden (open of weer dicht), niet pas bij de volgende ronde van vier seconden
+  meldStatusAanLesgever(huidigeStatus());
 });
 document.getElementById('stap-inklap').addEventListener('click', () => {
   document.body.classList.toggle('stap-ingeklapt');
@@ -336,6 +337,14 @@ socket.on('lesStuur', (d) => {
       herstartAlsHetDraait();
       toonIngreepMelding();
     } catch { /* editor nog niet klaar */ }
+  } else if (d.type === 'geluid') {
+    /* De lesgever zet het geluid van de hele klas uit of weer aan. Je eigen
+       🔊-keuze blijft bewaard: daarna geldt die gewoon weer. */
+    zetKlasStil(!d.aan);
+    const knop = document.getElementById('geluid-knop');
+    knop.textContent = klasIsStil() || !geluidStaatAan() ? '🔇' : '🔊';
+    knop.title = klasIsStil() ? 'De lesgever heeft het geluid van de klas uitgezet' : 'Geluid aan/uit';
+    toast(d.aan ? '🔊 Het geluid mag weer aan.' : '🔇 De lesgever heeft het geluid van de klas uitgezet.');
   } else if (d.type === 'hulpKlaar') {
     zetHulpVraag(false);
     toast('✋ Je hulpvraag is afgevinkt.');
@@ -450,13 +459,40 @@ document.getElementById('lb-sluit').addEventListener('click', () => {
 
 const laatsteChecks = { structuur: false, gedrag: false };
 
+/* "Vast" zolang de hint openstaat: de knop heet niet voor niets "💡 Ik zit
+   vast". Vroeger werd dat maar één keer gemeld en stond het kaartje van de
+   lesgever vier seconden later alweer op "bezig". */
+function huidigeStatus() {
+  if (stapKlaar) return 'klaar';
+  return elStap.hint.classList.contains('verborgen') ? 'bezig' : 'vast';
+}
+
+/*
+ * Wat valt er op aan het programma? De meeste "hij doet niets!"-vragen zijn
+ * een stapeltje dat los hangt, een programma zonder startblok, of een
+ * programma dat niet (opnieuw) gestart is. Dat ziet de lesgever nu op het
+ * kaartje, nog voor hij de blokken opent of naar de tafel loopt.
+ */
+function programmaDiagnose() {
+  const d = { los: 0, geenStart: false, draait: false, verouderd: false };
+  try {
+    const stapels = blocklyWerkruimte.getTopBlocks(false).filter((b) => b.isEnabled() && !b.isShadow());
+    d.los = losseStapels(blocklyWerkruimte).length;
+    d.geenStart = stapels.length > 0 && !stapels.some((b) => triggerVan(b));
+  } catch { /* editor nog niet klaar */ }
+  const rt = window.runtime;
+  d.draait = !!(rt && rt.draait);
+  d.verouderd = !!(rt && rt.draait && rt.verouderd);
+  return d;
+}
+
 function meldStatusAanLesgever(status) {
   if (!lesGestart) return;
   let blokken = 0;
   try { blokken = blocklyWerkruimte.getAllBlocks(false).length; } catch { /* editor nog niet klaar */ }
   const nu = vingerafdrukVanWerkblad();
   if (nu !== laatsteVingerafdruk) { laatsteVingerafdruk = nu; laatsteWijziging = Date.now(); }
-  socket.emit('lesStatus', {
+  socket.emit('lesStatus', Object.assign(programmaDiagnose(), {
     naam: document.getElementById('naam').value.trim() || 'Naamloos',
     les: welkeLes,
     stap: stappen()[stapIndex].nr,
@@ -467,10 +503,14 @@ function meldStatusAanLesgever(status) {
        ziet de lesgever waar het misloopt zonder eerst te moeten vragen. */
     checkS: laatsteChecks.structuur,
     checkG: laatsteChecks.gedrag,
+    /* Welke stappen haalde hij al, en staat zijn hint open? Zo ziet de
+       lesgever naast de blokken ook hoe ver hij is en waar hij op vastloopt. */
+    gehaald: [...gehaaldeStappen],
+    hint: !elStap.hint.classList.contains('verborgen'),
     code: projectCode || '',
-  });
+  }));
 }
-setInterval(() => meldStatusAanLesgever(stapKlaar ? 'klaar' : 'bezig'), 4000);
+setInterval(() => meldStatusAanLesgever(huidigeStatus()), 4000);
 
 /* Eigen variabelen live als tellertjes op het speelveld (zoals Scratch). */
 function vernieuwVariabeleTellers() {

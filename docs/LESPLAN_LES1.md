@@ -57,13 +57,19 @@ De blokken zijn dus exact dezelfde als op een chromebook — een kind op een iPa
 
 | Functie | Wat het doet |
 |---|---|
-| **Klasoverzicht** | Per leerling: op welke stap, ✓ klaar / ⏳ bezig / ⚠ zit vast (met hoelang al). Onderaan: *"14/18 klaar — iedereen mee, je kan door!"* |
+| **Klasoverzicht** | Per leerling een kaartje: op welke stap, groen = klaar met zijn stap, blauw = bezig, rood = vast (zijn hint "Ik zit vast" staat open), en hoelang er al niets veranderde. **Bovenaan filter je** met één tik: iedereen, ✋ hand op, ⚠ aandacht (hand op, hint open of al 2 minuten stil) of ✅ klaar — met het aantal erbij. Onderaan: *"14/18 klaar met hun stap · 3 vragen aandacht"*. |
 | **◀ vorige / volgende ▶** | Zet de héle klas op dezelfde stap. Leerlingen springen automatisch mee. |
 | **⏸ Ogen op mij** | Bevriest alle speelvelden met een grijs scherm — ook de robots staan stil, dus niemand wordt intussen kapotgeschoten. Eén klik terug om verder te gaan; de leerlingen drukken dan zelf weer op 🚩. |
-| **✋ hulpbalk** | Wie zijn hand opsteekt, staat bovenaan met een piepje. Klik **geholpen ✓** als je langs bent geweest. |
-| **blokken** | Opent de blokken van die leerling rechts in een echte editor. Je kan ze aanpassen (blok bijslepen, variabele maken, …) en met **📤 stuur terug** naar de leerling sturen. Zijn programma start meteen opnieuw met jouw versie, en hij kan met **↩** zijn eigen versie terugzetten. Met 📄 zie je hetzelfde als grote leesbare tekst — ideaal om te projecteren. |
-| **👁 volg** | Hetzelfde, maar de blokken worden elke twee seconden live bijgewerkt. Eén leerling tegelijk. Begin je zelf te slepen, dan stopt het bijwerken tot je terugstuurt. |
-| **💬 tip** | Een bericht dat op het scherm van die leerling blijft staan tot hij het wegklikt. 💡 vult meteen de hint van zijn stap in. |
+| **✋ hulpbalk** | Wie zijn hand opsteekt, staat bovenaan met een piepje, en zijn kaartje wordt geel. Klik **✓ geholpen** (in de balk of op het kaartje zelf) als je langs bent geweest. Geel betekent op het dashboard alleen nog "hand omhoog"; wie gewoon bezig is, heeft een blauwe rand. |
+| **voortgang** | Elk kaartje heeft een balkje met één streepje per stap: groen = gehaald, blauw = waar hij nu zit. 💡 op het kaartje = zijn hint staat open. |
+| **zijn programma** | Eén regel op elk kaartje: ▶ *programma loopt*, ⏹ *staat uit* (nog niet op de groene vlag gedrukt) of ✏️ *veranderd, niet herstart* (zijn tank doet nog het oude programma), plus 🧩 *2 losse stapeltjes* of 🚩 *geen startblok*. De meeste "hij doet niets!"-vragen zie je zo al vanop je stoel. **✋×3** naast de naam = zo vaak stak hij deze les al zijn hand op (ook in het 📋 rapport). |
+| **tik op een kaartje** (of 👁 bekijk) | Opent die leerling, live bijgewerkt. Boven zijn blokken zie je wat hij op zijn scherm leest: **de stap en de opdracht, zijn twee vinkjes** (met dezelfde tekst als bij hem), **zijn hint** als die openstaat, en **welke stappen hij al haalde**. Inklappen met ▾ als je meer plaats nodig hebt voor de blokken. Daaronder de blokken van die leerling in een echte editor. Je kan ze aanpassen (blok bijslepen, variabele maken, …) en met **📤 stuur terug** naar de leerling sturen. Zijn programma start meteen opnieuw met jouw versie, en hij kan met **↩** zijn eigen versie terugzetten. Met 📄 zie je hetzelfde als grote leesbare tekst — ideaal om te projecteren. |
+| **live** | De blokken worden elke twee seconden bijgewerkt, één leerling tegelijk. Begin je zelf te slepen, dan stopt het bijwerken tot je terugstuurt. |
+| **⏭ volgende** | Opent meteen de volgende leerling die je nodig heeft: eerst de handen (wie het langst wacht), dan wie vastzit of al lang stilstaat. Zo werk je de klas af zonder te zoeken: **⏭ volgende → helpen → ✓ geholpen → ⏭ volgende**. |
+| **💬 tip** | Een bericht dat op het scherm van die leerling blijft staan tot hij het wegklikt. Je tip gaat naar de leerling die je bekijkt (met **hele klas** naar iedereen). 💡 vult meteen de hint van zijn stap in. **⚡ snel**: kant-en-klare tips met één tik — "druk op de groene vlag", "je blokken hangen los", "kijk naar je vinkjes", "ik kom zo bij je!"… Wat bij hém past, staat bovenaan in het geel. |
+| **🧩 samen vast** | Lopen drie of meer leerlingen op dezelfde stap vast, dan staat onderaan wie. Met **💡 stuur hen de hint** krijgen ze allemaal tegelijk de hint — of je weet dat het tijd is voor een klassikaal woordje uitleg. |
+| **iPad** | Rondlopen kan: open het dashboard op een iPad (met de lesgeverscode). De klas staat dan schermvullend; tik je een leerling aan, dan schuiven zijn opdracht en blokken eroverheen. Met **✕** ben je terug bij de klas. |
+| **🔊 Geluid klas** | Zet het geluid op alle leerlingenschermen in één keer uit (en weer aan). Ook wie later binnenkomt, blijft stil. |
 | **📋 Rapport** | Hoe ver kwam elke leerling, en waar bleef de klas het langst hangen. Onderaan staat hoeveel projecten er bewaard zijn (met de voornamen van de kinderen): aan het eind van een lessenreeks wis je ze daar in één keer. Anders wist de server ze vanzelf na 90 dagen zonder gebruik. |
 
 > 🔦 **Kijken wat de computer doet.** Na een klik op 🚩 licht elk blok dat uitgevoerd wordt geel op, zoals in Scratch. In een als-blok licht alleen de tak op die echt gekozen wordt. Een stapeltje zonder geel startblok erboven wordt bleek. En verandert een kind zijn blokken terwijl het programma loopt, dan knippert de groene vlag: de tank rijdt nog met het oude programma. Gebruik dat bij elke 🔬 Stukmaken: *"Kijk naar je blokken terwijl je tank rijdt. Welke lichten op?"*
@@ -176,7 +182,7 @@ Daarna: **[deel 2](LESPLAN_DEEL2.md)** — stappen 11 t/m 15 en het teamtoernooi
 
 | Situatie | Wat je doet |
 |---|---|
-| Eén leerling loopt ver achter | Zijn ⚠-melding staat in je dashboard. Zet de klas niet stil — geef hem de hint-knop en help gericht. Vanachter je eigen scherm kan dat ook: **blokken** → aanpassen → **📤 stuur terug**. |
+| Eén leerling loopt ver achter | Zijn ⚠-melding staat in je dashboard. Zet de klas niet stil — geef hem de hint-knop en help gericht. Vanachter je eigen scherm kan dat ook: tik op zijn kaartje → aanpassen → **📤 stuur terug**. |
 | Halve klas loopt vast op dezelfde stap | ⏸ **Ogen op mij**, en bouw die stap klassikaal voor. |
 | Iemand is klaar en gaat spelen | Prima — laat hem, of geef een opdrachtkaart. Spelen is de beloning. |
 | Iemand wist per ongeluk blokken | Meteen **Ctrl+Z** zet ze terug. Na 🗑 *Alles wissen* begint hij met een leeg werkblad en haalt hij de vorige stappen snel opnieuw in. |

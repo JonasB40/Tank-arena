@@ -303,7 +303,9 @@ const scorePopups = []; // zwevende "+10"-tekstjes
 /* ---------------- ronde: klok, start en uitslag ---------------- */
 socket.on('rondeStart', (d) => {
   document.getElementById('ronde-uitslag').classList.add('verborgen');
-  toast(`⏱ De ronde begint! ${d.minuten} minuten${d.doel ? ` · eerste op ${d.doel} punten wint` : ''} — succes!`);
+  toast(d.soort === 'heuvel'
+    ? `🏔 Verover de heuvel in het midden! Sta erop met je team, zonder tegenstanders, en je verdient punten. ${d.minuten} minuten — succes!`
+    : `⏱ De ronde begint! ${d.minuten} minuten${d.doel ? ` · eerste op ${d.doel} punten wint` : ''} — succes!`, 7000);
   speelGeluid('tada');
 });
 
@@ -343,6 +345,9 @@ socket.on('rondeKlaar', (r) => {
 /* Rode flits + schok als je zelf geraakt wordt. */
 const schade = { tot: 0, kracht: 0 };
 const schok = { tot: 0, kracht: 0 };
+/* Raak! Je kogel trof een andere tank: een tikje en een klein kruisje bij je
+   mikpunt (zie spel-tekenen.js). Zo voel je elke treffer, niet alleen de laatste. */
+const raakMarker = { tot: 0 };
 let verslagenDoor = null;
 
 /*
@@ -352,6 +357,8 @@ let verslagenDoor = null;
  */
 const killFeed = [];
 socket.on('kill', (k) => {
+  // droeg het slachtoffer de kroon? dan zie je dat ook in het lijstje
+  if (k.premie) k.slachtoffer = '👑 ' + k.slachtoffer;
   killFeed.push({ ...k, start: Date.now() });
   if (killFeed.length > 5) killFeed.shift();
   if (k.dader === (document.getElementById('naam').value || '').trim()) speelGeluid('tada');
@@ -424,6 +431,18 @@ socket.on('ev', (ev) => {
     // "raak ik een vijandelijke kogel?"
     if (!ev.contact) laatsteTreffer = { schade: ev.schade || 0, ongelezen: true };
   }
-  if (ev.type === 'punten') { scorePopups.push({ x: ev.x, y: ev.y, n: ev.n, start: Date.now() }); speelGeluid('plop'); }
+  if (ev.type === 'punten') {
+    scorePopups.push({ x: ev.x, y: ev.y, n: ev.n, start: Date.now(), premie: !!ev.premie });
+    speelGeluid('plop');
+    if (ev.premie) toast('👑 Je versloeg de koning van de arena: dubbele punten!');
+  }
+  if (ev.type === 'raak') {
+    raakMarker.tot = performance.now() + 220;
+    speelGeluid('raak');
+  }
+  if (ev.type === 'kroon') {
+    toast('👑 Jij hebt nu de meeste punten van de arena! Wie jou verslaat, krijgt dubbele punten — pas goed op.', 6000);
+    speelGeluid('tada');
+  }
   if (ev.type === 'dood') verslagenDoor = ev.door || null;
 });

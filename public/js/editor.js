@@ -343,7 +343,9 @@ const werkruimte = Blockly.inject('blocklyDiv', {
   renderer: 'zelos',
   // iets kleiner dan voorheen (0.8): de blokkenlade staat nu permanent open,
   // en op 0.8 slokte die bijna de halve werkruimte op. Zoomen kan nog met +/-.
-  zoom: { controls: true, startScale: 0.68 },
+  // Niet verder dan 1.6: op een iPad knijp je al snel te ver, en op 3 (wat
+  // Blockly toelaat) paste er geen enkel stapeltje meer in beeld.
+  zoom: { controls: true, startScale: 0.68, maxScale: 1.6, minScale: 0.35 },
   // stippenraster op het werkveld (zoals Scratch): meteen zichtbaar waar de
   // keuzeblokken ophouden en jouw eigen programma begint
   grid: { spacing: 36, length: 2, colour: '#c9cede', snap: false },
@@ -500,6 +502,21 @@ function kleurCategorieBollen() {
   }
 }
 houdLadeOpen();
+
+/*
+ * De blokkenlade zoomt mee met het werkblad. Op een iPad werd ze bij het
+ * inzoomen zo breed dat ze bijna het hele werkblad bedekte: een blok dat je
+ * neerlegde viel op de lade (en verdween), en de knoppen erachter kon je niet
+ * meer aantikken. Kinderen zaten dan echt vast. De lade groeit nu niet verder
+ * dan dit; je eigen blokken zoomen gewoon verder.
+ */
+const LADE_MAX_ZOOM = 0.85;
+(function () {
+  const lade = werkruimte.getToolbox() && werkruimte.getToolbox().getFlyout();
+  if (lade && lade.getFlyoutScale) {
+    lade.getFlyoutScale = function () { return Math.min(this.targetWorkspace.scale, LADE_MAX_ZOOM); };
+  }
+})();
 
 /*
  * Blockly rekent zijn maten alleen opnieuw uit bij een window-resize. Ons
@@ -737,22 +754,33 @@ document.getElementById('blocklyDiv').addEventListener('mousemove', (e) => {
 document.getElementById('blocklyDiv').addEventListener('mouseleave', verbergUitleg);
 
 /*
- * Op een Chromebook met touchscreen bestaat "hoveren" niet, dus zou de uitleg
- * daar nooit verschijnen. Op zulke toestellen tonen we hem meteen als je een
- * blok aantikt (dat selecteert het blok). Met een muis blijft het bij het
- * hoveren van hierboven — anders sprong bij elke klik een kaartje in beeld.
+ * Op een Chromebook met touchscreen of een iPad bestaat "hoveren" niet, dus
+ * zou de uitleg daar nooit verschijnen. Op zulke toestellen tonen we hem als
+ * je een blok áántikt — kort, zonder te slepen. Eerst verscheen hij bij élke
+ * aanraking, ook als je een blok wilde verslepen: dan lag er telkens een geel
+ * kaartje over de onderkant van je werkblad (en over de zoomknoppen), precies
+ * waar je je blok wilde neerleggen. Met een muis blijft het bij het hoveren.
  */
 if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-  document.getElementById('blocklyDiv').addEventListener('pointerdown', (e) => {
+  const blokkenVak = document.getElementById('blocklyDiv');
+  let tik = null;   // waar en wanneer de vinger neerkwam, op welk blok
+  blokkenVak.addEventListener('pointerdown', (e) => {
+    verbergUitleg();
     const blok = blokOnder(e.target);
-    const type = blok && blok.type;
-    if (!type || !UITLEG[type]) { verbergUitleg(); return; }
-    clearTimeout(uitlegTimer);
-    uitlegVak.textContent = UITLEG[type];
-    uitlegVak.classList.remove('verborgen');
-    toontType = type;
-    uitlegTimer = setTimeout(verbergUitleg, 9000);   // vanzelf weg, of tik erop
+    tik = blok && UITLEG[blok.type] ? { type: blok.type, x: e.clientX, y: e.clientY, t: Date.now() } : null;
   }, true);
+  blokkenVak.addEventListener('pointerup', (e) => {
+    const was = tik;
+    tik = null;
+    // lang vastgehouden of verschoven = slepen, geen vraag om uitleg
+    if (!was || Date.now() - was.t > 600 || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 10) return;
+    clearTimeout(uitlegTimer);
+    uitlegVak.textContent = UITLEG[was.type];
+    uitlegVak.classList.remove('verborgen');
+    toontType = was.type;
+    uitlegTimer = setTimeout(verbergUitleg, 7000);   // vanzelf weg, of tik ergens anders
+  }, true);
+  blokkenVak.addEventListener('pointercancel', () => { tik = null; }, true);
 }
 uitlegVak.addEventListener('click', verbergUitleg);
 

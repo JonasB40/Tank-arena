@@ -5,7 +5,7 @@
 const { staat, rooms } = require('./staat');
 const { TANK_RADIUS, RECOIL_KRACHT, straalVan, BULLET_SPEED, BULLET_LIFE, RESPAWN_MS, klem, klasseVan, regenPerSec, bulletSchadeVan, bulletSnelheidFactor, bulletPierce, herlaadMsVan, snelheidVan, VERSNELLING, WRIJVING, botsschadeVan } = require('./regels');
 const { meldFout, elke } = require('./klok');
-const { basisVan, inBasis, TEAM_KLEUREN, teamZones, inEigenZone, bewaakRonde, buurVormen, vakNr, bouwVormRaster, vormenRondom, vulVormenAan, nestVan, isVeilig, respawnZwakker, stuurEvent, geefPunten } = require('./wereld');
+const { basisVan, inBasis, TEAM_KLEUREN, teamZones, inEigenZone, bewaakRonde, buurVormen, vakNr, bouwVormRaster, vormenRondom, vulVormenAan, nestVan, isVeilig, respawnZwakker, stuurEvent, geefPunten, pasArenaGrootteAan, bewaakHeuvel, opHeuvel, bepaalKoning, puntenVoorVorm } = require('./wereld');
 const { zorgVoorAI, stuurAI } = require('./robots');
 
 let vorigeTick = Date.now();
@@ -50,11 +50,13 @@ function tickRoom(room, nu, dt) {
   }
   // het tijdstip van deze stand van de wereld (gaat mee in elk pakketje)
   room.tickTijd = nu;
+  pasArenaGrootteAan(room, nu, dt);   // de gedeelde arena groeit mee met de klas
+  bewaakHeuvel(room, nu, dt);         // loopt er een heuvelronde? punten voor wie hem houdt
   zorgVoorAI(room);
   // vormen bijleggen hoeft geen dertig keer per seconde: om de halve seconde
   // merkt niemand, en zo telt de server niet elke tik de hele arena na
   room.vulTeller = ((room.vulTeller || 0) + 1) % 15;
-  if (room.vulTeller === 1) vulVormenAan(room);
+  if (room.vulTeller === 1) { vulVormenAan(room); bepaalKoning(room); }
   bouwVormRaster(room);   // eerst de vakjes vullen, dan pas rekenen
 
   for (const v of room.vormen) {
@@ -91,6 +93,9 @@ function tickRoom(room, nu, dt) {
       let dichtst = null, best = CRASHER_ZICHT;
       for (const t of room.tanks.values()) {
         if (nu < t.deadUntil || isVeilig(room, t, nu)) continue;   // ook robots worden aangevallen
+        // tijdens een heuvelronde laten ze de heuvel met rust: dat gevecht is
+        // tussen de teams, niet met de bewakers van het nest
+        if (opHeuvel(room, t)) continue;
         const d = Math.hypot(t.x - v.x, t.y - v.y);
         if (d < best) { best = d; dichtst = t; }
       }
@@ -234,8 +239,9 @@ function tickRoom(room, nu, dt) {
         v.weg = true;
         toverVormOmTotDrone(room, t, v);
         if (!t.ai) {
-          geefPunten(room, t, v.punten);
-          stuurEvent(t, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
+          const n = puntenVoorVorm(room, t, v.punten);   // met inhaalbonus voor beginners
+          geefPunten(room, t, n);
+          stuurEvent(t, 'punten', { n, x: Math.round(v.x), y: Math.round(v.y) });
         }
       }
     }
@@ -585,8 +591,9 @@ function tickRoom(room, nu, dt) {
           const schutter = room.tanks.get(b.eigenaar);
           toverVormOmTotDrone(room, schutter, v);
           if (schutter && !schutter.ai) {
-            geefPunten(room, schutter, v.punten);
-            stuurEvent(schutter, 'punten', { n: v.punten, x: Math.round(v.x), y: Math.round(v.y) });
+            const n = puntenVoorVorm(room, schutter, v.punten);   // met inhaalbonus voor beginners
+            geefPunten(room, schutter, n);
+            stuurEvent(schutter, 'punten', { n, x: Math.round(v.x), y: Math.round(v.y) });
           }
         }
         /* Een drone die tegen een vierkant botst gaat NIET stuk: hij duwt door
@@ -764,12 +771,16 @@ function beschadigTank(room, t, schade, dader, nu, contact) {
     stuurEvent(t, 'dood', dader && dader.id !== t.id
       ? { door: dader.naam, kleur: dader.kleur }
       : { door: null });
+    // droeg hij de kroon? dan krijgt wie hem verslaat dubbele punten (zie regels.js)
+    const premie = room.koning === t.id;
+    if (premie) room.koning = null;   // de kroon is af; bepaalKoning kiest straks opnieuw
     if (dader && dader.id !== t.id) {
       if (!dader.ai) {
         // zwaardere tank verslaan = meer punten
-        const punten = t.ai ? t.ai.punten : Math.max(40, 40 + t.level * 15);
+        const basis = t.ai ? t.ai.punten : Math.max(40, 40 + t.level * 15);
+        const punten = premie ? basis * 2 : basis;
         geefPunten(room, dader, punten);
-        stuurEvent(dader, 'punten', { n: punten, x: Math.round(t.x), y: Math.round(t.y) });
+        stuurEvent(dader, 'punten', { n: punten, x: Math.round(t.x), y: Math.round(t.y), premie });
         stuurEvent(dader, 'versla'); // 🏆 hat-blok "wanneer ik iemand versla"
       }
       /* Iedereen in de arena ziet wie wie verslaat. Dat maakt van los rondrijden
@@ -777,6 +788,7 @@ function beschadigTank(room, t, schade, dader, nu, contact) {
       staat.io.to(room.id).emit('kill', {
         dader: dader.naam, daderKleur: dader.kleur,
         slachtoffer: t.naam, slachtofferKleur: t.kleur,
+        premie,
       });
     }
   }
@@ -869,4 +881,4 @@ function vulBasisDronesAan(room, nu) {
   }
 }
 
-module.exports = { startSpellus, tickRoom };
+module.exports = { beschadigTank, startSpellus, tickRoom };

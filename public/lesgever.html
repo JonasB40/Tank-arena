@@ -2,7 +2,8 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- maximum-scale=1: op een iPad zoomde Safari in zodra je het tipvak aantikte -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Tank Arena — Lesgever</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -11,7 +12,10 @@
     button:disabled { opacity: .4; cursor: default; }
 
     /* ---------- bovenbalk ---------- */
-    header { display: flex; align-items: center; gap: 12px; padding: 9px 16px; background: #855cd6; flex-wrap: wrap; }
+    /* één regel: liep de kopbalk over twee regels, dan ging dat van het werkblad af */
+    header { display: flex; align-items: center; gap: 10px; padding: 9px 16px; background: #855cd6; flex-wrap: nowrap; white-space: nowrap; }
+    header > * { flex: none; }
+    header #joinurl, header #verouderd { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     header h1 { font-size: 1.1rem; }
     header .rek { margin-left: auto; }
     #joinurl { background: rgba(0,0,0,.22); padding: 4px 10px; border-radius: 7px; font-size: .88rem; }
@@ -64,9 +68,24 @@
     #klas { flex: 1; overflow-y: auto; padding: 12px 16px; }
     #rooster { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 9px; }
 
-    .kaart { background: #232736; border-radius: 11px; padding: 10px 11px; border-left: 5px solid #3d4560; }
+    /* ---------- wie wil je zien? ----------
+       Met 25 kaartjes zoek je je blauw naar de drie die je nodig hebben. Eén
+       tik en je ziet alleen de handen, of iedereen die aandacht vraagt. */
+    #filters { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    #filters button { background: #2c3247; color: #b8c0d8; font-size: .82rem; padding: 5px 12px; border-radius: 999px; }
+    #filters button b { margin-left: 3px; color: #eef0f6; }
+    #filters button.aan { background: #4fc3f7; color: #06283d; }
+    #filters button.aan b { color: #06283d; }
+    #filters .uitleg { font-size: .74rem; color: #6b7490; align-self: center; margin-left: 4px; }
+
+    /* het hele kaartje is een knop: tik erop en je ziet zijn blokken (live) */
+    .kaart { background: #232736; border-radius: 11px; padding: 10px 11px; border-left: 5px solid #3d4560; cursor: pointer; }
+    .kaart:hover { filter: brightness(1.12); }
     .kaart.klaar { border-left-color: #2ecc71; }
-    .kaart.bezig { border-left-color: #ffd54f; }
+    /* Geel betekent op dit scherm maar één ding: een opgestoken hand. "Bezig"
+       was ook geel, waardoor bijna elk kaartje leek te roepen om hulp — en dat
+       kon je nergens uitzetten, want het was gewoon de status "bezig". */
+    .kaart.bezig { border-left-color: #4f7fb8; }
     .kaart.vast { border-left-color: #e74c3c; background: #3a2430; }
     .kaart.hulp { border-left-color: #ffd54f; background: #4a3a18; box-shadow: 0 0 0 2px #ffd54f inset; }
     /* het kind met wie je nu bezig bent: zo vind je zijn kaartje meteen terug */
@@ -81,12 +100,45 @@
     .vink { font-size: .74rem; padding: 2px 7px; border-radius: 6px; background: #2c3247; color: #8b93ad; }
     .vink.ok { background: #1d4230; color: #7ee2a8; }
 
+    /* Zijn programma: loopt het, en valt er iets op? Altijd één regel hoog,
+       ook als er niets te melden is: anders verspringen de kaartjes. */
+    .prog { font-size: .76rem; display: flex; gap: 9px; height: 18px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; color: #8b93ad; }
+    .prog .loopt { color: #7ee2a8; }
+    .prog .let { color: #ffb74d; font-weight: 700; }
+    .vink.keer { background: #4a2b18; color: #ffb74d; }
     .regel { font-size: .78rem; color: #9aa3bb; display: flex; gap: 10px; margin-bottom: 7px; }
     .regel .alarm { color: #ffb74d; font-weight: 700; }
     .knoppen { display: flex; gap: 5px; flex-wrap: wrap; }
     .knoppen button { font-size: .76rem; padding: 4px 9px; background: #47506b; color: #eef0f6; }
     .knoppen .knop-volg.aan { background: #2ecc71; color: #06321a; }
-    .knoppen .knop-tip { background: #ffd54f; color: #5b4400; }
+    .knoppen .knop-tip { background: #ffe9a6; color: #5b4400; }
+    /* een opgestoken hand afvinken kan ook op het kaartje zelf */
+    .kaart .knop-geholpen { background: #ffd54f; color: #4a3200; font-weight: 800; font-size: .72rem; padding: 2px 9px; }
+    .vink.hint { background: #4a3a18; color: #ffd54f; }
+    /* voortgang: één streepje per stap — groen = gehaald, blauw = waar hij nu zit */
+    .voortgang { display: flex; gap: 2px; margin: -2px 0 7px; }
+    .voortgang span { flex: 1; height: 5px; border-radius: 2px; background: #343a52; }
+    .voortgang .gehaald { background: #2ecc71; }
+    .voortgang .nu { background: #4fc3f7; }
+    .voortgang .gehaald.nu { background: linear-gradient(90deg, #2ecc71 50%, #4fc3f7 50%); }
+    /* de opdracht van de getoonde leerling, boven zijn blokken */
+    #opdracht { background: #1f2330; border-bottom: 2px solid #343a52; font-size: .82rem; }
+    #od-kop { display: flex; align-items: center; gap: 8px; padding: 6px 13px; }
+    #od-titel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #od-klap { background: #343a52; color: #eef0f6; padding: 2px 9px; font-size: .8rem; flex: none; }
+    #od-body { padding: 0 13px 7px; max-height: 96px; overflow: auto; line-height: 1.45; }
+    #opdracht.dicht #od-body { display: none; }
+    #od-doel ol { margin: 2px 0 4px 18px; }
+    #od-checks { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
+    #od-checks .ok { color: #7ee2a8; }
+    #od-checks .nee { color: #b0b8cf; }
+    #od-hint { color: #ffd54f; margin-top: 2px; }
+    #od-stappen { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+    .od-stap { min-width: 20px; text-align: center; border-radius: 5px; padding: 0 4px; background: #343a52; color: #9aa3bd; font-size: .72rem; }
+    .od-stap.gehaald { background: #1d4230; color: #7ee2a8; }
+    .od-stap.nu { outline: 2px solid #4fc3f7; color: #eef0f6; }
+    /* het geluid van de klas staat uit */
+    #klasgeluid.uit { background: #e74c3c; color: #fff; }
 
     /* ---------- rechterkolom ---------- */
     #rechts { width: 46%; min-width: 420px; border-left: 2px solid #343a52; display: flex; flex-direction: column; }
@@ -120,14 +172,62 @@
     /* tipvak: hiermee help je vanachter je eigen scherm */
     #tipvak { border-top: 2px solid #343a52; background: #232736; padding: 8px 13px; }
     #tipvak .kop { margin-bottom: 5px; }
-    #tiptekst { width: 100%; height: 46px; resize: none; border-radius: 8px; border: 1px solid #3d4560; background: #1a1d27; color: #eef0f6; padding: 7px 9px; font-family: inherit; font-size: .9rem; }
-    #tipknoppen { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    /* tekstvak en knoppen naast elkaar: zo houdt het werkblad erboven meer plaats */
+    #tip-rij { display: flex; gap: 8px; align-items: stretch; }
+    #tiptekst { flex: 1; min-width: 0; height: 40px; resize: none; border-radius: 8px; border: 1px solid #3d4560; background: #1a1d27; color: #eef0f6; padding: 7px 9px; font-family: inherit; font-size: .9rem; }
+    #tipknoppen { display: flex; gap: 6px; flex: none; align-items: center; }
     #tipknoppen button { font-size: .8rem; }
     .knop-primair { background: #4fc3f7; color: #06283d; }
     .knop-hint { background: #47506b; color: #eef0f6; }
 
-    #samenvatting { padding: 8px 16px; background: #232736; border-top: 2px solid #343a52; font-size: .9rem; }
+    #samenvatting { padding: 8px 16px; background: #232736; border-top: 2px solid #343a52; font-size: .9rem; display: flex; align-items: center; gap: 14px; white-space: nowrap; overflow: hidden; }
+    #sv-tekst { flex: none; }
+    /* Lopen er drie of meer op dezelfde stap vast? Dan help je ze in één keer. */
+    #groep { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: #ffd54f; overflow: hidden; }
+    #groep .namen { color: #b8c0d8; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    #groep button { flex: none; background: #ffd54f; color: #4a3200; font-size: .8rem; padding: 4px 11px; }
     .leeg { color: #6b7490; padding: 18px; font-style: italic; }
+
+    /* ---------- helpen zonder zoeken ---------- */
+    /* "volgende": de volgende hand (of wie aandacht vraagt) meteen openen */
+    #volgende-hulp { background: #ffd54f; color: #4a3200; }
+    #kop-geholpen { background: #2ecc71; color: #06321a; }
+    /* snelle tips: één tik en hij is weg, zonder typen */
+    #snel-houder { position: relative; }
+    #snel-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 90; background: #2c3247; border: 1px solid #47506b; border-radius: 10px; padding: 6px; width: 330px; box-shadow: 0 8px 24px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 4px; }
+    #snel-menu .kop { padding: 2px 6px 4px; }
+    #snel-menu button { text-align: left; background: #1f2330; color: #eef0f6; font-weight: 500; font-size: .84rem; white-space: normal; }
+    #snel-menu button:hover { background: #343a52; }
+    /* past bij wat er bij deze leerling opvalt (programma staat uit, losse blokken…) */
+    #snel-menu button.past { background: #4a3a18; box-shadow: inset 3px 0 0 #ffd54f; }
+    #sluit-paneel { display: none; }
+
+    /*
+     * Rondlopen met een iPad (of een smalle laptop). Naast elkaar passen de
+     * klas en de blokken daar niet: dan staat de klas schermvullend, en
+     * schuiven de blokken van een leerling er als een groot venster overheen
+     * zodra je hem aantikt. Met ✕ ben je terug bij de klas.
+     */
+    @media (max-width: 1100px) {
+      #rechts { display: none; }
+      body.paneel-open #rechts {
+        display: flex; position: fixed; inset: 0; width: auto; min-width: 0; z-index: 60; border-left: none;
+      }
+      #sluit-paneel { display: inline-block; }
+      #groot-klein { display: none; }
+      header h1 .lang { display: none; }
+      header { gap: 8px; padding: 8px 12px; }
+    }
+    /* vingers in plaats van een muis: grotere knoppen, en geen tekst die je
+       per ongeluk selecteert als je even op een kaartje blijft drukken */
+    @media (pointer: coarse) {
+      .knoppen button { min-height: 38px; padding: 6px 12px; font-size: .84rem; }
+      #filters button { min-height: 38px; }
+      .hulp-chip button, #groep button { min-height: 34px; }
+      #code-kop button, #tipknoppen button { min-height: 40px; }
+      #tiptekst { font-size: 16px; }
+      .kaart, header, #stuurbalk, #hulpbalk, #filters { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    }
 
     /* ---------- rapport ---------- */
     /* boven de categorielijst van Blockly (z-index 70), die anders door het rapport heen stak */
@@ -181,12 +281,13 @@
 </head>
 <body>
   <header>
-    <h1>👩‍🏫 Tank Arena — lesgever</h1>
+    <h1>👩‍🏫<span class="lang"> Tank Arena — lesgever</span></h1>
     <span id="joinurl"></span>
     <span id="mijn-code" title="Lesgeverscode: typ deze als je het dashboard of de beamer op een ander toestel opent"></span>
     <span id="verouderd" style="display:none"></span>
     <span class="rek"></span>
     <button id="rapport-knop" class="knop-licht">📋 Rapport</button>
+    <button id="klasgeluid" class="knop-licht" title="Zet het geluid op alle leerlingenschermen uit (of weer aan)">🔊 Geluid klas</button>
     <button id="bevries" class="knop-bevries">⏸ Ogen op mij</button>
   </header>
 
@@ -209,6 +310,11 @@
       <option value="10" selected>10 min</option>
       <option value="15">15 min</option>
     </select>
+    <!-- wat moeten de teams doen: zoveel mogelijk punten, of de heuvel houden? -->
+    <select id="ronde-soort" title="Punten: wie verdient het meest. Heuvel: wie houdt de cirkel in het midden (alleen jouw team erop = punten)">
+      <option value="punten">🏆 punten</option>
+      <option value="heuvel">🏔 heuvel veroveren</option>
+    </select>
     <select id="ronde-doel" title="Stopt de ronde ook als een team dit haalt?">
       <option value="0">geen doel</option>
       <option value="1000">1000 ptn</option>
@@ -229,6 +335,7 @@
 
   <main>
     <div id="klas">
+      <div id="filters"></div>
       <div id="rooster"><div class="leeg">Nog geen leerlingen verbonden…</div></div>
     </div>
 
@@ -236,30 +343,50 @@
       <div id="code-kop">
         <span id="code-titel">🔍 Blokken van een leerling</span>
         <span class="rek" style="margin-left:auto"></span>
+        <button id="kop-geholpen" class="verborgen" title="Je bent langs geweest: zijn hand gaat omlaag">✓ geholpen</button>
+        <button id="volgende-hulp" title="Open de volgende leerling die je nodig heeft: eerst de handen (wie het langst wacht), dan wie vastzit of al lang stilstaat">⏭ volgende</button>
         <button id="stuur-blokken" class="knop-primair" disabled title="Jouw versie naar deze leerling sturen">📤 stuur terug</button>
         <button id="groot-klein" class="knop-hint" title="Groot scherm: veel meer ruimte om te slepen">⤢</button>
         <button id="wissel-weergave" class="knop-hint" title="Blokken of platte tekst">📄</button>
+        <button id="sluit-paneel" class="knop-hint" title="Terug naar de klas">✕</button>
       </div>
       <!-- Hier staat een échte blokkeneditor: dezelfde blokken die de leerling
            ziet. Je kan er zelf in slepen en het resultaat terugsturen. -->
+      <!-- Wat de leerling op zijn scherm leest: stap, opdracht, vinkjes, behaalde stappen -->
+      <div id="opdracht" class="verborgen">
+        <div id="od-kop"><span id="od-titel"></span><button id="od-klap" title="De opdracht in- of uitklappen (meer plaats voor de blokken)">▾</button></div>
+        <div id="od-body">
+          <div id="od-doel"></div>
+          <div id="od-checks"></div>
+          <div id="od-hint"></div>
+          <div id="od-stappen"></div>
+        </div>
+      </div>
       <div id="blok-paneel">
         <div id="blocklyDiv"></div>
-        <div id="blok-leeg" class="leeg">Klik op "blokken" bij een leerling om zijn programma hier te openen, of op "👁 volg" om live mee te kijken.</div>
+        <div id="blok-leeg" class="leeg">Tik op het kaartje van een leerling (of op "👁 bekijk"): dan zie je hier zijn opdracht en zijn blokken, live. "⏭ volgende" opent meteen wie je nodig heeft.</div>
       </div>
       <div id="code-weergave" style="display:none"><div class="leeg">—</div></div>
       <div id="tipvak">
         <div class="kop">💬 Tip sturen <span id="tip-doel">— naar de hele klas</span></div>
-        <textarea id="tiptekst" placeholder="Typ een tip… (verschijnt op hun scherm tot ze hem wegklikken)"></textarea>
-        <div id="tipknoppen">
-          <button id="tip-stuur" class="knop-primair">Stuur</button>
-          <button id="tip-hint" class="knop-hint">💡 hint van deze stap</button>
-          <button id="tip-klas" class="knop-hint">naar hele klas</button>
+        <div id="tip-rij">
+          <textarea id="tiptekst" placeholder="Typ een tip… (verschijnt op hun scherm tot ze hem wegklikken)"></textarea>
+          <div id="tipknoppen">
+            <button id="tip-stuur" class="knop-primair">Stuur</button>
+            <button id="tip-hint" class="knop-hint" title="Vul de hint van zijn stap in">💡 hint</button>
+            <!-- de tips die je anders twintig keer per les typt: één tik en weg -->
+            <span id="snel-houder">
+              <button id="tip-snel" class="knop-hint" title="Snelle tips: één tik en hij is verstuurd">⚡ snel</button>
+              <div id="snel-menu" class="verborgen"></div>
+            </span>
+            <button id="tip-klas" class="knop-hint" title="De tip gaat naar de hele klas">hele klas</button>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
-  <div id="samenvatting">—</div>
+  <div id="samenvatting"><span id="sv-tekst">—</span><span id="groep"></span></div>
 
   <div id="rapport">
     <div id="rapport-vak">
@@ -406,6 +533,7 @@
     /* De lesteksten staan vol met {{bew|blokjes}} zodat de leerling ze gekleurd
        ziet. Hier willen we gewoon de woorden. */
     const zonderOpmaak = (s) => String(s || '').replace(/\{\{[a-z]+\|([^}]*)\}\}/g, '$1');
+    const kort = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 
     /* Een kort piepje: je hoort dat er iemand vastzit terwijl je bij een andere
        tafel staat. Geen bestand nodig, de browser maakt het toontje zelf. */
@@ -463,6 +591,20 @@
       toonBevriesKnop();
     });
 
+    /* Het geluid van de hele klas in één keer uit (en weer aan). Ook wie later
+       binnenkomt, blijft stil. De knop volgt wat de server zegt. */
+    let klasStil = false;
+    function toonGeluidKnop() {
+      const k = document.getElementById('klasgeluid');
+      k.classList.toggle('uit', klasStil);
+      k.textContent = klasStil ? '🔇 Geluid klas uit' : '🔊 Geluid klas';
+    }
+    document.getElementById('klasgeluid').addEventListener('click', () => {
+      klasStil = !klasStil;
+      socket.emit('lesCommando', { type: 'geluid', aan: !klasStil });
+      toonGeluidKnop();
+    });
+
     for (const k of document.querySelectorAll('.team-knop')) {
       k.addEventListener('click', () => socket.emit('lesCommando', { type: 'teams', n: Number(k.dataset.teams) }));
     }
@@ -474,6 +616,7 @@
         type: 'ronde',
         minuten: Number(document.getElementById('ronde-minuten').value),
         doel: Number(document.getElementById('ronde-doel').value),
+        soort: document.getElementById('ronde-soort').value,
       });
     });
     document.getElementById('ronde-stop').addEventListener('click', () => {
@@ -496,22 +639,82 @@
       vernieuwKaartjes();
     }
     document.getElementById('tip-klas').addEventListener('click', () => zetTipDoel(null));
+    /* Naar wie gaat de tip, zoals hij er nu voor staat (hij kan intussen een stap verder zijn). */
+    function tipLeerling() {
+      return gekozen && laatsteOverzicht && (laatsteOverzicht.leerlingen || []).find((x) => x.id === gekozen);
+    }
+    function hintVanZijnStap() {
+      const l = tipLeerling();
+      const les = l ? (l.les === 2 ? 2 : 1) : gekozen ? gekozenLes : klasLes;
+      const nr = l ? l.stap : gekozen ? gekozenStap : klasStap;
+      return stappenVan(les).find(x => x.nr === nr);
+    }
     document.getElementById('tip-hint').addEventListener('click', () => {
-      const les = gekozen ? gekozenLes : klasLes;
-      const s = stappenVan(les).find(x => x.nr === (gekozen ? gekozenStap : klasStap));
+      const s = hintVanZijnStap();
       document.getElementById('tiptekst').value = s ? zonderOpmaak(s.hint) : '';
       document.getElementById('tiptekst').focus();
     });
-    function stuurTip() {
-      const vak = document.getElementById('tiptekst');
-      const tekst = vak.value.trim();
-      if (!tekst) return;
+    function verstuurBericht(tekst) {
       socket.emit('lesCommando', { type: 'bericht', id: gekozen, tekst });
-      vak.value = '';
       const knop = document.getElementById('tip-stuur');
       knop.textContent = '✓ verstuurd';
       setTimeout(() => { knop.textContent = 'Stuur'; }, 1400);
     }
+    function stuurTip() {
+      const vak = document.getElementById('tiptekst');
+      const tekst = vak.value.trim();
+      if (!tekst) return;
+      verstuurBericht(tekst);
+      vak.value = '';
+    }
+
+    /*
+     * Snelle tips: wat je anders twintig keer per les zegt of typt, met één
+     * tik. De tips die passen bij wat er bij déze leerling opvalt (zijn
+     * programma staat uit, er hangen blokken los…) staan bovenaan, in het geel.
+     */
+    const SNELLE_TIPS = [
+      { tekst: '🚩 Druk op de groene vlag boven het speelveld: dan start je programma.', past: (l) => !l.draait },
+      { tekst: '✏️ Je hebt je blokken veranderd. Druk opnieuw op de groene vlag, dan doet je tank het nieuwe programma.', past: (l) => l.verouderd },
+      { tekst: '🧩 Sommige blokken zijn bleek: ze hangen los. Hang ze onder een geel startblok, dan doen ze mee.', past: (l) => l.los > 0 || l.geenStart },
+      { tekst: '👀 Kijk naar je twee vinkjes bovenaan: welke is nog niet groen? Daar zit het.', past: (l) => !(l.checkS && l.checkG) && l.status !== 'klaar' },
+      { tekst: '🎮 Je blokken kloppen! Probeer het nu uit in het spel.', past: (l) => l.checkS && !l.checkG },
+      { tekst: '💡 Klik eens op "Ik zit vast" en lees de hint.', past: (l) => !l.hint && l.status !== 'klaar' },
+      { tekst: '▶ Gelukt! Klik op "volgende" voor de volgende stap.', past: (l) => l.status === 'klaar' },
+      { tekst: '👍 Goed bezig, ga zo door!', past: () => false },
+      { tekst: '✋ Ik kom zo bij je!', past: (l) => l.hulp },
+    ];
+    const snelMenu = document.getElementById('snel-menu');
+    function toonSnelMenu() {
+      const l = tipLeerling();
+      const s = hintVanZijnStap();
+      const tips = SNELLE_TIPS.map((t, i) => ({ i, tekst: t.tekst, past: !!(l && t.past(l)) }))
+        .sort((a, b) => b.past - a.past || a.i - b.i);
+      snelMenu.innerHTML = `<div class="kop">⚡ snelle tip naar ${l ? esc(l.naam) : 'de hele klas'}</div>`
+        + (s ? `<button data-snel-hint>💡 De hint van ${lesLabel(l ? l.les : klasLes)}stap ${s.nr}: <i>${esc(kort(zonderOpmaak(s.hint), 90))}</i></button>` : '')
+        + tips.map((t) => `<button data-snel="${t.i}" class="${t.past ? 'past' : ''}">${esc(t.tekst)}</button>`).join('');
+      snelMenu.classList.remove('verborgen');
+    }
+    document.getElementById('tip-snel').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (snelMenu.classList.contains('verborgen')) toonSnelMenu();
+      else snelMenu.classList.add('verborgen');
+    });
+    snelMenu.addEventListener('click', (e) => {
+      const k = e.target.closest('button');
+      if (!k) return;
+      if (k.hasAttribute('data-snel-hint')) {
+        const s = hintVanZijnStap();
+        if (s) verstuurBericht(`💡 Hint voor stap ${s.nr}: ${zonderOpmaak(s.hint)}`);
+      } else {
+        verstuurBericht(SNELLE_TIPS[Number(k.dataset.snel)].tekst);
+      }
+      snelMenu.classList.add('verborgen');
+    });
+    // ernaast tikken sluit het menu
+    document.addEventListener('pointerdown', (e) => {
+      if (!snelMenu.classList.contains('verborgen') && !e.target.closest('#snel-houder')) snelMenu.classList.add('verborgen');
+    });
     document.getElementById('tip-stuur').addEventListener('click', stuurTip);
     document.getElementById('tiptekst').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) stuurTip();
@@ -527,14 +730,38 @@
     let vorigeHulp = new Set();   // om te horen wanneer er een hand omhoog gaat
     let laatsteOverzicht = null;
     let knopIngedrukt = false;
-    let vorigeRooster = '';
-    let vorigeHulpHtml = '';
     const rooster = document.getElementById('rooster');
     const hulplijst = document.getElementById('hulplijst');
+    const filtersVak = document.getElementById('filters');
+    const groepVak = document.getElementById('groep');
 
-    for (const vlak of [rooster, hulplijst]) {
+    for (const vlak of [rooster, hulplijst, filtersVak, groepVak]) {
       vlak.addEventListener('pointerdown', () => { knopIngedrukt = true; });
     }
+
+    /* Wie vraagt er aandacht? Een opgestoken hand, een open hint ("💡 Ik zit
+       vast" zet de leerling op "vast"), of al twee minuten niets veranderd.
+       Dat laatste niet tijdens een ronde: dan spelen ze, en bouwen ze terecht
+       even niets — anders kleurde de hele klas "aandacht". */
+    let rondeLoopt = false;
+    const vraagtAandacht = (l) => l.hulp || l.status === 'vast'
+      || (!rondeLoopt && l.stilMs >= 120000 && l.status !== 'klaar');
+    const FILTERS = [
+      { sleutel: 'alle', label: 'iedereen', uitleg: 'Alle leerlingen', past: () => true },
+      { sleutel: 'hand', label: '✋ hand op', uitleg: 'Wie zijn hand opsteekt', past: (l) => l.hulp },
+      { sleutel: 'aandacht', label: '⚠ aandacht', uitleg: 'Hand op, hint open ("ik zit vast"), of al 2 minuten niets veranderd (behalve tijdens een ronde)', past: vraagtAandacht },
+      { sleutel: 'klaar', label: '✅ klaar', uitleg: 'Klaar met zijn stap', past: (l) => l.status === 'klaar' },
+    ];
+    let filter = 'alle';
+    try { filter = localStorage.getItem('lgFilter') || 'alle'; } catch { /* geen opslag */ }
+    if (!FILTERS.some((f) => f.sleutel === filter)) filter = 'alle';
+    filtersVak.addEventListener('click', (e) => {
+      const k = e.target.closest('[data-filter]');
+      if (!k) return;
+      filter = k.dataset.filter;
+      try { localStorage.setItem('lgFilter', filter); } catch { /* geen opslag */ }
+      vernieuwKaartjes();
+    });
 
     /*
      * De volgorde van de kaartjes ligt vast zolang je met het dashboard bezig
@@ -580,9 +807,13 @@
       // ---- herstartwaarschuwing ----
       const ver = document.getElementById('verouderd');
       ver.style.display = d.verouderd ? '' : 'none';
-      if (d.verouderd) ver.textContent = `⚠ code aangepast ná het starten — herstart de server`;
+      if (d.verouderd) {
+        ver.textContent = `⚠ herstart de server`;
+        ver.title = `De code is aangepast nadat de server startte: de klas speelt nog met de oude versie. Sluit het zwarte venster en start opnieuw.`;
+      }
 
       if (bevroren !== !!d.bevroren) { bevroren = !!d.bevroren; toonBevriesKnop(); }
+      if (klasStil !== !!d.klasStil) { klasStil = !!d.klasStil; toonGeluidKnop(); }
 
       // ---- teamknoppen en arena ----
       for (const k of document.querySelectorAll('.team-knop')) {
@@ -590,11 +821,17 @@
       }
       document.getElementById('arena-info').textContent = d.inArena ? `${d.inArena} in de arena` : '';
       // klok en tussenstand van de ronde
+      rondeLoopt = !!d.ronde;
       const stand = document.getElementById('ronde-stand');
       if (d.ronde) {
         const m = Math.floor(d.ronde.over / 60), sec = String(d.ronde.over % 60).padStart(2, '0');
         const teams = (d.ronde.teams || []).map(t => `${['Blauw', 'Rood', 'Groen', 'Paars'][t.team] || t.team} ${t.punten}`).join(' · ');
-        stand.textContent = `⏱ ${m}:${sec}${teams ? ' — ' + teams : ''}`;
+        // heuvelronde: wie houdt de heuvel nu?
+        const h = d.ronde.soort === 'heuvel' ? (d.ronde.heuvel || {}) : null;
+        const heuvel = !h ? '' : h.betwist ? ' · 🏔 betwist!'
+          : !h.houder ? ' · 🏔 vrij'
+            : h.houder.team !== undefined ? ` · 🏔 ${['Blauw', 'Rood', 'Groen', 'Paars'][h.houder.team] || h.houder.team}` : ` · 🏔 ${h.houder.naam}`;
+        stand.textContent = `⏱ ${m}:${sec}${teams ? ' — ' + teams : ''}${heuvel}`;
         stand.classList.add('loopt');
       } else {
         stand.textContent = '';
@@ -612,10 +849,12 @@
       }
 
       if (!leerlingen.length) {
-        zetHtml(rooster, '<div class="leeg">Nog geen leerlingen verbonden…</div>', 'rooster');
+        zetHtml(rooster, '<div class="leeg">Nog geen leerlingen verbonden…</div>');
+        zetHtml(filtersVak, '');
+        zetHtml(groepVak, '');
         document.getElementById('hulpbalk').classList.remove('aan');
-        zetHtml(hulplijst, '', 'hulp');
-        document.getElementById('samenvatting').textContent = '—';
+        zetHtml(hulplijst, '');
+        document.getElementById('sv-tekst').textContent = '—';
         tekenSpreiding([]);
         return;
       }
@@ -630,9 +869,17 @@
       vorigeHulp = nuHulp;
       document.getElementById('hulpbalk').classList.toggle('aan', hulp.length > 0);
       zetHtml(hulplijst, hulp.map(l =>
-        `<span class="hulp-chip">${esc(l.naam)} · ${lesLabel(l.les)}stap ${l.stap}${l.hulpMin ? ' · ' + l.hulpMin + ' min' : ''}
-           <button data-blokken="${l.id}" data-naam="${esc(l.naam)}">blokken</button>
-           <button data-klaar="${l.id}">geholpen ✓</button></span>`).join(''), 'hulp');
+        `<span class="hulp-chip">${esc(l.naam)} · ${lesLabel(l.les)}stap ${l.stap}${l.hulpMin ? ' · wacht ' + l.hulpMin + ' min' : ''}
+           <button data-bekijk="${l.id}" data-naam="${esc(l.naam)}" title="Zijn blokken en opdracht openen (live)">👁 bekijk</button>
+           <button data-klaar="${l.id}">geholpen ✓</button></span>`).join(''));
+      // de leerling die je nu bekijkt, steekt zijn hand op: dan kan je hem ook daar afvinken
+      const getoond = getoondeLeerling && perId.get(getoondeLeerling.id);
+      document.getElementById('kop-geholpen').classList.toggle('verborgen', !(getoond && getoond.hulp));
+
+      // ---- filters: wie wil je zien? ----
+      zetHtml(filtersVak, FILTERS.map((f) =>
+        `<button data-filter="${f.sleutel}" class="${filter === f.sleutel ? 'aan' : ''}" title="${esc(f.uitleg)}">${f.label}<b>${leerlingen.filter(f.past).length}</b></button>`).join('')
+        + '<span class="uitleg">tik op een kaartje om zijn blokken en opdracht te zien</span>');
 
       /* Volgorde: wie zijn hand opsteekt eerst, dan wie vastzit, dan wie lang
          stilstaat. Zo staat bovenaan altijd degene die jou nodig heeft. */
@@ -644,8 +891,11 @@
         gesorteerd.sort((a, b) => (plek.has(a.id) ? plek.get(a.id) : 1e6) - (plek.has(b.id) ? plek.get(b.id) : 1e6));
       }
       getoondeVolgorde = gesorteerd.map(l => l.id);
+      const zichtbaar = gesorteerd.filter((FILTERS.find((f) => f.sleutel === filter) || FILTERS[0]).past);
 
-      zetHtml(rooster, gesorteerd.map(l => {
+      zetHtml(rooster, !zichtbaar.length
+        ? `<div class="leeg">${filter === 'hand' ? '✋ Niemand steekt zijn hand op 👍' : filter === 'aandacht' ? '👍 Niemand lijkt vast te zitten.' : 'Nog niemand is klaar met zijn stap.'}</div>`
+        : zichtbaar.map(l => {
         const stil = Math.round((l.stilMs || 0) / 1000);
         const stilTekst = stil < 15 ? 'bouwt nu' : stil < 60 ? `${Math.floor(stil / 10) * 10}s stil` : `${Math.floor(stil / 60)} min stil`;
         const alarm = stil >= 120 && l.status !== 'klaar' ? ' alarm' : '';
@@ -655,63 +905,271 @@
         // met wie ben je bezig? (blokken rechts open, of je tip gaat naar hem)
         const bezigMet = l.id === gekozen || (getoondeLeerling && getoondeLeerling.id === l.id);
         const naam = esc(l.naam);
-        return `<div class="kaart ${l.hulp ? 'hulp' : l.status}${bezigMet ? ' gekozen' : ''}">
+        return `<div class="kaart ${l.hulp ? 'hulp' : l.status}${bezigMet ? ' gekozen' : ''}" data-kaart="${l.id}" data-naam="${naam}">
           <div class="top">
             <span class="naam">${l.hulp ? '✋ ' : ''}${naam}</span>
-            <span class="code">${esc(l.code || '')}</span>
+            ${l.hulpKeer >= 2 ? `<span class="vink keer" title="Zo vaak stak ${naam} deze les al zijn hand op">✋×${l.hulpKeer}</span>` : ''}
+            ${l.hulp
+              // de hand afvinken kan op het kaartje zelf; de knop staat waar anders de code staat,
+              // zodat het kaartje niet hoger wordt (en de lijst eronder niet verschuift)
+              ? `<button class="knop-geholpen" data-klaar="${l.id}" title="Je bent langs geweest: de hand gaat omlaag">✓ geholpen</button>`
+              : `<span class="code">${esc(l.code || '')}</span>`}
             <span class="stap" title="${esc(stapTitel(les, l.stap))}">${lesLabel(les)}stap ${l.stap}</span>
           </div>
+          <div class="voortgang" title="${(l.gehaald || []).length} van de ${maxStapVan(les)} stappen gehaald">${voortgangHtml(l, les)}</div>
           <div class="vinkjes">
             <span class="vink ${l.checkS ? 'ok' : ''}">${l.checkS ? '✓' : '○'} blokken</span>
             <span class="vink ${l.checkG ? 'ok' : ''}">${l.checkG ? '✓' : '○'} uitgeprobeerd</span>
+            ${l.hint ? '<span class="vink hint" title="De hint van deze stap staat open op zijn scherm">💡 hint</span>' : ''}
           </div>
+          <div class="prog">${programmaHtml(l)}</div>
           <div class="regel">
             <span>${l.blokken || 0} blokken</span>
             <span class="${alarm.trim()}">${stilTekst}</span>
             <span style="margin-left:auto">${spel}</span>
           </div>
           <div class="knoppen">
-            <button class="knop-volg ${volgt ? 'aan' : ''}" data-volg="${l.id}" data-naam="${naam}" title="Toon zijn blokken en blijf ze live bijwerken">${volgt ? '👁 volgt' : '👁 volg'}</button>
-            <button data-blokken="${l.id}" data-naam="${naam}" title="Open zijn blokken rechts: aanpassen en terugsturen kan">blokken</button>
+            <button class="knop-volg ${volgt ? 'aan' : ''}" data-bekijk="${l.id}" data-naam="${naam}" title="Zijn blokken en opdracht openen, live bijgewerkt (of tik gewoon op het kaartje). Aanpassen en terugsturen kan.">${volgt ? '👁 open' : '👁 bekijk'}</button>
             <button class="knop-tip" data-tip="${l.id}" data-naam="${naam}" data-stap="${l.stap}" data-les="${les}">💬 tip</button>
             <button data-stapnaar="${l.id}" data-nr="${l.stap - 1}" ${l.stap <= 1 ? 'disabled' : ''} title="Zet alleen deze leerling een stap terug">◀</button>
             <button data-stapnaar="${l.id}" data-nr="${l.stap + 1}" ${l.stap >= maxStapVan(les) ? 'disabled' : ''} title="Zet alleen deze leerling een stap verder">▶</button>
             <button data-opruimen="${l.id}" title="Zet zijn blokken netjes onder elkaar">🧹</button>
           </div>
         </div>`;
-      }).join(''), 'rooster');
+      }).join(''));
 
       tekenSpreiding(leerlingen);
+      toonOpdracht();
+      toonGroep(leerlingen);
 
       const klaar = leerlingen.filter(l => l.status === 'klaar').length;
-      const vast = leerlingen.filter(l => l.status === 'vast' || l.stilMs > 120000).length;
-      document.getElementById('samenvatting').textContent =
-        `${klaar}/${leerlingen.length} klaar met hun stap · ${vast} ${vast === 1 ? 'zit' : 'zitten'} vast` +
+      const vast = leerlingen.filter(l => l.status !== 'klaar' && vraagtAandacht(l)).length;
+      document.getElementById('sv-tekst').textContent =
+        `${klaar}/${leerlingen.length} klaar met hun stap · ${vast} ${vast === 1 ? 'vraagt' : 'vragen'} aandacht` +
         (klaar === leerlingen.length ? ' — iedereen mee, je kan door! 🎉' : '');
     }
 
+    /* Zijn programma in één regel: loopt het, en valt er iets op? De meeste
+       "hij doet niets!"-vragen zijn een programma dat niet (opnieuw) gestart
+       is, of een stapeltje dat los hangt. Dat zie je hier nog voor je zijn
+       blokken opent. */
+    function programmaHtml(l) {
+      const delen = [];
+      if (l.verouderd) delen.push('<span class="let" title="Hij veranderde zijn blokken, maar drukte niet opnieuw op de groene vlag: zijn tank doet nog het oude programma">✏️ veranderd, niet herstart</span>');
+      else if (l.draait) delen.push('<span class="loopt" title="Zijn programma draait">▶ programma loopt</span>');
+      else delen.push('<span title="Hij drukte (nog) niet op de groene vlag">⏹ programma staat uit</span>');
+      if (l.geenStart) delen.push('<span class="let" title="Er staat geen geel startblok: geen enkel blok doet iets">🚩 geen startblok</span>');
+      else if (l.los) delen.push(`<span class="let" title="Stapeltjes zonder geel startblok erboven doen niets (bij hem zijn ze verbleekt)">🧩 ${l.los} los ${l.los === 1 ? 'stapeltje' : 'stapeltjes'}</span>`);
+      return delen.join('');
+    }
+
+    /* Lopen er drie of meer op dezelfde stap vast? Dan is het geen probleem
+       van één kind maar van de stap: stuur ze samen de hint, of leg het even
+       klassikaal uit. */
+    let groepNu = null;
+    function toonGroep(leerlingen) {
+      const per = new Map();
+      for (const l of leerlingen) {
+        if (l.status === 'klaar' || !vraagtAandacht(l)) continue;
+        const sleutel = `${l.les === 2 ? 2 : 1}-${l.stap}`;
+        if (!per.has(sleutel)) per.set(sleutel, []);
+        per.get(sleutel).push(l);
+      }
+      groepNu = null;
+      for (const lijst of per.values()) if (lijst.length >= 3 && (!groepNu || lijst.length > groepNu.length)) groepNu = lijst;
+      if (!groepNu) { zetHtml(groepVak, ''); return; }
+      const l0 = groepNu[0];
+      const namen = groepNu.map((l) => esc(l.naam)).sort().join(', ');
+      zetHtml(groepVak, `🧩 <b>${groepNu.length}</b>&nbsp;lopen vast op ${lesLabel(l0.les)}stap ${l0.stap}:
+        <span class="namen" title="${namen}">${namen}</span>
+        <button data-groep title="Stuurt de hint van stap ${l0.stap} naar elk van hen">💡 stuur hen de hint</button>`);
+    }
+    groepVak.addEventListener('click', (e) => {
+      const knop = e.target.closest('[data-groep]');
+      if (!knop || !groepNu) return;
+      const l0 = groepNu[0];
+      const s = stappenVan(l0.les === 2 ? 2 : 1).find((x) => x.nr === l0.stap);
+      if (!s) return;
+      const tekst = `💡 Hint voor stap ${s.nr}: ${zonderOpmaak(s.hint)}`;
+      for (const l of groepNu) socket.emit('lesCommando', { type: 'bericht', id: l.id, tekst });
+      knop.textContent = `✓ verstuurd naar ${groepNu.length}`;
+    });
+
+    /* Eén streepje per stap van zijn les: groen = gehaald, blauw = waar hij nu zit. */
+    function voortgangHtml(l, les) {
+      const gehaald = new Set(l.gehaald || []);
+      let html = '';
+      for (let n = 1; n <= maxStapVan(les); n++) {
+        html += `<span class="${gehaald.has(n) ? 'gehaald' : ''}${n === l.stap ? ' nu' : ''}"></span>`;
+      }
+      return html;
+    }
+
+    /* ---------------- de opdracht van de getoonde leerling ----------------
+     * Naast zijn blokken zie je ook wat hij op zijn scherm leest: de stap, de
+     * opdracht, zijn twee vinkjes (met dezelfde tekst als bij hem — bij stap 5
+     * dus ook "bijna! je richt-blok staat er wel in, maar niet bovenaan"),
+     * of zijn hint openstaat, en welke stappen hij al haalde. Zo zie je meteen
+     * of het aan de blokken ligt of aan het uitproberen, zonder naar zijn
+     * tafel te lopen.
+     */
+    let opdrachtDicht = false;
+    try { opdrachtDicht = localStorage.getItem('lgOpdrachtDicht') === '1'; } catch { /* geen opslag */ }
+    let vorigeOpdracht = '';
+    document.getElementById('od-klap').addEventListener('click', () => {
+      opdrachtDicht = !opdrachtDicht;
+      try { localStorage.setItem('lgOpdrachtDicht', opdrachtDicht ? '1' : '0'); } catch { /* geen opslag */ }
+      vorigeOpdracht = '';
+      toonOpdracht();
+      // het werkblad eronder krijgt meer (of minder) plaats
+      setTimeout(() => { try { Blockly.svgResize(window.blocklyWerkruimte); } catch { } }, 30);
+    });
+
+    function doelAlsHtml(tekst) {
+      const regels = String(tekst || '').split('\n').map((r) => r.trim()).filter(Boolean);
+      if (regels.length < 2) return blokHtml(tekst);
+      return `<ol>${regels.map((r) => `<li>${blokHtml(r)}</li>`).join('')}</ol>`;
+    }
+
+    function toonOpdracht() {
+      const vak = document.getElementById('opdracht');
+      const l = getoondeLeerling && laatsteOverzicht
+        && (laatsteOverzicht.leerlingen || []).find((x) => x.id === getoondeLeerling.id);
+      const les = l && l.les === 2 ? 2 : 1;
+      const s = l && stappenVan(les).find((x) => x.nr === l.stap);
+      if (!s) {
+        if (!vak.classList.contains('verborgen')) {
+          vak.classList.add('verborgen');
+          vorigeOpdracht = '';
+          setTimeout(() => { try { Blockly.svgResize(window.blocklyWerkruimte); } catch { } }, 30);
+        }
+        return;
+      }
+      // zijn programma, als zijn blokken hier openstaan: dan klopt de vinkjestekst precies
+      let programma = [];
+      try { if (werkbladVan === l.id) programma = compileerProject(window.blocklyWerkruimte); } catch { /* editor nog niet klaar */ }
+      const sTekst = typeof s.check.structuurTekst === 'function' ? s.check.structuurTekst(programma) : s.check.structuurTekst;
+      const gehaald = new Set(l.gehaald || []);
+      const delen = {
+        titel: `📘 ${lesLabel(les)}stap ${s.nr}/${stappenVan(les).length} · ${s.titel} — ${l.naam}`,
+        doel: `🎯 ${doelAlsHtml(s.doel)}`,
+        checks: `<span class="${l.checkS ? 'ok' : 'nee'}">${l.checkS ? '✓' : '○'} ${blokHtml(sTekst)}</span>`
+          + `<span class="${l.checkG ? 'ok' : 'nee'}">${l.checkG ? '✓' : '○'} ${blokHtml(s.check.gedragTekst)}</span>`,
+        hint: l.hint ? `💡 Zijn hint staat open: <i>${blokHtml(s.hint)}</i>` : '',
+        stappen: stappenVan(les).map((x) => `<span class="od-stap${gehaald.has(x.nr) ? ' gehaald' : ''}${x.nr === l.stap ? ' nu' : ''}" title="${esc(x.nr + '. ' + x.titel)}">${gehaald.has(x.nr) ? '✓' : ''}${x.nr}</span>`).join(''),
+      };
+      const sleutel = JSON.stringify(delen) + opdrachtDicht;
+      if (sleutel === vorigeOpdracht) return;   // niets veranderd: niet opnieuw tekenen
+      const wasVerborgen = vak.classList.contains('verborgen');
+      vorigeOpdracht = sleutel;
+      vak.classList.remove('verborgen');
+      vak.classList.toggle('dicht', opdrachtDicht);
+      document.getElementById('od-klap').textContent = opdrachtDicht ? '▸ opdracht' : '▾';
+      document.getElementById('od-titel').textContent = delen.titel;
+      document.getElementById('od-titel').title = delen.titel;
+      document.getElementById('od-doel').innerHTML = delen.doel;
+      document.getElementById('od-checks').innerHTML = delen.checks;
+      document.getElementById('od-hint').innerHTML = delen.hint;
+      document.getElementById('od-stappen').innerHTML = delen.stappen;
+      if (wasVerborgen) setTimeout(() => { try { Blockly.svgResize(window.blocklyWerkruimte); } catch { } }, 30);
+    }
+
     /* Alleen vervangen als er echt iets veranderde. */
-    function zetHtml(el, html, wie) {
-      if (wie === 'rooster') { if (html === vorigeRooster) return; vorigeRooster = html; }
-      else { if (html === vorigeHulpHtml) return; vorigeHulpHtml = html; }
+    const vorigeHtml = new Map();
+    function zetHtml(el, html) {
+      if (vorigeHtml.get(el) === html) return;
+      vorigeHtml.set(el, html);
       el.innerHTML = html;
     }
 
-    /* Eén klik-afhandeling voor alle knoppen op de kaartjes en in de hulpbalk. */
+    /* Eén klik-afhandeling voor alle knoppen op de kaartjes en in de hulpbalk.
+       Tik je naast de knoppen op een kaartje, dan open je die leerling. */
     function opKnop(e) {
       const k = e.target.closest('button');
-      if (!k || k.disabled) return;
+      if (!k) {
+        const kaart = e.target.closest('[data-kaart]');
+        if (kaart) bekijk(kaart.dataset.kaart, kaart.dataset.naam);
+        return;
+      }
+      if (k.disabled) return;
       const d = k.dataset;
-      if (d.blokken) vraagBlokken(d.blokken, d.naam);
-      else if (d.volg) volg(d.volg, d.naam);
-      else if (d.klaar) socket.emit('lesCommando', { type: 'hulpKlaar', id: d.klaar });
+      if (d.bekijk) bekijk(d.bekijk, d.naam);
+      else if (d.klaar) hulpKlaar(d.klaar);
       else if (d.opruimen) socket.emit('lesCommando', { type: 'opruimen', id: d.opruimen });
       else if (d.stapnaar) socket.emit('lesCommando', { type: 'stapVoor', id: d.stapnaar, stap: Number(d.nr) });
       else if (d.tip) {
-        zetTipDoel(d.tip, d.naam, Number(d.stap), Number(d.les));
+        bekijk(d.tip, d.naam);
         document.getElementById('tiptekst').focus();
       }
     }
+
+    /* Hand omlaag. Meteen ook op dit scherm, niet pas bij het volgende
+       overzicht: anders bleef het kaartje nog anderhalve seconde geel en
+       klikte je voor de zekerheid nog eens. */
+    function hulpKlaar(id) {
+      socket.emit('lesCommando', { type: 'hulpKlaar', id });
+      const l = laatsteOverzicht && (laatsteOverzicht.leerlingen || []).find((x) => x.id === id);
+      if (l) { l.hulp = false; l.hulpMin = 0; }
+      vernieuwKaartjes();
+    }
+    document.getElementById('kop-geholpen').addEventListener('click', () => {
+      if (getoondeLeerling) hulpKlaar(getoondeLeerling.id);
+      document.getElementById('kop-geholpen').classList.add('verborgen');
+    });
+
+    /* Wie heeft je nodig, in volgorde: eerst de handen (wie het langst wacht
+       vooraan), dan wie vastzit of al lang stilstaat, zoals de kaartjes staan. */
+    function wieHeeftJeNodig() {
+      const perId = new Map(((laatsteOverzicht && laatsteOverzicht.leerlingen) || []).map((l) => [l.id, l]));
+      const ids = hulpVolgorde.filter((id) => perId.has(id) && perId.get(id).hulp);
+      for (const id of getoondeVolgorde) {
+        const l = perId.get(id);
+        if (l && !l.hulp && vraagtAandacht(l)) ids.push(id);
+      }
+      return ids.map((id) => perId.get(id));
+    }
+    /* "⏭ volgende": de volgende leerling die je nodig heeft meteen openen.
+       Zo help je de ene na de andere zonder in de lijst te zoeken. */
+    document.getElementById('volgende-hulp').addEventListener('click', () => {
+      const lijst = wieHeeftJeNodig();
+      if (!lijst.length) { meldInKop('👍 niemand wacht op je'); return; }
+      const nu = getoondeLeerling ? lijst.findIndex((l) => l.id === getoondeLeerling.id) : -1;
+      const l = lijst[(nu + 1) % lijst.length];
+      bekijk(l.id, l.naam);
+      // zijn kaartje in beeld schuiven, zodat je ziet waar hij staat
+      setTimeout(() => {
+        const kaart = rooster.querySelector(`[data-kaart="${CSS.escape(l.id)}"]`);
+        if (kaart) kaart.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 80);
+    });
+    let kopMeldingTimer = null;
+    function meldInKop(tekst) {
+      const vak = document.getElementById('code-titel');
+      vak.textContent = tekst;
+      clearTimeout(kopMeldingTimer);
+      kopMeldingTimer = setTimeout(() => zetTitel(), 2500);
+    }
+
+    /* Rondlopen met een iPad: de blokken staan dan in een venster over de
+       klas heen (zie de CSS). Openen gebeurt vanzelf als je een leerling
+       aantikt; met ✕ ben je terug bij de klas. */
+    function openPaneel() {
+      if (document.body.classList.contains('paneel-open')) return;
+      document.body.classList.add('paneel-open');
+      setTimeout(() => {
+        try { Blockly.svgResize(window.blocklyWerkruimte); window.herschaalWerkveld(); } catch { /* editor nog niet klaar */ }
+      }, 60);
+    }
+    document.getElementById('sluit-paneel').addEventListener('click', () => {
+      document.body.classList.remove('paneel-open');
+      // niet blijven meekijken als niemand kijkt: dat scheelt zijn toestel werk
+      if (gevolgdId) {
+        socket.emit('lesCommando', { type: 'volg', id: gevolgdId, aan: false });
+        gevolgdId = null;
+        zetTitel();
+      }
+      vernieuwKaartjes();
+    });
     rooster.addEventListener('click', opKnop);
     hulplijst.addEventListener('click', opKnop);
 
@@ -811,23 +1269,30 @@
       return true;
     }
 
-    function volg(id, naam) {
-      if (gevolgdId === id) {
-        socket.emit('lesCommando', { type: 'volg', id, aan: false });
-        gevolgdId = null;
-        zetTitel();
-      } else {
+    /*
+     * Een leerling bekijken: zijn blokken én zijn opdracht, live bijgewerkt.
+     * Vroeger waren er twee knoppen ("blokken" voor één keer, "volg" voor
+     * live) — maar je wil altijd zien wat er nú staat. Pas je zelf iets aan,
+     * dan stopt het bijwerken vanzelf tot je het terugstuurt (zie hieronder).
+     * Je tip gaat vanaf nu ook naar deze leerling: zo stuur je nooit per
+     * ongeluk een tip voor Emma naar de hele klas.
+     */
+    function bekijk(id, naam) {
+      if (!(getoondeLeerling && getoondeLeerling.id === id && gevolgdId === id)) {
         if (!vraagBlokken(id, naam)) return;
         gevolgdId = id;
         socket.emit('lesCommando', { type: 'volg', id, aan: true });
         zetTitel('⏳ blokken worden opgehaald…');
       }
-      vernieuwKaartjes();
+      const l = laatsteOverzicht && (laatsteOverzicht.leerlingen || []).find((x) => x.id === id);
+      zetTipDoel(id, naam, l ? l.stap : 1, l ? l.les : 1);
+      openPaneel();
     }
 
     /* De knop "volg" moet meteen omslaan, niet pas bij het volgende overzicht. */
     function vernieuwKaartjes() {
-      vorigeRooster = '';
+      vorigeHtml.delete(rooster);
+      vorigeHtml.delete(filtersVak);
       if (laatsteOverzicht && !knopIngedrukt) toonOverzicht(laatsteOverzicht);
     }
 
@@ -866,6 +1331,7 @@
         setTimeout(() => { bezigMetLaden = false; }, 80);
       }
       zetTitel(werkbladVan === d.id ? '' : '⚠ kon de blokken niet openen');
+      toonOpdracht();   // de vinkjestekst kan van zijn blokken afhangen
     });
 
     /* Jouw versie terugsturen naar de leerling. */
@@ -909,8 +1375,8 @@
     document.getElementById('rapport-sluit').addEventListener('click', () => document.getElementById('rapport').classList.remove('aan'));
     document.getElementById('rapport-kopieer').addEventListener('click', () => {
       if (!laatsteRapport) return;
-      const regels = laatsteRapport.leerlingen.map(l => `${l.naam}\t${l.les === 2 ? 'les 2' : 'les 1'}\tstap ${l.maxStap}\t${l.minuten} min`);
-      navigator.clipboard.writeText(['naam\tles\tver gekomen\ttijd', ...regels].join('\n'))
+      const regels = laatsteRapport.leerlingen.map(l => `${l.naam}\t${l.les === 2 ? 'les 2' : 'les 1'}\tstap ${l.maxStap}\t${l.minuten} min\t${l.hulp || 0}`);
+      navigator.clipboard.writeText(['naam\tles\tver gekomen\ttijd\thulpvragen', ...regels].join('\n'))
         .then(() => { document.getElementById('rapport-kopieer').textContent = '✓ gekopieerd'; })
         .catch(() => { document.getElementById('rapport-kopieer').textContent = 'kopiëren lukte niet'; });
     });
@@ -958,8 +1424,8 @@ Typ WIS om te bevestigen.`);
         const traagste = Object.entries(r.gemiddeld).sort((a, b) => b[1] - a[1]).slice(0, 3);
         vak.innerHTML = `
           <table>
-            <tr><th>Naam</th><th>Ver gekomen</th><th>Tijd</th></tr>
-            ${r.leerlingen.map(l => `<tr><td>${esc(l.naam)}</td><td>${lesLabel(l.les)}stap ${l.maxStap}</td><td>${l.minuten} min</td></tr>`).join('')}
+            <tr><th>Naam</th><th>Ver gekomen</th><th>Tijd</th><th title="Hoe vaak stak hij zijn hand op?">✋ hulp</th></tr>
+            ${r.leerlingen.map(l => `<tr><td>${esc(l.naam)}</td><td>${lesLabel(l.les)}stap ${l.maxStap}</td><td>${l.minuten} min</td><td>${l.hulp ? `${l.hulp}×` : ''}</td></tr>`).join('')}
           </table>
           <p style="margin-top:14px;font-size:.9rem;color:#9aa3bd">
             Waar bleef de klas het langst hangen?

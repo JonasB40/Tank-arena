@@ -2,11 +2,17 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- maximum-scale=1: tikt een kind op de iPad een getal in een blok aan, dan
+       zoomde Safari de hele pagina in (het tekstvakje is kleiner dan 16 px) en
+       bleef ze zo staan. Knijpen in het werkblad zoomt gewoon nog (zoom.js). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>STEMazing Tank Arena</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Verschijnt alleen als de pagina ingezoomd is (iPad): zie zoom.js -->
+  <button id="zoom-zweef" class="verborgen">🔍 Zoom herstellen</button>
+
   <!-- Bovenbalk (Scratch-paars) -->
   <header id="topbar">
     <div class="logo">🛡️ <strong>STEMazing</strong> Tank Arena</div>
@@ -93,6 +99,12 @@
             <path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg><span id="label-inklappen">Inklappen</span>
         </button>
+        <button id="knop-zoom" title="Zet je werkblad en het scherm terug op de juiste grootte">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M10.4 10.4l3.6 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg><span>Zoom</span>
+        </button>
       </div>
       </div>
       <!-- uitleg verschijnt alleen zwevend als je op een blok klikt -->
@@ -106,6 +118,8 @@
         <button id="stop" class="actief" title="Stop je programma">🛑</button>
         <div class="hud-item">🏆 <span id="hud-score">0</span></div>
         <div class="hud-item">⬆️ lvl <span id="hud-level">1</span></div>
+        <!-- inhaalbonus: in de arena leveren vormen nu anderhalve keer zoveel op -->
+        <div id="hud-inhaal" class="hud-item verborgen" title="Inhaalbonus: tot level 15 (of zolang je ver achter de klas zit) leveren vormen in de arena anderhalve keer zoveel punten op">🚀 ×1,5</div>
         <div id="xp-balk"><div id="xp-balk-vul"></div></div>
         <button id="hud-statpunten" class="verborgen">⬆️</button>
         <!-- Alleen op toestellen met een aanraakscherm: joystick aan/uit -->
@@ -285,6 +299,7 @@
   <script src="js/spel-tekenen.js"></script>
   <script src="js/spel-les.js"></script>
   <script src="js/joystick.js"></script>
+  <script src="js/zoom.js"></script>
   <script src="js/spel-start.js"></script>
 </body>
 </html>

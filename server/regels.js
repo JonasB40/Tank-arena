@@ -33,6 +33,50 @@ const GEDEELDE_ARENA = { w: 22000, h: 10400 };   // samen spelen (2 of 4 teams)
 const TANK_RADIUS = 22;
 const TANKS_IN_ARENA = 12;  // samen spelen: altijd 12 tanks in het veld (6 per team)
 const RECOIL_KRACHT = 26;   // hoe hard één 'recoil-eenheid' van de wiki duwt
+
+/*
+ * DE GEDEELDE ARENA GROEIT MEE MET DE KLAS. GEDEELDE_ARENA is de maat voor
+ * TANKS_IN_ARENA tanks (zolang er minder leerlingen zijn, vullen robots aan
+ * tot twaalf). Komen er meer leerlingen bij, dan krijgt elke tank evenveel
+ * ruimte als in een arena van twaalf: de oppervlakte groeit mee, de vorm
+ * blijft. Zo doet diep.io het ook — de kaart wordt groter met de spelers.
+ * Met 25 leerlingen is de arena ongeveer 1,4 keer zo breed en hoog.
+ */
+function gedeeldeArenaVoor(aantalTanks) {
+  const factor = Math.sqrt(Math.max(TANKS_IN_ARENA, aantalTanks) / TANKS_IN_ARENA);
+  const w = Math.round((GEDEELDE_ARENA.w * factor) / 100) * 100;
+  return { w, h: Math.round((w * GEDEELDE_ARENA.h) / GEDEELDE_ARENA.w) };
+}
+
+/*
+ * INHAALBONUS. In de gedeelde arena rijdt een kind dat net binnenkomt tussen
+ * klasgenoten die al een uur spelen. Tot level INHAAL_LEVEL, of zolang je
+ * INHAAL_ACHTERSTAND levels onder het gemiddelde van de klas zit, leveren
+ * vormen INHAAL_FACTOR keer zoveel punten op. (Een sterke tank verslaan
+ * levert vanzelf al meer op: dat hoeft geen bonus.)
+ */
+const INHAAL_LEVEL = 15;
+const INHAAL_ACHTERSTAND = 10;
+const INHAAL_FACTOR = 1.5;
+
+/*
+ * DE KROON. Wie in de gedeelde arena de meeste punten heeft, draagt een 👑 —
+ * en wie hem verslaat, krijgt dubbele punten. Zo blijft één sterke speler niet
+ * de hele les ongestoord de baas: de rest van de klas heeft een reden om hem
+ * samen aan te pakken. Pas vanaf KROON_MIN_PUNTEN en met minstens
+ * KROON_MIN_SPELERS leerlingen (met z'n tweeën is "de koning" gewoon de ander).
+ */
+const KROON_MIN_PUNTEN = 500;
+const KROON_MIN_SPELERS = 3;
+
+/*
+ * DE HEUVEL (rondesoort "heuvel veroveren"): een cirkel midden in de arena.
+ * Staan er alleen tanks van één team op, dan verdient elk van die tanks
+ * HEUVEL_PUNTEN_PER_SEC rondepunten per seconde. De straal geldt voor de
+ * gewone arena en groeit mee als de arena groeit.
+ */
+const HEUVEL_STRAAL = 650;
+const HEUVEL_PUNTEN_PER_SEC = 20;
 /*
  * Tanks groeien met hun level, net als in diep.io: elke level maal 1,01. Een
  * tank van level 45 is dus anderhalf keer zo groot als een beginner — je ziet
@@ -285,4 +329,4 @@ function klemF(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
-module.exports = { AGGRO_MS, AI_PROFIELEN, ARENA, BULLET_LIFE, BULLET_SPEED, DETECTIE_R, GEDEELDE_ARENA, KLASSEN, KLEUREN, MAX_SPELERS, MAX_STAT, NIVEAUS, ONTSNAP_R, OPWARM_MS, RECOIL_KRACHT, RESPAWN_MS, ROBOT_NAMEN, SPAWN_BESCHERMING_MS, STAT_LIJST, TANKS_IN_ARENA, TANK_RADIUS, TIER_LEVEL, VERSNELLING, VORM_INFO, VORM_TYPES, WRIJVING, botsschadeVan, bulletPierce, bulletSchadeVan, bulletSnelheidFactor, herlaadMsVan, klasseAanbod, klasseVan, klem, klemF, legeStats, levelVan, maxHpVan, randInt, regenPerSec, robotKlasseVoorLevel, saneNaam, snelheidVan, statMaxVan, statPuntenBijLevel, straalVan, xpVoorLevel };
+module.exports = { HEUVEL_PUNTEN_PER_SEC, HEUVEL_STRAAL, INHAAL_ACHTERSTAND, INHAAL_FACTOR, INHAAL_LEVEL, KROON_MIN_PUNTEN, KROON_MIN_SPELERS, gedeeldeArenaVoor, AGGRO_MS, AI_PROFIELEN, ARENA, BULLET_LIFE, BULLET_SPEED, DETECTIE_R, GEDEELDE_ARENA, KLASSEN, KLEUREN, MAX_SPELERS, MAX_STAT, NIVEAUS, ONTSNAP_R, OPWARM_MS, RECOIL_KRACHT, RESPAWN_MS, ROBOT_NAMEN, SPAWN_BESCHERMING_MS, STAT_LIJST, TANKS_IN_ARENA, TANK_RADIUS, TIER_LEVEL, VERSNELLING, VORM_INFO, VORM_TYPES, WRIJVING, botsschadeVan, bulletPierce, bulletSchadeVan, bulletSnelheidFactor, herlaadMsVan, klasseAanbod, klasseVan, klem, klemF, legeStats, levelVan, maxHpVan, randInt, regenPerSec, robotKlasseVoorLevel, saneNaam, snelheidVan, statMaxVan, statPuntenBijLevel, straalVan, xpVoorLevel };

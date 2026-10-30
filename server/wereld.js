@@ -4,10 +4,11 @@
  * arena van de klas. Hier staat hoe je er een maakt en wat erin ligt.
  */
 const { staat, rooms } = require('./staat');
-const { TIER_LEVEL, ARENA, GEDEELDE_ARENA, SPAWN_BESCHERMING_MS, legeStats, VORM_TYPES, ROBOT_NAMEN, AI_PROFIELEN, NIVEAUS, levelVan, klasseVan, maxHpVan, statPuntenBijLevel } = require('./regels');
+const { HEUVEL_PUNTEN_PER_SEC, HEUVEL_STRAAL, INHAAL_ACHTERSTAND, INHAAL_FACTOR, INHAAL_LEVEL, KROON_MIN_PUNTEN, KROON_MIN_SPELERS, TANKS_IN_ARENA, gedeeldeArenaVoor, TIER_LEVEL, ARENA, GEDEELDE_ARENA, SPAWN_BESCHERMING_MS, legeStats, VORM_TYPES, ROBOT_NAMEN, AI_PROFIELEN, NIVEAUS, levelVan, klasseVan, maxHpVan, statPuntenBijLevel } = require('./regels');
 
 function maakRoom(id, solo, niveau) {
-  const arena = solo ? ARENA : GEDEELDE_ARENA;
+  // een eigen kopie: de gedeelde arena groeit mee met de klas (pasArenaGrootteAan)
+  const arena = Object.assign({}, solo ? ARENA : GEDEELDE_ARENA);
   const room = {
     arena,
     id, solo,
@@ -103,15 +104,18 @@ function inEigenZone(room, t) {
  * winnaar. De punten van de ronde tellen apart (t.rondePunten), zodat niemand
  * zijn level of upgrades kwijtraakt als er opnieuw begonnen wordt.
  */
-function startRonde(room, minuten, doel) {
+function startRonde(room, minuten, doel, soort) {
   if (!room) return;
-  for (const t of room.tanks.values()) t.rondePunten = 0;
+  for (const t of room.tanks.values()) { t.rondePunten = 0; t.heuvelRest = 0; }
   room.ronde = {
     eind: Date.now() + Math.max(1, Math.min(60, minuten || 10)) * 60000,
     doel: Math.max(0, Math.min(100000, doel || 0)),
+    // 'punten' (wie verdient het meest) of 'heuvel' (wie houdt de heuvel)
+    soort: soort === 'heuvel' ? 'heuvel' : 'punten',
   };
+  room.heuvelStand = null;
   room.gepauzeerd = false;
-  staat.io.to(room.id).emit('rondeStart', { minuten: minuten || 10, doel: doel || 0 });
+  staat.io.to(room.id).emit('rondeStart', { minuten: minuten || 10, doel: doel || 0, soort: room.ronde.soort });
 }
 
 function rondeStand(room) {
@@ -148,6 +152,130 @@ function bewaakRonde(room, nu) {
     const beste = stand.teams.length ? stand.teams[0].punten : (stand.spelers[0] || {}).punten || 0;
     if (beste >= r.doel) stopRonde(room, 'doel');
   }
+}
+
+/*
+ * DE HEUVEL (rondesoort "heuvel veroveren"). Een cirkel midden in de arena,
+ * even groot ten opzichte van de arena als die groeit. Staan er tanks van maar
+ * één team op (zonder teams: maar één tank), dan verdient elk van die tanks
+ * rondepunten. Staan er twee teams op, dan is hij betwist en verdient niemand
+ * iets. Zo moet een team samenwerken: de heuvel innemen én verdedigen — los
+ * punten jagen helpt je team hier niet.
+ */
+function heuvelVan(room) {
+  if (!room.ronde || room.ronde.soort !== 'heuvel') return null;
+  return {
+    x: Math.round(room.arena.w / 2), y: Math.round(room.arena.h / 2),
+    r: Math.round(HEUVEL_STRAAL * (room.arena.w / GEDEELDE_ARENA.w)),
+  };
+}
+
+function opHeuvel(room, t) {
+  const h = heuvelVan(room);
+  return !!h && Math.hypot(t.x - h.x, t.y - h.y) <= h.r;
+}
+
+function bewaakHeuvel(room, nu, dt) {
+  const h = heuvelVan(room);
+  if (!h) { room.heuvelStand = null; return; }
+  const erop = [];
+  for (const t of room.tanks.values()) {
+    if (nu < t.deadUntil) continue;
+    if (Math.hypot(t.x - h.x, t.y - h.y) <= h.r) erop.push(t);
+  }
+  // een "partij" is een team, of zonder teams één tank
+  const partijVan = (t) => (t.team !== null && t.team !== undefined ? 'team' + t.team : 'tank' + t.id);
+  const partijen = new Set(erop.map(partijVan));
+  const stand = { betwist: partijen.size > 1, aantal: erop.length, houder: null };
+  if (partijen.size === 1) {
+    const eerste = erop[0];
+    stand.houder = eerste.team !== null && eerste.team !== undefined
+      ? { team: eerste.team }
+      : { nr: eerste.nr, naam: eerste.naam, kleur: eerste.kleur };
+    for (const t of erop) {
+      // de punten sparen we op en delen we in hele punten uit
+      t.heuvelRest = (t.heuvelRest || 0) + HEUVEL_PUNTEN_PER_SEC * dt;
+      const heel = Math.floor(t.heuvelRest);
+      if (heel > 0) { t.heuvelRest -= heel; t.rondePunten = (t.rondePunten || 0) + heel; }
+    }
+  }
+  room.heuvelStand = stand;
+}
+
+/*
+ * De arena groeit mee met de klas (zie gedeeldeArenaVoor in regels.js).
+ * Groeien gebeurt meteen, maar zacht: een paar procent per seconde, zodat
+ * niemand de rand ziet verspringen. Krimpen pas als de klas een minuut lang
+ * kleiner is: een leerling die even zijn pagina ververst, laat de arena niet
+ * slinken en weer groeien.
+ */
+const KRIMP_NA_MS = 60000;
+function pasArenaGrootteAan(room, nu, dt) {
+  if (room.solo) return;
+  let spelers = 0;
+  for (const t of room.tanks.values()) if (!t.ai) spelers++;
+  const doel = gedeeldeArenaVoor(Math.max(TANKS_IN_ARENA, spelers));
+  const a = room.arena;
+  if (doel.w >= a.w) room.kleinerSinds = 0;
+  else if (!room.kleinerSinds) room.kleinerSinds = nu;
+  if (doel.w === a.w) return;
+  if (doel.w < a.w && nu - room.kleinerSinds < KRIMP_NA_MS) return;
+
+  const oud = { w: a.w, h: a.h };
+  const stap = Math.max(40, a.w * 0.04 * dt);   // ongeveer 4% per seconde
+  if (Math.abs(doel.w - a.w) <= stap) { a.w = doel.w; a.h = doel.h; }
+  else {
+    a.w = Math.round(a.w + Math.sign(doel.w - a.w) * stap);
+    a.h = Math.round((a.w * GEDEELDE_ARENA.h) / GEDEELDE_ARENA.w);
+  }
+  room.basis.y = a.h - room.basis.h;   // de thuisbasis blijft in de hoek linksonder
+
+  if (a.w > oud.w) {
+    // gegroeid: nieuwe vormen eerst in het nieuwe stuk (zie spawnVorm), anders
+    // ligt daar een halve minuut niets terwijl het oude stuk vol ligt
+    if (!room.groeiVan || nu > room.groeiVan.tot) room.groeiVan = { w: oud.w, h: oud.h };
+    room.groeiVan.tot = nu + 30000;
+  } else {
+    // gekrompen: wat nu buiten de rand ligt, verdwijnt (tanks en drones
+    // houdt de spel-lus vanzelf binnen het veld)
+    for (const v of room.vormen) {
+      if (v.x > a.w - v.r || v.y > a.h - v.r) v.weg = true;
+    }
+  }
+}
+
+/*
+ * INHAALBONUS (zie regels.js): in de gedeelde arena leveren vormen meer op
+ * voor wie nog onder level 15 zit of ver achter de klas aanhinkt. In je eigen
+ * oefenarena niet: daar begint iedereen gelijk.
+ */
+function gemiddeldSpelerLevel(room) {
+  let som = 0, n = 0;
+  for (const s of room.tanks.values()) if (!s.ai) { som += s.level; n++; }
+  return n ? som / n : 1;
+}
+function inhaalFactor(room, t, gemiddeld) {
+  if (room.solo || t.ai) return 1;
+  if (t.level < INHAAL_LEVEL) return INHAAL_FACTOR;
+  const gem = gemiddeld === undefined ? gemiddeldSpelerLevel(room) : gemiddeld;
+  return t.level <= gem - INHAAL_ACHTERSTAND ? INHAAL_FACTOR : 1;
+}
+const puntenVoorVorm = (room, t, punten) => Math.round(punten * inhaalFactor(room, t));
+
+/* DE KROON (zie regels.js): wie draagt hem nu? */
+function bepaalKoning(room) {
+  if (room.solo) { room.koning = null; return; }
+  let beste = null, spelers = 0;
+  for (const t of room.tanks.values()) {
+    if (t.ai) continue;
+    spelers++;
+    if (t.score >= KROON_MIN_PUNTEN && (!beste || t.score > beste.score)) beste = t;
+  }
+  const nieuw = beste && spelers >= KROON_MIN_SPELERS ? beste.id : null;
+  if (nieuw === room.koning) return;
+  room.koning = nieuw;
+  // de nieuwe koning mag het weten: vanaf nu jagen de anderen op hem
+  if (beste && nieuw) stuurEvent(beste, 'kroon');
 }
 
 function zetTeamModus(room, n) {
@@ -415,10 +543,13 @@ function spawnVorm(room, type, inHetNest, vak) {
     x = n.x + Math.random() * n.w;
     y = n.y + Math.random() * n.h;
   } else {
+    // net gegroeid? dan liefst in het nieuwe stuk (buiten de oude rechthoek)
+    const groei = room.groeiVan && Date.now() < room.groeiVan.tot ? room.groeiVan : null;
+    let pogingen = groei ? 10 : 0;
     do {                                    // buiten het nest, mooi verspreid
       x = 80 + Math.random() * (room.arena.w - 160);
       y = 80 + Math.random() * (room.arena.h - 160);
-    } while (inNest(room, x, y));
+    } while (inNest(room, x, y) || (pogingen-- > 0 && x < groei.w && y < groei.h));
   }
   if (inBasis(room, x, y)) { x = room.arena.w / 2; y = room.arena.h / 2; }
   return duwVormInDeArena(room, type, def, x, y);
@@ -546,6 +677,8 @@ function geefPunten(room, t, n) {
       t.maxHp = maxHpVan(t);
       t.hp += Math.max(0, t.maxHp - oudMax);
       stuurEvent(t, 'levelup', { level: t.level });
+      // iedereen in de buurt ziet een ring rond je tank (zie verzenden.js)
+      t.levelUpTot = Date.now() + 1200;
       stuurEvent(t, 'statpunt', { punten: t.statPunten }); // voor het hat-blok
     }
   }
@@ -556,4 +689,4 @@ function vindTank(socket) {
   return room ? room.tanks.get(socket.id) : null;
 }
 
-module.exports = { TEAM_KLEUREN, basisVan, bewaakRonde, bouwVormRaster, buurVormen, geefPunten, inBasis, inEigenZone, isVeilig, lesgeverZetTeams, maakRoom, nestVan, nieuweTank, respawnZwakker, rondeStand, spawnTank, startRonde, stopRonde, stuurEvent, teamZones, vakNr, vindTank, vormenRondom, vrijeRobotNaam, vulVormenAan, wijsTeamToe, zetTeamModus };
+module.exports = { bepaalKoning, bewaakHeuvel, gemiddeldSpelerLevel, heuvelVan, inhaalFactor, opHeuvel, pasArenaGrootteAan, puntenVoorVorm, TEAM_KLEUREN, basisVan, bewaakRonde, bouwVormRaster, buurVormen, geefPunten, inBasis, inEigenZone, isVeilig, lesgeverZetTeams, maakRoom, nestVan, nieuweTank, respawnZwakker, rondeStand, spawnTank, startRonde, stopRonde, stuurEvent, teamZones, vakNr, vindTank, vormenRondom, vrijeRobotNaam, vulVormenAan, wijsTeamToe, zetTeamModus };

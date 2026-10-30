@@ -235,6 +235,13 @@ function drawTank(c, t, isIk) {
     c.strokeText(t.naam, 0, boven - 6);
     c.fillStyle = '#ffffff';
     c.fillText(t.naam, 0, boven - 6);
+    /* De kroon: deze leerling heeft de meeste punten van de arena, en wie hem
+       verslaat krijgt dubbele punten. Iedereen moet hem dus van ver zien. */
+    if (t.kroon) {
+      c.font = '22px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+      c.fillText('👑', 0, boven - 24);
+      c.font = 'bold 13px Segoe UI, sans-serif';
+    }
     c.fillStyle = 'rgba(0,0,0,0.5)';
     c.fillRect(-balkB / 2, boven, balkB, 6);
     c.fillStyle = t.hp / t.maxHp > 0.4 ? '#2ecc71' : '#e74c3c';
@@ -378,6 +385,36 @@ function drawZones(c, zones) {
     c.strokeRect(z.x, z.y, z.w, z.h);
     c.restore();
   }
+}
+
+/*
+ * De heuvel (rondesoort "heuvel veroveren"): een cirkel midden in de arena,
+ * in de kleur van wie hem houdt. Staan er twee teams op, dan is hij betwist:
+ * een knipperende witte rand, want daar wordt gevochten. Niemand erop: grijs.
+ */
+function drawHeuvel(c, h, nu) {
+  if (!h) return;
+  const houder = h.houder;
+  const kleur = !houder ? '#8a94ad'
+    : houder.team !== undefined ? (TEAM_ZONE_KLEUREN[houder.team] || '#ffffff') : (houder.kleur || '#ffffff');
+  c.save();
+  c.globalAlpha = 0.24;
+  c.fillStyle = kleur;
+  c.beginPath();
+  c.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+  c.fill();
+  c.globalAlpha = h.betwist ? 0.55 + 0.4 * Math.sin(nu / 110) : 0.9;
+  c.lineWidth = 12;
+  c.setLineDash(h.betwist ? [34, 20] : []);
+  c.strokeStyle = h.betwist ? '#ffffff' : kleur;
+  c.stroke();
+  c.setLineDash([]);
+  c.globalAlpha = 0.9;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.font = '70px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+  c.fillText('🏔', h.x, h.y);
+  c.restore();
 }
 
 /*
