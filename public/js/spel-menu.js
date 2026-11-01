@@ -223,7 +223,7 @@ function meldTeamstand() {
   const nu = teamsNu();
   if (nu === gemeldeTeams) return;
   gemeldeTeams = nu;
-  if (nu === gewensteTeams) toast(`🚩 ${nu} teams staan aan — je hebt je eigen teamkleur en teamzone!`);
+  if (nu === gewensteTeams) toast(`⚔️ ${nu} teams staan aan — je hebt je eigen teamkleur en teamzone!`);
   else if (nu === 0) toast('De teams staan uit — iedereen speelt voor zichzelf, met de gedeelde thuisbasis linksonder.');
   else toast(`Let op: er staan nu ${nu} teams aan, niet ${gewensteTeams}. De lesgever bepaalt dit op de beamer.`);
 }

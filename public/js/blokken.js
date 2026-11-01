@@ -152,27 +152,27 @@ Blockly.defineBlocksWithJsonArray([
   /* Echte groene vlag als plaatje: het 🚩-emoji is op Windows donkerrood,
      waardoor "de groene vlag" nergens groen was. */
   { type: 'hat_start', message0: '%1 wanneer op groene vlag wordt geklikt', args0: [{ type: 'field_image', src: VLAG_ICOON, width: 20, height: 20, alt: 'groene vlag' }], nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Alles hieronder start als je op de groene vlag boven het speelveld klikt.' },
-  { type: 'hat_toets', message0: '🚩 wanneer toets %1 wordt ingedrukt', args0: [{ type: 'field_dropdown', name: 'TOETS', options: TOETS_OPTIES }], nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
-  { type: 'hat_geraakt', message0: '🚩 wanneer ik geraakt word 💥', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
-  { type: 'hat_levelup', message0: '🚩 wanneer ik een level omhoog ga ⬆️', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt telkens als je genoeg punten hebt voor een nieuw level.' },
-  { type: 'hat_dood', message0: '🚩 wanneer ik kapot ga ☠️', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
-  { type: 'hat_versla', message0: '🚩 wanneer ik iemand versla 🏆', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt telkens als jij een robot of speler kapot schiet.' },
+  { type: 'hat_toets', message0: 'wanneer toets %1 wordt ingedrukt', args0: [{ type: 'field_dropdown', name: 'TOETS', options: TOETS_OPTIES }], nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
+  { type: 'hat_geraakt', message0: 'wanneer ik geraakt word 💥', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
+  { type: 'hat_levelup', message0: 'wanneer ik een level omhoog ga ⬆️', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt telkens als je genoeg punten hebt voor een nieuw level.' },
+  { type: 'hat_dood', message0: 'wanneer ik kapot ga ☠️', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen },
+  { type: 'hat_versla', message0: 'wanneer ik iemand versla 🏆', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt telkens als jij een robot of speler kapot schiet.' },
   /* Signalen, zoals de berichten in Scratch: het ene stapeltje roept, het
      andere luistert. Zo koppel je "ik heb iemand verslagen" los van "wat is
      mijn beloning" — precies de zend/ontvang uit het Pong-voorbeeld. */
-  { type: 'hat_signaal', message0: '🚩 wanneer ik signaal %1 ontvang 📡', args0: [{ type: 'field_signaal', name: 'NAAM', naam: 'bonus' }], nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Start dit stapeltje zodra een "zend signaal"-blok dit signaal verstuurt.' },
+  { type: 'hat_signaal', message0: 'wanneer ik signaal %1 ontvang 📡', args0: [{ type: 'field_signaal', name: 'NAAM', naam: 'bonus' }], nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Start dit stapeltje zodra een "zend signaal"-blok dit signaal verstuurt.' },
   { type: 'zend_signaal', message0: 'zend signaal %1 📡', args0: [{ type: 'field_signaal', name: 'NAAM', naam: 'bonus' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Roept alle stapeltjes op die met "wanneer ik signaal … ontvang" beginnen.' },
-  { type: 'hat_statpunt', message0: '🚩 wanneer ik een statpunt krijg ⚡', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt bij elk nieuw level (dan krijg je een statpunt). Programmeer hier je eigen upgrade-plan!' },
+  { type: 'hat_statpunt', message0: 'wanneer ik een statpunt krijg ⚡', nextStatement: null, colour: SCRATCH_KLEUR.gebeurtenissen, tooltip: 'Gebeurt bij elk nieuw level (dan krijg je een statpunt). Programmeer hier je eigen upgrade-plan!' },
 
   /* ---------- Beweging ---------- */
   { type: 'beweeg_richting', message0: 'beweeg %1', args0: [{ type: 'field_dropdown', name: 'R', options: RICHTING_OPTIES }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging },
   /* De Scratch-manier van sturen: eerst een richting kiezen, dan stappen
      zetten. "richt naar" gaat over de tank zélf — alles wat het geschut
      draait zegt uitdrukkelijk "geschut". */
-  { type: 'richt_rij', message0: 'richt naar %1 graden', args0: [{ type: 'input_value', name: 'HOEK', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging, tooltip: 'Kiest de kant waar je tank naartoe rijdt. Zelfde graden als Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.' },
+  { type: 'richt_rij', message0: 'richt naar %1 graden', args0: [{ type: 'input_value', name: 'HOEK', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging, tooltip: 'Kiest de kant waar je tank naartoe rijdt. Graden als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, 270 = links.' },
   { type: 'neem_stappen', message0: 'neem %1 stappen', args0: [{ type: 'input_value', name: 'N', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging, tooltip: 'Rijdt de kant op die je met "richt naar … graden" koos. 10 stappen = volle snelheid.' },
   { type: 'richt_muis', message0: 'richt het geschut naar de muis 🖱', previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging },
-  { type: 'richt_graden', message0: 'richt het geschut op %1 graden', args0: [{ type: 'input_value', name: 'HOEK', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging, tooltip: 'Zelfde graden als in Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.' },
+  { type: 'richt_graden', message0: 'richt het geschut op %1 graden', args0: [{ type: 'input_value', name: 'HOEK', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.beweging, tooltip: 'Graden als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, 270 = links.' },
   { type: 'beweeg_stappen', message0: 'beweeg %1 stappen %2', args0: [
       { type: 'input_value', name: 'N', check: 'Number' },
       { type: 'field_dropdown', name: 'R', options: [['vooruit ⬆', 'vooruit'], ['achteruit ⬇', 'achteruit']] },
@@ -221,7 +221,7 @@ Blockly.defineBlocksWithJsonArray([
   /* ---------- Besturen ---------- */
   { type: 'wacht_blok', message0: 'wacht %1 sec.', args0: [{ type: 'input_value', name: 'SEC', check: 'Number' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.besturen },
   { type: 'wacht_tot', message0: 'wacht tot %1', args0: [{ type: 'input_value', name: 'COND', check: 'Boolean' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.besturen, tooltip: 'Pauzeert dit stapeltje blokken tot de voorwaarde WAAR wordt.' },
-  { type: 'stopwatch', message0: 'stopwatch ⏱', output: 'Number', colour: SCRATCH_KLEUR.waarnemen, tooltip: 'Seconden sinds je op 🚩 drukte.' },
+  { type: 'stopwatch', message0: 'stopwatch ⏱', output: 'Number', colour: SCRATCH_KLEUR.waarnemen, tooltip: 'Seconden sinds je op de groene vlag drukte.' },
   { type: 'herhaal_n', message0: 'herhaal %1 keer %2 %3', args0: [{ type: 'input_value', name: 'N', check: 'Number' }, { type: 'input_dummy' }, { type: 'input_statement', name: 'DOEN' }], previousStatement: null, nextStatement: null, colour: SCRATCH_KLEUR.besturen },
   /* Let op: dit blok heeft bewust ook een onderkant-verbinding. Daardoor kan
      Blockly het tússen blokken schuiven — en dat hebben we nodig om het zich
@@ -353,8 +353,11 @@ class HoekVeld extends Blockly.FieldNumber {
       const r = svg.getBoundingClientRect();
       let d = (Math.atan2(ev.clientY - (r.top + m), ev.clientX - (r.left + m)) * 180) / Math.PI + 90;
       d = Math.round(d / HOEK_STAP) * HOEK_STAP;
-      while (d > 180) d -= 360;
-      while (d <= -180) d += 360;
+      /* Rond als een klok, van 0 tot 359: links is 270, niet −90. Een
+         negatief getal is voor kinderen van acht nieuw en verwarrend (in
+         Scratch zelf heet links −90, maar 270 doet daar precies hetzelfde). */
+      while (d >= 360) d -= 360;
+      while (d < 0) d += 360;
       teken(d);
       this.setEditorValue_(String(d));
     };

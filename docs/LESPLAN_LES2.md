@@ -106,7 +106,7 @@ De laatste vier stappen in de app bereiden het toernooi voor. Ze introduceren el
 Zeven blokken komen er bij les 2 bij: `ben ik in mijn basis?`, `niet`, `wacht tot`, `zend signaal`, `wanneer ik signaal … ontvang`, `score van de beste speler` en `mijn plaats in de ranglijst`. Die verschijnen automatisch zodra de leerling les 2 kiest — in les 1 blijven ze verborgen. Verder hergebruikt les 2 bewust de blokken van les 1 in een nieuwe context:
 
 ```
-🚩 wanneer ik geraakt word
+wanneer ik geraakt word
    verander [geraakt] met (1)                 ← eigen VARIABELE
    als <waarde van [geraakt] > 5> dan
       zeg [jullie krijgen me niet!]           ← ALS-DAN

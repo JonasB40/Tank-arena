@@ -135,6 +135,9 @@
     #od-body { padding: 0 13px 7px; max-height: 96px; overflow: auto; line-height: 1.45; }
     #opdracht.dicht #od-body { display: none; }
     #od-doel ol { margin: 2px 0 4px 18px; }
+    #od-doel li.gedaan { color: #7ee2a8; }
+    .blok.getal { background: #fff; color: #2d3436; font-weight: 800; border: 2px solid #4C97FF; border-radius: 999px; padding: 0 7px; }
+    #od-doel li.nu { font-weight: 700; color: #fff; background: rgba(79, 195, 247, .18); border-radius: 4px; }
     #od-checks { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
     #od-checks .ok { color: #7ee2a8; }
     #od-checks .nee { color: #b0b8cf; }
@@ -273,6 +276,8 @@
     .knop-gevaar:disabled { opacity: .45; }
 
     .verborgen { display: none !important; }
+    /* de groene vlag in de lesteksten (stappen.js) */
+    img.groene-vlag { height: 1.15em; width: auto; vertical-align: -0.22em; margin: 0 1px; }
     /* zoals bij de leerling: een stapeltje zonder startblok verbleekt (editor.js) */
     .blok-los { opacity: .45; }
     .blok-actief > .blocklyPath { stroke: #ffd500 !important; stroke-width: 4px !important; }
@@ -477,6 +482,7 @@
   <div id="stubs">
     <button id="modus-starter"></button><button id="modus-expert"></button>
     <button id="knop-opruimen"></button><button id="knop-inklappen"><span id="label-inklappen"></span></button>
+    <button id="knop-kopie"></button>
     <div id="blok-uitleg"></div>
   </div>
 
@@ -749,8 +755,8 @@
       const tips = SNELLE_TIPS.map((t, i) => ({ i, tekst: t.tekst, past: !!(l && t.past(l)) }))
         .sort((a, b) => b.past - a.past || a.i - b.i);
       snelMenu.innerHTML = `<div class="kop">⚡ snelle tip naar ${l ? esc(l.naam) : 'de hele klas'}</div>`
-        + (s ? `<button data-snel-hint>💡 De hint van ${lesLabel(l ? l.les : klasLes)}stap ${s.nr}: <i>${esc(kort(zonderOpmaak(s.hint), 90))}</i></button>` : '')
-        + tips.map((t) => `<button data-snel="${t.i}" class="${t.past ? 'past' : ''}">${esc(t.tekst)}</button>`).join('');
+        + (s ? `<button data-snel-hint>💡 De hint van ${lesLabel(l ? l.les : klasLes)}stap ${s.nr}: <i>${metGroeneVlag(esc(kort(zonderOpmaak(s.hint), 90)))}</i></button>` : '')
+        + tips.map((t) => `<button data-snel="${t.i}" class="${t.past ? 'past' : ''}">${metGroeneVlag(esc(t.tekst))}</button>`).join('');
       snelMenu.classList.remove('verborgen');
     }
     document.getElementById('tip-snel').addEventListener('click', (e) => {
@@ -1033,7 +1039,7 @@
       if (l.verouderd) delen.push('<span class="let" title="Hij veranderde zijn blokken, maar drukte niet opnieuw op de groene vlag: zijn tank doet nog het oude programma">✏️ veranderd, niet herstart</span>');
       else if (l.draait) delen.push('<span class="loopt" title="Zijn programma draait">▶ programma loopt</span>');
       else delen.push('<span title="Hij drukte (nog) niet op de groene vlag">⏹ programma staat uit</span>');
-      if (l.geenStart) delen.push('<span class="let" title="Er staat geen geel startblok: geen enkel blok doet iets">🚩 geen startblok</span>');
+      if (l.geenStart) delen.push(`<span class="let" title="Er staat geen geel startblok: geen enkel blok doet iets">${metGroeneVlag('🚩')} geen startblok</span>`);
       else if (l.los) delen.push(`<span class="let" title="Stapeltjes zonder geel startblok erboven doen niets (bij hem zijn ze verbleekt)">🧩 ${l.los} los ${l.los === 1 ? 'stapeltje' : 'stapeltjes'}</span>`);
       return delen.join('');
     }
@@ -1100,10 +1106,13 @@
       setTimeout(() => { try { Blockly.svgResize(window.blocklyWerkruimte); } catch { } }, 30);
     });
 
-    function doelAlsHtml(tekst) {
+    /* De opdracht als lijstje. De leerling ziet ze stapje per stapje: het
+       stapje waar hij nu is, staat vet; wat hij al deed, in het groen. */
+    function doelAlsHtml(tekst, stapje) {
       const regels = String(tekst || '').split('\n').map((r) => r.trim()).filter(Boolean);
       if (regels.length < 2) return blokHtml(tekst);
-      return `<ol>${regels.map((r) => `<li>${blokHtml(r)}</li>`).join('')}</ol>`;
+      const soort = (i) => (!stapje ? '' : i + 1 < stapje ? 'gedaan' : i + 1 === stapje ? 'nu' : '');
+      return `<ol>${regels.map((r, i) => `<li class="${soort(i)}">${blokHtml(r)}</li>`).join('')}</ol>`;
     }
 
     function toonOpdracht() {
@@ -1126,11 +1135,12 @@
       const sTekst = typeof s.check.structuurTekst === 'function' ? s.check.structuurTekst(programma) : s.check.structuurTekst;
       const gehaald = new Set(l.gehaald || []);
       const delen = {
-        titel: `📘 ${lesLabel(les)}stap ${s.nr}/${stappenVan(les).length} · ${s.titel} — ${l.naam}`,
-        doel: `🎯 ${doelAlsHtml(s.doel)}`,
+        titel: `📘 ${lesLabel(les)}stap ${s.nr}/${stappenVan(les).length}${l.stapje ? ` · stapje ${l.stapje}` : ''} · ${s.titel} — ${l.naam}`,
+        doel: `🎯 ${doelAlsHtml(s.doel, l.stapje)}`,
         checks: `<span class="${l.checkS ? 'ok' : 'nee'}">${l.checkS ? '✓' : '○'} ${blokHtml(sTekst)}</span>`
           + `<span class="${l.checkG ? 'ok' : 'nee'}">${l.checkG ? '✓' : '○'} ${blokHtml(s.check.gedragTekst)}</span>`,
-        hint: l.hint ? `💡 Zijn hint staat open: <i>${blokHtml(s.hint)}</i>` : '',
+        // de slimme tip (stap 4) hangt af van zijn blokken; die staan hier open
+        hint: l.hint ? `💡 Zijn hint staat open: <i>${blokHtml((s.slimmeHint && werkbladVan === l.id && s.slimmeHint(programma, {})) || s.hint)}</i>` : '',
         stappen: stappenVan(les).map((x) => `<span class="od-stap${gehaald.has(x.nr) ? ' gehaald' : ''}${x.nr === l.stap ? ' nu' : ''}" title="${esc(x.nr + '. ' + x.titel)}">${gehaald.has(x.nr) ? '✓' : ''}${x.nr}</span>`).join(''),
       };
       const sleutel = JSON.stringify(delen) + opdrachtDicht;

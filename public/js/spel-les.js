@@ -101,17 +101,6 @@ function onthoudGehaald(nr) {
 }
 
 /*
- * Een doel met meerdere regels wordt een genummerd lijstje. Sommige stappen
- * vroegen om een hele bouwtekening in één zin met pijlen ertussen — dat leest
- * geen kind. Nu staat er per regel één handeling.
- */
-function doelHtml(tekst) {
-  const regels = String(tekst || '').split('\n').map((r) => r.trim()).filter(Boolean);
-  if (regels.length < 2) return blokHtml(tekst);
-  return `<ol class="doel-stapjes">${regels.map((r) => `<li>${blokHtml(r)}</li>`).join('')}</ol>`;
-}
-
-/*
  * Sommige stappen vragen iets dat een kind nog nooit gedaan heeft. Stap 7 is de
  * ergste: daar moet je voor het eerst zelf een variabele AANMAKEN, en die knop
  * zit verstopt bovenaan een categorie die ze nog niet kennen. De les mag dus
@@ -121,9 +110,159 @@ function doelHtml(tekst) {
 function wijsDeWegAan(stap) {
   const wijs = stap && stap.wijsAan;
   document.body.classList.toggle('wijs-variabeleknop', !!(wijs && wijs.knop));
+  ringRond = wijs && wijs.ring ? wijs : null;
+  zetRing();
   if (!wijs || !wijs.categorie || !window.openCategorie) return;
   // even wachten tot de toolbox de blokken van deze stap heeft bijgewerkt
   setTimeout(() => { try { window.openCategorie(wijs.categorie); } catch { } }, 260);
+}
+
+/*
+ * Een pulserende ring rond een categorie in de blokkenlade: "hier moet je
+ * zijn". Stap 2 vraagt voor het eerst een blok uit Besturen, en daar keken
+ * kinderen overheen. De ring blijft tot het gevraagde blok op het werkblad
+ * ligt (of de stap gelukt is). Blockly bouwt de lade soms opnieuw op (een
+ * nieuwe stap ontgrendelt blokken), dus we zetten hem bij elke ronde opnieuw.
+ */
+let ringRond = null;   // { ring: 'Besturen', totBlok: 'herhaal_continu' } of null
+function zetRing() {
+  // de ring van de stap (stap 2: Besturen) of die van de gids (waar haal je het volgende blok?)
+  const naam = (ringRond && ringRond.ring) || (typeof gidsCategorie === 'string' ? gidsCategorie : null);
+  for (const rij of document.querySelectorAll('.blocklyToolboxDiv .blocklyTreeRow')) {
+    const label = rij.querySelector('.blocklyTreeLabel');
+    const hier = !!naam && !!label && label.textContent.trim() === naam;
+    if (rij.classList.contains('wijs-ring') !== hier) rij.classList.toggle('wijs-ring', hier);
+  }
+}
+function ringNogNodig() {
+  if (!ringRond) return;
+  let gevonden = stapKlaar;
+  try { gevonden = gevonden || blocklyWerkruimte.getAllBlocks(false).some((b) => b.type === ringRond.totBlok); } catch { /* editor nog niet klaar */ }
+  if (gevonden) ringRond = null;
+  zetRing();
+}
+
+/*
+ * DE OPDRACHT, STAPJE PER STAPJE. Een opdracht van vijf regels in één keer
+ * lazen kinderen niet: ze begonnen aan de eerste regel en waren de rest kwijt.
+ * Nu staat er telkens één stapje. Ziet de computer dat het gedaan is (de stap
+ * heeft daarvoor deelChecks), dan verschijnt een vinkje en daarna het volgende
+ * stapje. Kan hij het niet zien ("probeer de pijltjes"), dan tik je zelf op
+ * "✓ gedaan". Met ◀ kijk je terug naar wat je al deed.
+ */
+let vorigeHintHtml = '';    // de slimme tip: alleen vervangen als hij verandert
+let stapjes = [];           // de regels van het doel
+let stapjeNu = 0;           // welk stapje staat er nu
+let stapjeVerst = 0;        // hoe ver ben je al gekomen
+let stapjeGedaanOp = 0;     // wanneer het huidige stapje klaar was (eerst even het vinkje tonen)
+
+function toonStapjes() {
+  const s = stappen()[stapIndex];
+  stapjes = String(s.doel || '').split('\n').map((r) => r.trim()).filter(Boolean);
+  // een stap die al eens gelukt is: alles staat al op groen
+  stapjeNu = stapjeVerst = stapKlaar ? stapjes.length - 1 : 0;
+  stapjeGedaanOp = 0;
+  tekenStapje();
+}
+
+function tekenStapje() {
+  if (stapjes.length < 2) { elStap.doel.innerHTML = `🎯 ${blokHtml(stapjes[0] || '')}`; return; }
+  const s = stappen()[stapIndex];
+  const gedaan = (i) => stapKlaar || i < stapjeVerst || (i === stapjeVerst && stapjeGedaanOp > 0);
+  const nu = stapjeNu;
+  const laatste = stapjes.length - 1;
+  // kan de computer dit stapje zelf zien? anders tik je op "gedaan"
+  const zelfAfvinken = !(s.deelChecks && s.deelChecks[nu]);
+  let verder = '';
+  if (nu < stapjeVerst) verder = '<button class="stapje-verder" title="Volgend stapje">▶</button>';
+  else if (nu < laatste && !stapKlaar) {
+    verder = zelfAfvinken
+      ? '<button class="stapje-verder zelf" title="Klaar met dit stapje? Dan komt het volgende">✓ gedaan ▶</button>'
+      : '<button class="stapje-verder" title="Het volgende stapje komt vanzelf als je dit gedaan hebt">▶</button>';
+  }
+  elStap.doel.innerHTML = `<div class="stapje">
+    <div class="stapje-kop">🎯 Stapje ${nu + 1} van ${stapjes.length}
+      <span class="stapje-bolletjes">${stapjes.map((_, i) => `<span class="${gedaan(i) ? 'gedaan' : ''}${i === nu ? ' nu' : ''}"></span>`).join('')}</span></div>
+    <p class="stapje-tekst${gedaan(nu) ? ' gedaan' : ''}">${gedaan(nu) ? '✓ ' : ''}${blokHtml(stapjes[nu])}</p>
+    <div class="stapje-knoppen">
+      <button class="stapje-terug" ${nu === 0 ? 'disabled' : ''} title="Het vorige stapje terugkijken">◀</button>${verder}
+    </div></div>`;
+}
+
+function naarStapje(i, ookVerst) {
+  stapjeNu = Math.max(0, Math.min(stapjes.length - 1, i));
+  if (ookVerst && stapjeNu > stapjeVerst) { stapjeVerst = stapjeNu; stapjeGedaanOp = 0; }
+  tekenStapje();
+  meldStatusAanLesgever(huidigeStatus());
+}
+elStap.doel.addEventListener('click', (e) => {
+  const k = e.target.closest('button');
+  if (!k || k.disabled) return;
+  if (k.classList.contains('stapje-terug')) naarStapje(stapjeNu - 1);
+  // vooruit: terug naar waar je was, of (bij het huidige stapje) het volgende
+  else if (k.classList.contains('stapje-verder')) naarStapje(stapjeNu + 1, stapjeNu >= stapjeVerst);
+});
+
+/* Elke halve seconde: is het stapje waar je bent gedaan? Dan eerst even het
+   vinkje, en dan het volgende. Wie terugkijkt, wordt niet weggetrokken. */
+function controleerStapje(s, programma, extra) {
+  if (stapjes.length < 2) return;
+  if (stapKlaar) {
+    if (stapjeVerst < stapjes.length - 1) { stapjeVerst = stapjes.length - 1; if (stapjeNu >= stapjeVerst - 1) stapjeNu = stapjeVerst; tekenStapje(); }
+    return;
+  }
+  if (stapjeNu !== stapjeVerst || stapjeVerst >= stapjes.length - 1) return;
+  const check = s.deelChecks && s.deelChecks[stapjeVerst];
+  if (!check) return;
+  let klaar = false;
+  try {
+    // 'structuur' en 'gedrag': hetzelfde als de twee vinkjes van de stap
+    klaar = check === 'structuur' ? !!s.check.structuur(programma)
+      : check === 'gedrag' ? !!s.check.gedrag(stapWaarnemer)
+        : !!check(programma, stapWaarnemer, extra);
+  } catch { /* onaf programma */ }
+  if (!klaar) { if (stapjeGedaanOp) { stapjeGedaanOp = 0; tekenStapje(); } return; }
+  if (!stapjeGedaanOp) { stapjeGedaanOp = Date.now(); tekenStapje(); speelGeluid('plop'); return; }
+  if (Date.now() - stapjeGedaanOp >= 700) naarStapje(stapjeVerst + 1, true);
+}
+
+/*
+ * DE GIDS: een pulserende ring rond precies het ding waar je nu op moet
+ * tikken. De stap zegt wat (gids, in stappen.js):
+ *   { id, pad }    een blok op je werkblad. pad wijst een gaatje aan, bv.
+ *                  ['COND', 'A'] = het linkervakje van wat in het als-gaatje
+ *                  zit; '@richt_rij' = zoek dat blok verderop in de stapel;
+ *   { knop }       een knop (nu: 'kopie' = ⧉ Kopie);
+ *   { categorie }  een categorie in de blokkenlade (waar haal je het blok?).
+ * Is het gaatje nog leeg, dan krijgt het blok eromheen de ring.
+ */
+let gidsSvg = null;
+let gidsCategorie = null;
+function zetGids(g) {
+  let doel = null;
+  try {
+    if (g && g.id && !blocklyWerkruimte.isDragging()) {
+      let b = blocklyWerkruimte.getBlockById(g.id);
+      doel = b;
+      for (const stuk of g.pad || []) {
+        if (!b) break;
+        if (stuk.startsWith('@')) {
+          while (b && b.type !== stuk.slice(1)) b = b.getNextBlock();
+        } else {
+          b = b.getInputTargetBlock(stuk);
+        }
+        if (b) doel = b;
+      }
+    }
+  } catch { /* editor nog niet klaar */ }
+  const svg = doel && doel.getSvgRoot ? doel.getSvgRoot() : null;
+  if (gidsSvg && gidsSvg !== svg) gidsSvg.classList.remove('wijs-blok');
+  if (svg) svg.classList.add('wijs-blok');
+  gidsSvg = svg;
+  const knop = document.getElementById('knop-kopie');
+  if (knop) knop.classList.toggle('wijs', !!(g && g.knop === 'kopie'));
+  const cat = (g && g.categorie) || null;
+  if (cat !== gidsCategorie) { gidsCategorie = cat; zetRing(); }
 }
 
 /* Welke uitleg heeft deze leerling al gezien? (les-stap, bv. "1-7") */
@@ -183,7 +322,9 @@ function toonStap() {
      je bij elk stapje terug weer te klikken. */
   const sleutel = `${welkeLes}-${s.nr}`;
   if (!gelezenUitleg.has(sleutel)) { gelezenUitleg.add(sleutel); toonUitleg(); }
-  elStap.doel.innerHTML = `🎯 ${doelHtml(s.doel)}`;
+  toonStapjes();   // één stapje tegelijk (zie hierboven)
+  zetGids(null);
+  vorigeHintHtml = '';
   // sommige stappen laten zien hoe de stapel eruit hoort te zien
   elStap.voorbeeld.innerHTML = blokHtml(s.voorbeeld || '');
   elStap.voorbeeld.classList.toggle('verborgen', !s.voorbeeld);
@@ -220,6 +361,28 @@ setInterval(() => {
       }
     } catch { /* editor nog niet klaar */ }
   }
+  ringNogNodig();   // de ring rond Besturen (stap 2): nog nodig?
+  // welk blok zou ⧉ Kopie nu kopiëren? (de stapjes en de gids van stap 4 kijken daarnaar)
+  let geselecteerd = null;
+  try { const k = window.kopieDoel && window.kopieDoel(); geselecteerd = k ? k.type : null; } catch { /* editor nog niet klaar */ }
+  // wat ligt er op het werkblad (variabelen, losse blokken), en staat het venster "nieuwe variabele" open?
+  let info = {};
+  try { info = werkbladInfo(blocklyWerkruimte); } catch { /* editor nog niet klaar */ }
+  const extra = Object.assign(info, {
+    geselecteerd,
+    venster: !document.getElementById('var-overlay').classList.contains('verborgen'),
+  });
+  controleerStapje(s, programma, extra);
+  // de gids (pulserende ring) en de slimme tip: telkens één ding, het ding van nu
+  let gids = null;
+  try { gids = s.gids && !stapKlaar ? s.gids(programma, extra) : null; } catch { /* onaf programma */ }
+  zetGids(gids);
+  if (s.slimmeHint) {
+    let zin = null;
+    try { zin = s.slimmeHint(programma, extra); } catch { /* onaf programma */ }
+    const html = `💡 ${blokHtml(zin || s.hint)}`;
+    if (html !== vorigeHintHtml) { elStap.hint.innerHTML = html; vorigeHintHtml = html; }
+  }
   const structuurOk = !!s.check.structuur(programma);
   laatsteChecks.structuur = structuurOk;
   // wat je al bewezen hebt, hoef je niet opnieuw te bewijzen: de waarnemer
@@ -239,6 +402,8 @@ setInterval(() => {
   if (structuurOk && gedragOk && !stapKlaar) {
     stapKlaar = true;
     onthoudGehaald(s.nr);
+    zetGids(null);
+    controleerStapje(s, programma, extra);   // alle stapjes op groen
     elStap.volgende.disabled = false;
     if (s.breek) elStap.breek.classList.remove('verborgen');
     speelGeluid('tada');
@@ -479,7 +644,9 @@ function toonLesgeverBericht(tekst, naarDeKlas) {
   const vak = document.getElementById('lesgever-bericht');
   document.getElementById('lb-terug').classList.add('verborgen');
   vak.querySelector('.lb-kop').textContent = naarDeKlas ? '👩‍🏫 Bericht aan de klas' : '👩‍🏫 Bericht voor jou';
-  vak.querySelector('.lb-tekst').textContent = tekst;
+  // eerst veilig maken (de lesgever typt het zelf), dan 🚩 → de groene vlag
+  const veilig = String(tekst || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  vak.querySelector('.lb-tekst').innerHTML = metGroeneVlag(veilig);
   vak.classList.remove('verborgen');
   speelGeluid('tada');
 }
@@ -537,6 +704,8 @@ function meldStatusAanLesgever(status) {
        lesgever naast de blokken ook hoe ver hij is en waar hij op vastloopt. */
     gehaald: [...gehaaldeStappen],
     hint: !elStap.hint.classList.contains('verborgen'),
+    // bij welk stapje van de opdracht is hij? (0 = de opdracht heeft geen stapjes)
+    stapje: stapjes.length > 1 ? stapjeVerst + 1 : 0,
     code: projectCode || '',
   }));
 }

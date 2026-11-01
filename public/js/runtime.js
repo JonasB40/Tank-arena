@@ -251,7 +251,7 @@ function stapThread(th, nu) {
         break;
       }
       // Graden precies zoals Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag,
-      // -90 = links. Op het scherm groeit y naar beneden, dus we draaien 90°
+      // 270 (of -90) = links. Op het scherm groeit y naar beneden, dus we draaien 90°
       // terug om bij de wiskundige hoek uit te komen.
       case 'richtGraden': runtime.intent.angle = ((evalueer(c.v) - 90) * Math.PI) / 180; runtime.angleGezet = true; break;
       case 'draaiGeschut': {

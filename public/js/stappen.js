@@ -32,12 +32,32 @@ const BLOK_KLEUR = {
   vrb: ['#FF8C1A', '#4a2600'], // Variabelen
 };
 
-/** Zet {{cat|tekst}} om in een gekleurd blok-chipje. */
+/*
+ * De groene vlag. In de lesteksten staat ze als 🚩 — maar dat emoji is rood
+ * (op Windows zelfs donkerrood), terwijl de vlag op het startblok en boven
+ * het speelveld groen is. "Druk op 🚩" met een rode vlag erbij was voor
+ * kinderen verwarrend. Overal waar de tekst als HTML op het scherm komt, wordt
+ * het dezelfde groene vlag als op het blok (blokken.js heeft dezelfde
+ * tekening als VLAG_ICOON).
+ */
+const GROENE_VLAG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">'
+  + '<path d="M4 2v16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/>'
+  + '<path d="M5.2 3.1c3.2-1.8 6.4 1.8 9.6 0v7c-3.2 1.8-6.4-1.8-9.6 0z" fill="#4CBF56" stroke="#2e7d32" stroke-width="1"/>'
+  + '</svg>');
+const VLAG_HTML = `<img class="groene-vlag" src="${GROENE_VLAG}" alt="groene vlag">`;
+/** Elke 🚩 in een stuk HTML wordt de groene vlag. */
+function metGroeneVlag(html) { return String(html || '').replace(/🚩️?/g, VLAG_HTML); }
+
+/** Zet {{cat|tekst}} om in een gekleurd blok-chipje (en 🚩 in de groene vlag).
+    {{getal|30}} wordt een wit bolletje, zoals het vakje in een blok: zo zie je
+    meteen dat je dát getal moet typen ("typ 30" las als gewone tekst). */
 function blokHtml(tekst) {
-  return String(tekst || '').replace(/\{\{(\w+)\|([^}]+)\}\}/g, (_, cat, t) => {
+  return metGroeneVlag(String(tekst || '').replace(/\{\{(\w+)\|([^}]+)\}\}/g, (_, cat, t) => {
+    if (cat === 'getal') return `<span class="blok getal">${t}</span>`;
     const [bg, fg] = BLOK_KLEUR[cat] || ['#5f6880', '#fff'];
     return `<span class="blok" style="background:${bg};color:${fg}">${t}</span>`;
-  });
+  }));
 }
 
 /* ---------- hulpjes om door het programma te zoeken ---------- */
@@ -66,6 +86,121 @@ function alleCmdsVanProject(p) {
 /** Rijdt de tank hiermee? "neem stappen" is de Scratch-manier, "beweeg" is
     het oude blok dat we nog herkennen zodat oude projecten blijven kloppen. */
 const isRijden = (c) => c.t === 'neemStappen' || c.t === 'beweeg' || c.t === 'beweegStappen';
+
+/*
+ * STAP 4: vier pijltjes, elk met zijn eigen richting. De graden lopen als een
+ * klok: 0 boven, 90 rechts, 180 onder, 270 links (−90 is hetzelfde als 270).
+ */
+const PIJLEN = [
+  { toets: 'ArrowUp', teken: '↑', hoek: 0 },
+  { toets: 'ArrowRight', teken: '→', hoek: 90 },
+  { toets: 'ArrowDown', teken: '↓', hoek: 180 },
+  { toets: 'ArrowLeft', teken: '←', hoek: 270 },
+];
+const zelfdeRichting = (a, b) => (((a - b) % 360) + 360) % 360 === 0;
+
+/* Welke als-blokken met een toets zijn er, met welke hoek, en welke pijlen
+   kloppen al? */
+function pijlAnalyse(p) {
+  const blokken = alleCmdsVanProject(p).filter((c) => c.t === 'als' && c.c && c.c.e === 'toets');
+  const lijst = blokken.map((a) => {
+    const richt = alleCmds(a.dan).find((c) => c.t === 'richtRij');
+    const hoek = richt && richt.v && richt.v.e === 'num' ? Number(richt.v.v) : null;
+    // een als-blok ín een ander toets-als-blok (de kopie in het eerste gezet)
+    const binnenIn = alleCmds(a.dan).some((c) => c.t === 'als' && c.c && c.c.e === 'toets');
+    return { id: a.id, toets: a.c.k, hoek, binnenIn };
+  });
+  const heeft = {}, goed = {};
+  for (const pijl of PIJLEN) {
+    heeft[pijl.toets] = lijst.some((a) => a.toets === pijl.toets);
+    goed[pijl.toets] = lijst.some((a) => a.toets === pijl.toets && a.hoek !== null && zelfdeRichting(a.hoek, pijl.hoek));
+  }
+  return { lijst, aantal: lijst.length, heeft, goed };
+}
+
+/*
+ * Wat moet de leerling NU doen, en waar moet de ring komen? Eén ding
+ * tegelijk, in de volgorde waarin het misloopt: een kopie ín het eerste
+ * blok, een kopie die nog op dezelfde toets reageert, een verkeerd getal, en
+ * pas dan: nog een kopie maken.
+ */
+function pijlGids(p, x) {
+  const a = pijlAnalyse(p);
+  const pijlVan = (toets) => PIJLEN.find((pijl) => pijl.toets === toets);
+  const nogNodig = PIJLEN.find((pijl) => !a.heeft[pijl.toets]);
+  const genest = a.lijst.find((b) => b.binnenIn);
+  if (genest) {
+    return { id: genest.id, pad: [], zin: 'Een kopie zit ín een ander als-blok. Sleep ze eruit en zet ze er net onder.' };
+  }
+  const gezien = new Set();
+  for (const b of a.lijst) {
+    if (gezien.has(b.toets)) {
+      const pijl = pijlVan(b.toets);
+      return {
+        id: b.id, pad: ['COND'],
+        zin: `Deze kopie reageert nog op ${pijl ? pijl.teken : 'dezelfde toets'}. Tik op de toets en kies ${nogNodig ? nogNodig.teken : 'een andere pijl'}.`,
+      };
+    }
+    gezien.add(b.toets);
+  }
+  for (const b of a.lijst) {
+    const pijl = pijlVan(b.toets);
+    if (pijl && (b.hoek === null || !zelfdeRichting(b.hoek, pijl.hoek))) {
+      return { id: b.id, pad: ['DAN', '@richt_rij', 'HOEK'], zin: `Bij ${pijl.teken} hoort ${pijl.hoek}. Tik op het getal en kies ${pijl.hoek}.` };
+    }
+  }
+  if (nogNodig) {
+    if (x && x.geselecteerd === 'als_blok') return { knop: 'kopie', zin: 'Tik nu op ⧉ Kopie, rechtsboven op je werkblad.' };
+    const laatste = a.lijst[a.lijst.length - 1];
+    return { id: laatste && laatste.id, pad: [], zin: `Nog te doen: ${nogNodig.teken}. Tik op een als-blok en dan op ⧉ Kopie.` };
+  }
+  return { zin: 'Alles klopt! Druk op 🚩 en probeer de vier pijltjes.' };
+}
+
+/*
+ * STAP 9: de −10 vervangen door 0 − kracht kogel. Eén ding tegelijk: eerst
+ * het groene 0 − 1 op de −10, dan kracht kogel op de 1.
+ */
+function kogelAnalyse(p) {
+  const als = alleCmdsVanProject(p).find((c) => c.t === 'als' && c.c && c.c.e === 'raakIk' && c.c.wat === 'kogel');
+  const ver = als && alleCmds(als.dan).find((x) => x.t === 'veranderVar');
+  const v = ver && ver.v;
+  const som = !!v && v.e === 'reken' && v.op === '-';
+  return { ver, som, kracht: som && !!v.b && v.b.e === 'krachtKogel' };
+}
+function kogelGids(p) {
+  const k = kogelAnalyse(p);
+  if (!k.ver) return { zin: 'Je hebt je blok van stap 8 nodig: als raak ik een vijandelijke kogel? dan verander Levens met -10.' };
+  if (!k.som) return { id: k.ver.id, pad: ['DELTA'], categorie: 'Operators', zin: 'Sleep het groene 0 − 1 uit Operators op de -10 in je verander-blok.' };
+  if (!k.kracht) return { id: k.ver.id, pad: ['DELTA', 'B'], categorie: 'Waarnemen', zin: 'Sleep kracht kogel uit Waarnemen op de 1 in het groene blok.' };
+  return { zin: 'Klopt! Laat je raken door een robot en kijk of je teller net zoveel zakt als de levensbalk.' };
+}
+
+/*
+ * STAP 10: zelf om hulp roepen. Het nieuwe als-blok komt gewoon in je herhaal
+ * (geen nieuw startblok meer), en de ring wijst telkens het volgende vakje aan.
+ */
+function hulpAnalyse(p) {
+  // het nieuwe als-blok: met een vergelijking, of (nog) met een leeg gaatje
+  const alsen = alleCmdsVanProject(p).filter((c) => c.t === 'als' && c.c);
+  const nieuw = alsen.find((c) => c.c.e === 'vergelijk') || alsen.find((c) => c.c.e === 'bool');
+  const c = nieuw && nieuw.c;
+  const vergelijk = !!c && c.e === 'vergelijk';
+  const levens = vergelijk && !!c.a && c.a.e === 'levens';
+  // zelf een getal getypt? (het blok komt uit de lade met 50: dat telt nog niet)
+  const getal = vergelijk && !!c.b && c.b.e === 'num' && Number(c.b.v) > 0 && Number(c.b.v) !== 50;
+  const zegt = !!nieuw && alleCmds(nieuw.dan).some((x) => x.t === 'zeg');
+  return { nieuw, vergelijk, levens, getal, zegt };
+}
+function hulpGids(p) {
+  const h = hulpAnalyse(p);
+  if (!h.nieuw) return { categorie: 'Besturen', zin: 'Sleep een als … dan uit Besturen in je herhaal, onder je andere als-blokken.' };
+  if (!h.vergelijk) return { id: h.nieuw.id, pad: ['COND'], categorie: 'Operators', zin: 'Sleep het groene ( ) < ( ) uit Operators in het zeshoekige gaatje.' };
+  if (!h.levens) return { id: h.nieuw.id, pad: ['COND', 'A'], categorie: 'Variabelen', zin: 'Sleep mijn levens (helemaal onderaan bij Variabelen) op het linkervakje.' };
+  if (!h.getal) return { id: h.nieuw.id, pad: ['COND', 'B'], zin: 'Tik op het rechtervakje en typ 30.' };
+  if (!h.zegt) return { id: h.nieuw.id, pad: [], categorie: 'Uiterlijken', zin: 'Sleep zeg [help!] uit Uiterlijken in je nieuwe als-blok.' };
+  return { zin: 'Klopt! Rij uit je basis en bots tegen vormen tot je levens onder de 30 zakken.' };
+}
 
 /**
  * Wat is het EERSTE blok in de herhaal-lus? Voor stap 5 maakt dat uit: richten
@@ -119,6 +254,10 @@ const STAPPEN = [
     ontdekking: 'De computer leest je blokken van boven naar beneden, en dan is hij klaar. Wil je dat iets blijft gebeuren, dan moet je het hérhalen.',
     doel: 'Zet je {{bew|neem 10 stappen}} binnenin een {{bes|herhaal}}-blok.',
     hint: '{{bes|herhaal}} vind je in de oranje categorie {{bes|Besturen}}. Sleep je stappen-blok in de opening van het herhaal-blok — je ziet een schaduw waar het in past.',
+    /* Besturen is hier nieuw: tot nu toe stond alles in Gebeurtenis en
+       Beweging. Een pulserende ring rond het oranje bolletje wijst de weg,
+       tot er een herhaal-blok op het werkblad ligt. */
+    wijsAan: { ring: 'Besturen', totBlok: 'herhaal_continu' },
     check: {
       structuur: (p) => inLus(p, isRijden),
       structuurTekst: 'een {{bes|herhaal}} met daarin je {{bew|stappen-blok}}',
@@ -141,7 +280,7 @@ const STAPPEN = [
       'Zet daaronder je {{bew|neem 10 stappen}} terug — óók binnen het als-blok.',
       'Druk op 🚩 en houd het pijltje omhoog ingedrukt (op een tablet: duw de linker joystick omhoog).',
     ].join('\n'),
-    hint: 'Kijk goed of je stappen-blok écht ín het als-blok zit: het als-blok heeft een opening, en je blokken moeten daarbinnen inspringen. Zit het eronder in plaats van erin, dan rijdt je tank altijd — ook zonder toets.\n\nDe graden zijn dezelfde als in Scratch: 0 is omhoog, 90 is rechts, 180 is omlaag, -90 is links. Klik op het getal om het te veranderen.\n\nWerkt het nog niet? Kijk of je twee stapeltjes hebt staan. Alles hoort onder één 🚩-blok.',
+    hint: 'Kijk goed of je stappen-blok écht ín het als-blok zit: het als-blok heeft een opening, en je blokken moeten daarbinnen inspringen. Zit het eronder in plaats van erin, dan rijdt je tank altijd — ook zonder toets.\n\nDe graden lopen als een klok: 0 is omhoog, 90 is rechts, 180 is omlaag, 270 is links. Klik op het getal om het te veranderen.\n\nWerkt het nog niet? Kijk of je twee stapeltjes hebt staan. Alles hoort onder één 🚩-blok.',
     check: {
       // eerst alléén omhoog: één werkende als-dan is het hele doel van deze stap
       structuur: (p) => alleCmdsVanProject(p)
@@ -158,27 +297,41 @@ const STAPPEN = [
     concept: 'Hetzelfde patroon herhalen',
     probleem: 'Omhoog rijden lukt! Maar naar beneden, links en rechts gebeurt er nog niets.',
     ontdekking: 'Je hebt het patroon nu één keer gebouwd. De andere drie richtingen werken precies hetzelfde — alleen de toets en het aantal graden verschillen.',
+    /* Kort, één handeling per regel: de leerling ziet er telkens maar één
+       (zie deelChecks). Kopiëren gaat met de knop ⧉ Kopie, die de kopie meteen
+       onder het origineel vastklikt; rechtsklikken en precies slepen waren
+       hier de grootste struikelblokken. */
     doel: [
-      'Klik met de RECHTERmuisknop op je {{bes|als-blok}} en kies "Dupliceren" (op een tablet: houd je vinger even op het blok).',
-      'Sleep de kopie in de {{bes|herhaal}}, onder het eerste als-blok.',
-      'Verander in de kopie de {{waa|toets}} naar → en de {{bew|graden}} naar 90.',
-      'Herhaal dat nog twee keer: ↓ met 180 graden, en ← met -90 graden.',
-      'Druk op 🚩 en probeer alle vier de pijltjes uit.',
+      'Tik op je {{bes|als-blok}}.',
+      'Tik op de knop ⧉ Kopie, rechtsboven op je werkblad. De kopie komt eronder.',
+      'Kies in de kopie de {{waa|toets}} →.',
+      'Zet bij die kopie het getal op {{getal|90}}.',
+      'Maak nog een kopie: ↓ met {{getal|180}}.',
+      'En nog één: ← met {{getal|270}}.',
+      'Druk op 🚩 en probeer de vier pijltjes.',
     ].join('\n'),
-    hint: 'Twee dingen veranderen per kopie: eerst de toets in het blauwe blokje, dán het getal bij de graden. Vergeet je het getal, dan rijden twee toetsen dezelfde kant op.\n\nAlle vier de als-blokken horen ONDER elkaar in dezelfde {{bes|herhaal}}, niet in elkaar. Ze mogen elkaar niet insluiten.\n\nDe vier richtingen: ↑ = 0, → = 90, ↓ = 180, ← = -90. Denk aan een klok waarbij 0 bovenaan staat.',
+    /* Elk stapje van het doel is af zodra dit klopt (spel-les.js toont dan het
+       volgende). x = { geselecteerd: type van het aangetikte blok }. */
+    deelChecks: [
+      (p, w, x) => x.geselecteerd === 'als_blok' || pijlAnalyse(p).aantal >= 2,
+      (p) => pijlAnalyse(p).aantal >= 2,
+      (p) => pijlAnalyse(p).heeft.ArrowRight,
+      (p) => pijlAnalyse(p).goed.ArrowRight,
+      (p) => pijlAnalyse(p).goed.ArrowDown,
+      (p) => pijlAnalyse(p).goed.ArrowLeft,
+      (p, w) => w.richtingen >= 3,
+    ],
+    hint: 'Elke kopie krijgt een andere pijl én een ander getal: ↑ 0 · → 90 · ↓ 180 · ← 270.',
+    // de tip zegt telkens in één zin wat er nú misloopt (zie pijlGids)
+    slimmeHint: (p, x) => pijlGids(p, x).zin,
+    // de pulserende ring wijst aan waar je moet tikken (spel-les.js)
+    gids: (p, x) => pijlGids(p, x),
     check: {
-      structuur: (p) => {
-        const alsBlokken = alleCmdsVanProject(p).filter((c) => c.t === 'als' && c.c && c.c.e === 'toets');
-        const richtingen = new Set();
-        for (const a of alsBlokken) {
-          for (const c of alleCmds(a.dan)) {
-            if (c.t === 'richtRij') richtingen.add(JSON.stringify(c.v));  // per hoek
-            if (c.t === 'beweeg') richtingen.add(c.r);                    // oude projecten
-          }
-        }
-        return richtingen.size >= 4;
-      },
-      structuurTekst: 'vier {{bes|als-blokken}} met een {{waa|toets}}, elk met een eigen {{bew|hoek}}',
+      // elke pijl met zijn eigen richting (−90 telt ook als 270: oudere projecten)
+      structuur: (p) => PIJLEN.every((pijl) => pijlAnalyse(p).goed[pijl.toets]),
+      // per pijl een vinkje: zo zie je meteen welke nog niet klopt
+      structuurTekst: (p) => 'pijltjes: ' + PIJLEN.map((pijl) =>
+        `${pijl.teken} ${pijl.hoek} ${pijlAnalyse(p).goed[pijl.toets] ? '✓' : '○'}`).join(' · '),
       gedrag: (w) => w.richtingen >= 3,
       gedragTekst: 'je tank rijdt in meerdere richtingen',
     },
@@ -253,7 +406,7 @@ const STAPPEN = [
     ontdekking: 'Een variabele is een doosje met een naam waar een getal in zit. Je vult het doosje bij de start, en verandert het onderweg.',
     doel: [
       'Klik links op de oranje bol {{vrb|Variabelen}}. Bovenaan KNIPPERT de knop ➕ Maak een variabele — klik daarop.',
-      'Typ als naam: Levens. Klik op OK.',
+      'Typ als naam: {{getal|Levens}}. Klik op OK.',
       'Sleep je nieuwe blok {{vrb|maak Levens}} onder je {{geb|🚩}}-blok, BOVEN de {{bes|herhaal}}.',
       'Sleep het oranje blok {{vrb|mijn levens ❤️}} in het witte rondje.',
       'Klik op het pijltje ▾ in dat blok en kies {{vrb|max levens ❤️}}.',
@@ -294,8 +447,23 @@ const STAPPEN = [
     concept: 'Een waarde uit het spel gebruiken',
     probleem: 'Jouw teller gaat elke keer 10 omlaag. Maar leg hem eens naast de echte levensbalk: die zakt de ene keer meer dan de andere.',
     ontdekking: 'Een tegenstander die zijn kogelschade heeft geüpgraded doet méér pijn. Een vast getal kan dus nooit kloppen — je hebt het échte getal van díe kogel nodig.',
-    doel: 'Vervang de -10 door {{ope|0 − }}{{waa|kracht kogel}}. Laat je daarna raken en vergelijk je teller met de levensbalk.',
-    hint: 'Sleep het groene {{ope|−}}-blok in het vakje van je verander-blok. Links typ je 0, rechts hang je {{waa|kracht kogel}} uit {{waa|Waarnemen}}. "0 min iets" is datzelfde getal, maar dan negatief — precies wat je nodig hebt om af te trekken.',
+    /* Drie korte stapjes. Het groene min-blok staat nu kant-en-klaar als
+       "0 − 1" in de lade: niets meer typen of omzetten, alleen slepen. */
+    doel: [
+      'Sleep het groene {{ope|0 − 1}} uit {{ope|Operators}} op de {{getal|-10}} in je {{vrb|verander Levens}}-blok.',
+      'Sleep {{waa|kracht kogel}} uit {{waa|Waarnemen}} op de {{getal|1}} in het groene blok.',
+      'Laat je raken door een robot. Zakt je teller net zoveel als de levensbalk?',
+    ].join('\n'),
+    deelChecks: [
+      (p) => kogelAnalyse(p).som,
+      (p) => kogelAnalyse(p).kracht,
+      null,   // vergelijken met de levensbalk: dat zie je zelf (✓ gedaan)
+    ],
+    // het plaatje: zo moet je verander-blok er straks uitzien
+    voorbeeld: '{{vrb|verander Levens met}} ( {{ope|0 −}} {{waa|kracht kogel}} )',
+    hint: '"0 − kracht kogel" is de schade van díe kogel, maar negatief: zo gaat je teller er net zoveel omlaag.',
+    slimmeHint: (p) => kogelGids(p).zin,
+    gids: (p) => kogelGids(p),
     check: {
       structuur: (p) => {
         const heeftKracht = (e) => !!e && typeof e === 'object'
@@ -315,23 +483,31 @@ const STAPPEN = [
     concept: 'Als-dan mét een waarde',
     probleem: 'Je merkt pas dat je bijna dood bent als het al te laat is. Niemand waarschuwt je.',
     ontdekking: 'Tot nu toe keek je tank naar toetsen en naar kogels. Maar hij kan ook naar een getal kijken — bijvoorbeeld naar je levens — en zélf beslissen wanneer hij alarm slaat.',
+    /* Vijf stapjes, één ding per stapje. Het nieuwe als-blok komt gewoon in je
+       herhaal: een nieuw startblok met een eigen herhaal was twee stapjes
+       extra, zonder dat je er iets bij leerde. */
     doel: [
-      'Sleep een nieuw {{geb|🚩}}-blok op een lege plek.',
-      'Hang er een {{bes|herhaal}} onder.',
-      'Zet in de herhaal een {{bes|als … dan}}.',
-      'Sleep het groene {{ope|( ) < ( )}} in het zeshoekige gaatje van het als-blok.',
-      'Zet {{vrb|mijn levens}} in het linkervakje en typ 30 in het rechtervakje.',
-      'Zet in het als-blok: {{uit|zeg [help!]}}.',
-      /* Zonder deze regel bleven kinderen in hun basis staan wachten: daar kan
+      'Sleep een {{bes|als … dan}} in je {{bes|herhaal}}, onder je andere als-blokken.',
+      'Sleep het groene {{ope|( ) < ( )}} in het zeshoekige gaatje van dat als-blok.',
+      'Sleep {{vrb|mijn levens}} op het linkervakje. Typ dan {{getal|30}} in het rechtervakje.',
+      'Sleep {{uit|zeg [help!]}} in je nieuwe als-blok.',
+      /* Zonder dit stapje bleven kinderen in hun basis staan wachten: daar kan
          je geen schade krijgen, dus je levens zakken nooit onder de 30 en het
          vinkje "uitgeprobeerd" wordt nooit groen. */
-      'Test het: druk op 🚩, rij uit je veilige basis en bots tegen een paar vormen tot je levens onder de 30 zakken.',
+      'Test het: rij uit je basis en bots tegen vormen tot je levens onder de 30 zakken.',
     ].join('\n'),
-    /* Zes losse stapjes zijn veel om te onthouden. Het plaatje laat de hele
-       stapel in een keer zien: wat hangt onder wat, en wat gaat in welk gaatje. */
-    voorbeeld: '{{geb|wanneer op groene vlag wordt geklikt}}\n    {{bes|herhaal}}\n        {{bes|als}} ( {{vrb|mijn levens}} {{ope|<}} 30 ) {{bes|dan}}   ← het groene <-blok, met twee vakjes\n            {{uit|zeg [help!]}}',
-    wijsAan: { categorie: 'Operators' },
-    hint: 'Lees je blokken hardop, dan hoor je of het klopt: "als mijn levens kleiner is dan 30, zeg dan help!".\n\nHet {{ope|<}}-blok staat in de groene {{ope|Operators}}. Het heeft twee lege vakjes en past precies in het zeshoekige gaatje van je {{bes|als}}-blok. Sleep eerst het groene blok in dat gaatje, en vul het daarna pas.\n\n{{vrb|mijn levens}} vind je helemaal onderaan de oranje {{vrb|Variabelen}}, bij de blokken die het spel zelf bijhoudt. Dat is iets anders dan je eigen teller {{vrb|Levens}} van stap 7.',
+    deelChecks: [
+      (p) => !!hulpAnalyse(p).nieuw,
+      (p) => hulpAnalyse(p).vergelijk,
+      (p) => hulpAnalyse(p).levens && hulpAnalyse(p).getal,
+      (p) => hulpAnalyse(p).zegt,
+      (p, w) => w.zegCmds > 0,
+    ],
+    // het plaatje laat zien hoe het nieuwe als-blok eruitziet
+    voorbeeld: '{{bes|als}} ( {{vrb|mijn levens}} {{ope|<}} {{getal|30}} ) {{bes|dan}}\n    {{uit|zeg [help!]}}',
+    hint: 'Lees het hardop: "als mijn levens kleiner is dan 30, zeg dan help!".',
+    slimmeHint: (p) => hulpGids(p).zin,
+    gids: (p) => hulpGids(p),
     check: {
       structuur: (p) => alleCmdsVanProject(p).some((c) => c.t === 'als' && c.c && c.c.e === 'vergelijk'
         && JSON.stringify(c.c).includes('levens') && alleCmds(c.dan).length > 0),
@@ -451,7 +627,7 @@ const STAPPEN = [
       'Sleep een nieuw {{geb|wanneer op groene vlag wordt geklikt}} op een lege plek.',
       'Hang er een {{bes|herhaal}} onder.',
       'Verplaats je hele {{bes|als}} {{waa|muis ingedrukt?}}-blok uit je besturing naar dit nieuwe stapeltje.',
-      'Zet een {{bes|herhaal ( ) keer}} om het {{gev|schiet}}-blok en typ 3 in het vakje.',
+      'Zet een {{bes|herhaal ( ) keer}} om het {{gev|schiet}}-blok en typ {{getal|3}} in het vakje.',
       'Zet onder {{gev|schiet}} een {{bes|wacht 0.2 sec.}} — anders komen de drie kogels tegelijk.',
     ].join('\n'),
     hint: 'Rijden en schieten zijn nu twee aparte programmaatjes die naast elkaar lopen — precies zoals in Scratch. Test het: houd een pijltjestoets én je muisknop ingedrukt (op een tablet: allebei de joysticks tegelijk). Je moet nu kunnen rijden én schieten tegelijk.',
@@ -722,10 +898,173 @@ const waarnemer = {
   },
 };
 
+/*
+ * DE STAPJES: wanneer is een stapje van de opdracht gedaan?
+ *
+ * Een kind ziet de opdracht stapje per stapje (spel-les.js). Ziet de computer
+ * dat een stapje gedaan is, dan komt vanzelf het volgende. Per stap één
+ * controle per regel van het doel, in dezelfde volgorde:
+ *   (p, w, x) => …  p = het programma, w = de waarnemer (wat de tank deed),
+ *                   x = wat er op het werkblad ligt (zie werkbladInfo);
+ *   'structuur'     = hetzelfde als het vinkje "blokken" van de stap;
+ *   'gedrag'        = hetzelfde als het vinkje "uitgeprobeerd";
+ *   null            = dat kan de computer niet zien: het kind tikt "✓ gedaan".
+ * Stap 4, 9 en 10 hebben ze hierboven al (met een gids en een slimme tip).
+ */
+const alsen = (p) => alleCmdsVanProject(p).filter((c) => c.t === 'als' && c.c);
+const inEenLus = (p, test) => alleCmdsVanProject(p).some((c) => c.t === 'forever' && alleCmds(c.body).some(test));
+const direktInLus = (p, test) => alleCmdsVanProject(p).some((c) => c.t === 'forever' && c.body.some(test));
+const startMetLus = (p) => scriptsMet(p, 'start').some((s) => s.body.some((c) => c.t === 'forever'));
+const metScript = (p, type, test) => scriptsMet(p, type).some((s) => alleCmds(s.body).some(test));
+const zelfdeNaam = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+const heeftVar = (x, naam) => ((x && x.variabelen) || []).some((v) => zelfdeNaam(v, naam));
+const opWerkblad = (x, type) => ((x && x.types) || []).includes(type);
+const isZetVar = (naam) => (c) => c.t === 'zetVar' && zelfdeNaam(c.naam, naam);
+/* Staat een blok vóór de herhaal, onder hetzelfde startblok? */
+const voorDeLus = (p, test) => scriptsMet(p, 'start').some((s) => {
+  const i = s.body.findIndex(test), j = s.body.findIndex((c) => c.t === 'forever');
+  return i >= 0 && j >= 0 && i < j;
+});
+const SPEL_WAARDEN = ['levens', 'maxLevens', 'score', 'level', 'mijnX', 'mijnY'];
+const krachtSom = (p) => { const c = alleCmdsVanProject(p).find(isZetVar('kracht')); return c && c.v; };
+
+/* Wat ligt er op het werkblad? (ook wat nog los ligt en dus niet in p zit) */
+function werkbladInfo(ws) {
+  return {
+    variabelen: ws.getAllVariables().map((v) => v.name),
+    types: [...new Set(ws.getAllBlocks(false).map((b) => b.type))],
+  };
+}
+
+const STAPJES_LES1 = {
+  3: [
+    (p) => !direktInLus(p, isRijden),                                     // neem 10 stappen uit de herhaal
+    (p) => inEenLus(p, (c) => c.t === 'als'),                             // een als … dan in de herhaal
+    (p) => alsen(p).some((a) => a.c.e === 'toets'),                       // toets ↑ in het gaatje
+    (p) => alsen(p).some((a) => a.c.e === 'toets' && alleCmds(a.dan).some((c) => c.t === 'richtRij')),
+    'structuur',                                                          // neem 10 stappen ín het als-blok
+    'gedrag',                                                             // pijltje omhoog uitproberen
+  ],
+  5: [
+    (p, w, x) => opWerkblad(x, 'richt_muis'),                             // het blok gevonden
+    'structuur',                                                          // als eerste in de herhaal
+    'gedrag',
+  ],
+  6: [
+    (p) => alsen(p).some((a) => a.c.e === 'bool' || a.c.e === 'muisknop'), // een nieuw als-blok
+    (p) => alsen(p).some((a) => a.c.e === 'muisknop'),
+    (p) => alsen(p).some((a) => a.c.e === 'muisknop' && alleCmds(a.dan).some((c) => c.t === 'schiet')),
+    'gedrag',
+  ],
+  7: [
+    (p, w, x) => !!(x && x.venster) || ((x && x.variabelen) || []).length > 0, // "Maak een variabele" aangeklikt
+    (p, w, x) => heeftVar(x, 'Levens'),
+    (p) => voorDeLus(p, isZetVar('Levens')),
+    (p) => alleCmdsVanProject(p).some((c) => isZetVar('Levens')(c) && c.v && SPEL_WAARDEN.includes(c.v.e)),
+    'structuur',                                                          // max levens gekozen
+  ],
+  11: [
+    (p, w, x) => opWerkblad(x, 'zet_kleur'),
+    (p) => voorDeLus(p, (c) => c.t === 'kleur'),
+    'gedrag',
+  ],
+  12: [
+    (p) => scriptsMet(p, 'versla').length > 0,
+    (p) => metScript(p, 'versla', (c) => c.t === 'zeg'),
+    (p) => scriptsMet(p, 'dood').length > 0,
+    'structuur',
+  ],
+  13: [
+    (p, w, x) => heeftVar(x, 'kracht'),
+    (p) => inEenLus(p, isZetVar('kracht')),
+    (p) => { const v = krachtSom(p); return !!v && v.e === 'reken' && v.op === '+'; },
+    (p) => { const v = krachtSom(p); return !!v && v.e === 'reken' && !!v.b && v.b.e === 'stat'; },
+    (p) => { const v = krachtSom(p); return !!v && v.e === 'reken' && !!v.a && v.a.e === 'reken' && v.a.op === '*'; },
+    'structuur',
+  ],
+  14: [
+    (p) => scriptsMet(p, 'statpunt').length > 0,
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als'),
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als' && c.c.e === 'vergelijk' && !!c.c.a && c.c.a.e === 'stat'),
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als' && c.dan.some((x) => x.t === 'geefStat')),
+    'structuur',
+  ],
+  15: [
+    (p) => scriptsMet(p, 'start').length >= 2,
+    (p) => scriptsMet(p, 'start').filter((s) => s.body.some((c) => c.t === 'forever')).length >= 2,
+    // het schiet-als-blok staat in een eigen stapeltje, zonder de pijltjes
+    (p) => scriptsMet(p, 'start').some((s) => {
+      const a = alleCmds(s.body);
+      return a.some((c) => c.t === 'als' && c.c && c.c.e === 'muisknop') && !a.some((c) => c.t === 'als' && c.c && c.c.e === 'toets');
+    }),
+    (p) => alleCmdsVanProject(p).some((c) => c.t === 'herhaal' && alleCmds(c.body).some((x) => x.t === 'schiet')),
+    'structuur',
+  ],
+};
+
+const STAPJES_LES2 = {
+  1: [
+    (p) => startMetLus(p),
+    (p) => inEenLus(p, (c) => c.t === 'als' && c.c && c.c.e === 'vergelijk'),
+    (p) => alsen(p).some((a) => a.c.e === 'vergelijk' && !!a.c.a && a.c.a.e === 'afstand' && !!a.c.b && a.c.b.e === 'num'),
+    'structuur',
+  ],
+  2: [
+    (p, w, x) => heeftVar(x, 'teampunten'),
+    (p) => scriptsMet(p, 'versla').length > 0,
+    (p) => metScript(p, 'versla', (c) => c.t === 'zendSignaal'),
+    (p) => scriptsMet(p, 'signaal').length > 0,
+    'structuur',
+    'gedrag',
+  ],
+  3: [
+    (p) => inEenLus(p, (c) => c.t === 'als' && c.c && (c.c.e === 'bool' || c.c.e === 'en')),
+    (p) => alsen(p).some((a) => a.c.e === 'en'),
+    (p) => alsen(p).some((a) => a.c.e === 'en' && !!a.c.a && a.c.a.e === 'niet' && !!a.c.a.a && a.c.a.a.e === 'inBasis'),
+    (p) => alsen(p).some((a) => a.c.e === 'en' && !!a.c.b && a.c.b.e === 'vergelijk' && !!a.c.b.a && a.c.b.a.e === 'levens'),
+    'structuur',
+    'gedrag',
+  ],
+  4: [
+    (p) => startMetLus(p),
+    (p) => inEenLus(p, (c) => c.t === 'wachtTot' && c.c.e === 'vergelijk' && c.c.op === '<'),
+    (p) => inEenLus(p, (c) => c.t === 'wachtTot' && c.c.op === '<') && inEenLus(p, (c) => c.t === 'zeg'),
+    (p) => inEenLus(p, (c) => c.t === 'wachtTot' && c.c.e === 'vergelijk' && c.c.op === '>'),
+    'structuur',
+    'gedrag',
+  ],
+  5: [
+    (p) => scriptsMet(p, 'statpunt').length > 0,
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als'),
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als' && c.c.e === 'vergelijk' && !!c.c.a && c.c.a.naam === 'kogelpantser'
+      && c.dan.some((x) => x.t === 'geefStat')),
+    (p) => metScript(p, 'statpunt', (c) => c.t === 'als' && c.anders.some((x) => x.t === 'als')),
+    'structuur',
+    null,   // "Aanvaller? Draai de volgorde om": een keuze, geen moetje
+  ],
+  6: [
+    (p, w, x) => heeftVar(x, 'achterstand'),
+    (p) => startMetLus(p),
+    (p) => inEenLus(p, (c) => isZetVar('achterstand')(c) && !!c.v && c.v.e === 'reken'),
+    (p) => alsen(p).some((a) => a.c.e === 'vergelijk' && !!a.c.a && a.c.a.e === 'mijnPlaats'),
+    (p) => alsen(p).some((a) => a.c.e === 'vergelijk' && !!a.c.a && a.c.a.e === 'mijnPlaats'
+      && a.dan.some((c) => c.t === 'zeg') && a.anders.some((c) => c.t === 'zeg')),
+    'structuur',
+  ],
+};
+for (const [lijst, stapjes] of [[STAPPEN, STAPJES_LES1], [LES2_STAPPEN, STAPJES_LES2]]) {
+  for (const [nr, checks] of Object.entries(stapjes)) {
+    const s = lijst.find((x) => x.nr === Number(nr));
+    if (s && !s.deelChecks) s.deelChecks = checks;
+  }
+}
+
 window.STAPPEN = STAPPEN;
+window.werkbladInfo = werkbladInfo;
 window.LES2_STAPPEN = LES2_STAPPEN;
 // spel-menu.js gebruikt deze twee om te zien of de tank al kan rijden
 window.alleCmdsVanProject = alleCmdsVanProject;
 window.isRijden = isRijden;
 window.stapWaarnemer = waarnemer;
 window.blokHtml = blokHtml;
+window.metGroeneVlag = metGroeneVlag;

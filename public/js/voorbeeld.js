@@ -36,7 +36,7 @@ solBesturing.next = bStapel([
   bBlok('herhaal_continu', null, { DOEN: bStapel([
     bBlok('richt_muis'),
     // sturen op z'n Scratch: eerst een richting kiezen, dan stappen zetten
-    ...[['ArrowUp', 0], ['ArrowRight', 90], ['ArrowDown', 180], ['ArrowLeft', -90]].map(([toets, graden]) =>
+    ...[['ArrowUp', 0], ['ArrowRight', 90], ['ArrowDown', 180], ['ArrowLeft', 270]].map(([toets, graden]) =>
       bBlok('als_blok', null, {
         COND: bVal(bBlok('toets_ingedrukt', { TOETS: toets })),
         DAN: bStapel([bBlok('richt_rij', null, { HOEK: bHoek(graden) }), bBlok('neem_stappen', null, { N: bNum(10) })]),

@@ -526,6 +526,9 @@ body.heeft-filmpje #stap-paneel { max-height: 41vh; }
 #stap-breek::before { content: '🔬 Probeer eens: '; font-weight: 700; }
 
 /* blokverwijzing in de kleur van zijn categorie — zo vind je het blok terug */
+/* de groene vlag in de lesteksten (stappen.js): even hoog als de letters */
+img.groene-vlag { height: 1.15em; width: auto; vertical-align: -0.22em; margin: 0 1px; }
+
 #stap-body .blok {
   display: inline-block;
   padding: 1px 8px;
@@ -534,6 +537,12 @@ body.heeft-filmpje #stap-paneel { max-height: 41vh; }
   font-size: .93em;
   line-height: 1.5;
   box-shadow: 0 1px 0 rgba(0, 0, 0, .2);
+}
+
+/* een getal dat je moet typen: een wit bolletje, zoals het vakje in een blok */
+.blok.getal {
+  display: inline-block; background: #fff; color: #2d3436; font-weight: 800;
+  border: 2px solid #4C97FF; border-radius: 999px; padding: 0 9px; line-height: 1.4; box-shadow: none;
 }
 
 #stap-checks { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; }
@@ -1018,6 +1027,63 @@ body.tekst-xl .blocklyToolboxDiv { width: 84px !important; }
 /* Stap 7: de knop "Maak een variabele" knippert tot ze erop geklikt hebben.
    Zonder dat wijzertje zoeken kinderen zich blind naar een knop die er anders
    uitziet dan alle blokken eromheen. */
+/* ---------- de opdracht, stapje per stapje (spel-les.js) ---------- */
+.stapje-kop { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #5b4400; margin-bottom: 3px; flex-wrap: wrap; }
+.stapje-bolletjes { display: inline-flex; gap: 4px; }
+.stapje-bolletjes span { width: 9px; height: 9px; border-radius: 50%; background: #e3d7f5; }
+.stapje-bolletjes span.gedaan { background: #2ecc71; }
+.stapje-bolletjes span.nu { outline: 2px solid #855cd6; outline-offset: 1px; }
+.stapje-tekst { font-size: 1.08em; font-weight: 600; color: #2d3436; margin: 2px 0 6px !important; line-height: 1.45; }
+.stapje-tekst.gedaan { color: #2e7d32; animation: stapjeKlaar .5s ease-out; }
+@keyframes stapjeKlaar { 0% { transform: scale(1.04); } 100% { transform: none; } }
+.stapje-knoppen { display: flex; gap: 6px; }
+.stapje-knoppen button {
+  border: none; border-radius: 8px; background: #e3d7f5; color: #3d2d63;
+  font-weight: 700; padding: 4px 11px; cursor: pointer; font-size: .9rem;
+}
+.stapje-knoppen button:disabled { opacity: .35; cursor: default; }
+/* dit stapje kan de computer niet zien: je tikt zelf op "gedaan" */
+.stapje-knoppen .stapje-verder.zelf { background: #2ecc71; color: #06321a; }
+
+/* ---------- ⧉ Kopie (editor.js): pas vanaf stap 4, of in Expert ---------- */
+body:not(.kopie-aan) #knop-kopie { display: none; }
+
+/* De gids (spel-les.js): een pulserende rand rond het blok waar je nu op moet
+   tikken, en rond de knop ⧉ Kopie als die aan de beurt is. Felroze: die kleur
+   heeft geen enkele blokcategorie (oranje viel weg op het oranje als-blok). */
+.wijs-blok > .blocklyPath {
+  stroke: #e0007a !important;
+  stroke-width: 4px !important;
+  animation: wijsBlok 1.1s ease-in-out infinite;
+}
+@keyframes wijsBlok {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(224, 0, 122, .9)); }
+  50% { stroke-opacity: .35; filter: drop-shadow(0 0 9px rgba(224, 0, 122, 1)); }
+}
+#knop-kopie.wijs {
+  background: #fff3e0; border-color: #ff8c1a !important; color: #b35c00;
+  animation: wijsKnop 1.1s ease-out infinite;
+}
+@keyframes wijsKnop {
+  0% { box-shadow: 0 0 0 0 rgba(255, 140, 26, .85); }
+  70% { box-shadow: 0 0 0 12px rgba(255, 140, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 140, 26, 0); }
+}
+
+/* De weg wijzen naar een categorie (spel-les.js): een pulserende oranje ring
+   rond het bolletje, en het woord eronder in het vet. */
+.blocklyTreeRow.wijs-ring .blocklyTreeIcon {
+  outline: 3px solid #ff8c1a;
+  outline-offset: 3px;
+  animation: wijsRing 1.2s ease-out infinite;
+}
+.blocklyTreeRow.wijs-ring .blocklyTreeLabel { color: #b35c00 !important; font-weight: 800; }
+@keyframes wijsRing {
+  0% { box-shadow: 0 0 0 3px rgba(255, 140, 26, .9); }
+  70% { box-shadow: 0 0 0 16px rgba(255, 140, 26, 0); }
+  100% { box-shadow: 0 0 0 3px rgba(255, 140, 26, 0); }
+}
+
 body.wijs-variabeleknop .blocklyFlyoutButton {
   animation: knipperKnop 1.1s ease-in-out infinite;
 }
@@ -1313,6 +1379,7 @@ body.joystick-aan.podium-klein #toast {
   #topbar button { min-height: 40px; min-width: 40px; font-size: 1rem; }
   #stap-inklap { min-height: 40px; min-width: 44px; font-size: 1.05rem; }
   #stap-uitleg, #stap-voorlees, #tekst-groter { min-height: 40px; min-width: 40px; font-size: 1.05rem; }
+  .stapje-knoppen button { min-height: 40px; min-width: 44px; }
   #vlag, #stop { min-height: 46px; min-width: 46px; }
   .gr-knop { min-height: 42px; min-width: 42px; font-size: 1.05rem; }
   #joystick-schakel { min-height: 42px; min-width: 42px; }

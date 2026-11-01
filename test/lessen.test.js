@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  laadBestanden, compileer, blok, stapel, waarde, getal, hoek, werkblad, JS,
+  laadBestanden, compileer, blok, ketting, stapel, waarde, getal, hoek, werkblad, JS,
 } = require('./browserbestanden');
 
 const omgeving = laadBestanden(['blokken.js', 'compiler.js', 'voorbeeld.js', 'stappen.js', 'codetekst.js']);
@@ -63,7 +63,7 @@ describe('de lessen', () => {
     assert.equal(structuurOk(s4, na3), false);
 
     const na4 = compileer(omgeving, werkblad(start(herhaal(
-      alsToets('ArrowUp', 0), alsToets('ArrowRight', 90), alsToets('ArrowDown', 180), alsToets('ArrowLeft', -90)))));
+      alsToets('ArrowUp', 0), alsToets('ArrowRight', 90), alsToets('ArrowDown', 180), alsToets('ArrowLeft', 270)))));
     assert.equal(structuurOk(s4, na4), true);
   });
 
@@ -79,6 +79,97 @@ describe('de lessen', () => {
     const s5 = STAPPEN[4];
     assert.equal(structuurOk(s5, p), false);
     assert.match(s5.check.structuurTekst(p), /bijna/);
+  });
+
+  /* Een waarnemer die alles al zag: de tank reed, mikte, schoot, riep om hulp… */
+  const alGezien = {
+    bewogen: 1000, beweegCmds: 1, richtingen: 4, gedraaid: 1, geschoten: 1, schietCmds: 3, zetVarCmds: 1,
+    zegCmds: 1, uiterlijkCmds: 1, statCmds: 1, signaalCmds: 1, ontvangenCmds: 1,
+  };
+  /* Elk stapje controleren zoals spel-les.js het doet ('structuur' en 'gedrag' = de vinkjes). */
+  function stapjeKlaar(s, check, p, x) {
+    if (check === 'structuur') return !!s.check.structuur(p);
+    if (check === 'gedrag') return !!s.check.gedrag(alGezien);
+    return !!check(p, alGezien, x);
+  }
+
+  it('elke opdracht van meer dan één regel heeft één controle per stapje', () => {
+    for (const s of [...STAPPEN, ...LES2_STAPPEN]) {
+      const regels = String(s.doel).split('\n').filter((r) => r.trim());
+      if (regels.length < 2) continue;
+      assert.ok(s.deelChecks, `stap ${s.nr} (${s.titel}) heeft geen stapjes-controles`);
+      assert.equal(s.deelChecks.length, regels.length, `stap ${s.nr}: één controle per stapje`);
+    }
+  });
+
+  it('elk stapje van les 1 is gedaan bij de voorbeeldoplossing', () => {
+    const B = omgeving.Blockly;
+    const ws = new B.Workspace();
+    B.serialization.workspaces.load(omgeving.VOORBEELD_OPLOSSING, ws);
+    const programma = omgeving.compileerProject(ws);
+    const x = omgeving.werkbladInfo(ws);
+    ws.dispose();
+    for (const s of STAPPEN.filter((st) => st.deelChecks)) {
+      s.deelChecks.forEach((check, i) => {
+        if (check) assert.ok(stapjeKlaar(s, check, programma, x), `stap ${s.nr}, stapje ${i + 1}: niet herkend`);
+      });
+    }
+  });
+
+  it('elk stapje van les 2 wordt herkend in een voorbeeld per stap', () => {
+    const vgl = (op, a, b) => waarde(blok('op_vergelijk', { OP: op }, { A: waarde(a), B: getal(b) }));
+    const levens = () => blok('waarde_blok', { W: 'levens' });
+    const zeg = (t) => blok('zeg_blok', { TEKST: t });
+    const statWaarde = (naam) => blok('stat_waarde', { STAT: naam });
+    const geef = (naam) => blok('stat_geef', { STAT: naam });
+    const alsAnders = (cond, dan, anders) => blok('als_anders_blok', null, { COND: cond, DAN: stapel(dan), ANDERS: stapel(anders) });
+    const voorbeelden = {
+      1: [start(herhaal(blok('als_blok', null, {
+        COND: vgl('<', blok('waarneem_blok', { W: 'afstand' }), 200), DAN: stapel(zeg('pas op!')),
+      })))],
+      2: [blok('hat_versla', null, null, blok('zend_signaal')),
+        blok('hat_signaal', null, null, ketting(blok('var_verander', { NAAM: 'teampunten' }, { V: getal(50) }),
+          blok('speel_geluid'), blok('flits_blok')))],
+      3: [start(herhaal(blok('als_blok', null, {
+        COND: waarde(blok('op_en', null, {
+          A: waarde(blok('op_niet', null, { A: waarde(blok('in_basis')) })), B: vgl('<', levens(), 40),
+        })),
+        DAN: stapel(zeg('naar huis!'), blok('flits_blok')),
+      })))],
+      4: [start(herhaal(blok('wacht_tot', null, { COND: vgl('<', levens(), 40) }), zeg('ik ga schuilen!'),
+        blok('wacht_tot', null, { COND: vgl('>', levens(), 80) }), zeg('ik ben er weer!'), blok('flits_blok')))],
+      5: [blok('hat_statpunt', null, null, alsAnders(vgl('<', statWaarde('kogelpantser'), 5), geef('kogelpantser'),
+        alsAnders(vgl('<', statWaarde('maxlevens'), 5), geef('maxlevens'), geef('snelheid'))))],
+      6: [start(herhaal(
+        blok('var_zet', { NAAM: 'achterstand' }, { V: waarde(blok('op_reken', { OP: '-' }, { A: waarde(blok('beste_score')), B: waarde(blok('waarde_blok', { W: 'score' })) })) }),
+        alsAnders(waarde(blok('op_vergelijk', { OP: '=' }, { A: waarde(blok('mijn_plaats')), B: getal(1) })), zeg('ik sta eerste!'), zeg('ik kom eraan!')),
+        blok('wacht_blok', null, { SEC: getal(1) })))],
+    };
+    const x = { variabelen: ['teampunten', 'achterstand'], types: [] };
+    for (const s of LES2_STAPPEN) {
+      const p = compileer(omgeving, werkblad(...voorbeelden[s.nr]));
+      s.deelChecks.forEach((check, i) => {
+        if (check) assert.ok(stapjeKlaar(s, check, p, x), `les 2, stap ${s.nr}, stapje ${i + 1}: niet herkend`);
+      });
+    }
+  });
+
+  it('stap 4: de gids wijst eerst je als-blok aan, en na een kopie de toets die nog niet klopt', () => {
+    const s4 = STAPPEN[3];
+    const na3 = compileer(omgeving, werkblad(start(herhaal(alsToets('ArrowUp', 0)))));
+    assert.deepEqual(JSON.parse(JSON.stringify(s4.gids(na3, {}).pad)), []);
+    assert.equal(s4.gids(na3, { geselecteerd: 'als_blok' }).knop, 'kopie');
+    // een verse kopie: nog ↑, dus de toets moet anders
+    const kopie = compileer(omgeving, werkblad(start(herhaal(alsToets('ArrowUp', 0), alsToets('ArrowUp', 0)))));
+    assert.deepEqual(JSON.parse(JSON.stringify(s4.gids(kopie, {}).pad)), ['COND']);
+    assert.match(s4.slimmeHint(kopie, {}), /kies →/);
+    // toets goed, getal nog niet: dan het getal
+    const getalFout = compileer(omgeving, werkblad(start(herhaal(alsToets('ArrowUp', 0), alsToets('ArrowRight', 0)))));
+    assert.match(s4.slimmeHint(getalFout, {}), /Bij → hoort 90/);
+    // −90 (oude projecten) telt ook als links
+    const oud = compileer(omgeving, werkblad(start(herhaal(
+      alsToets('ArrowUp', 0), alsToets('ArrowRight', 90), alsToets('ArrowDown', 180), alsToets('ArrowLeft', -90)))));
+    assert.equal(structuurOk(s4, oud), true);
   });
 
   it('een stapeltje zonder 🚩 erboven doet niets', () => {

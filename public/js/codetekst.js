@@ -11,13 +11,13 @@
 
 const TRIGGER_TEKST = {
   start: 'wanneer op groene vlag wordt geklikt',
-  toets: '🚩 wanneer toets [%s] wordt ingedrukt',
-  geraakt: '🚩 wanneer ik geraakt word',
-  levelup: '🚩 wanneer ik een level omhoog ga',
-  statpunt: '🚩 wanneer ik een statpunt krijg',
-  versla: '🚩 wanneer ik iemand versla',
-  dood: '🚩 wanneer ik kapot ga',
-  signaal: '🚩 wanneer ik signaal [%s] ontvang',
+  toets: 'wanneer toets [%s] wordt ingedrukt',
+  geraakt: 'wanneer ik geraakt word',
+  levelup: 'wanneer ik een level omhoog ga',
+  statpunt: 'wanneer ik een statpunt krijg',
+  versla: 'wanneer ik iemand versla',
+  dood: 'wanneer ik kapot ga',
+  signaal: 'wanneer ik signaal [%s] ontvang',
 };
 
 const TOETS_NAAM = {

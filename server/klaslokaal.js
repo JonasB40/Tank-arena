@@ -98,7 +98,7 @@ function stuurKlasoverzicht() {
       minuten: Math.floor((nu - l.sinds) / 60000),
       checkS: !!l.checkS, checkG: !!l.checkG, code: l.code || '',
       // welke stappen heeft hij al gehaald? (zo zie je of hij voor of achter zit)
-      gehaald: l.gehaald || [], hint: !!l.hint,
+      gehaald: l.gehaald || [], hint: !!l.hint, stapje: l.stapje || 0,
       // wat valt er op aan zijn programma? (losse stapeltjes, geen startblok, staat het uit?)
       los: l.los || 0, geenStart: !!l.geenStart, draait: !!l.draait, verouderd: !!l.verouderd,
       lvl: l.lvl || 0, punten: l.punten || 0, hp: l.hp || 0, klasse: l.klasse, speelt: !!l.speelt,
@@ -162,6 +162,8 @@ function koppelKlaslokaal(socket) {
         ? [...new Set(d.gehaald.slice(0, 40).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b)
         : [],
       hint: !!d.hint,
+      // bij welk stapje van de opdracht is hij? (die staat stapje per stapje op zijn scherm)
+      stapje: klem(Math.round(Number(d.stapje)) || 0, 0, 20),
       /* Wat valt er op aan zijn programma? Zijn toestel kijkt het na: hoeveel
          stapeltjes hangen los, staat er nergens een startblok, loopt het
          programma, en is het veranderd zonder opnieuw te starten? De meeste

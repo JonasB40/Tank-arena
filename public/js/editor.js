@@ -170,8 +170,17 @@ const bouwToolboxRuw = (expert) => ({ kind: 'categoryToolbox', contents: [
     ...(expert ? [{ kind: 'block', type: 'stopwatch' }] : []),
   ] },
   { kind: 'category', name: 'Operators', colour: SCRATCH_KLEUR.operators, contents: [
-    { kind: 'block', type: 'op_reken', inputs: { A: num(1), B: num(1) } },
-    { kind: 'block', type: 'op_vergelijk', inputs: { A: num(10), B: num(50) } },
+    /* Zoals in Scratch: een apart blok per teken. Eerst was er één rekenblok
+       met "+" en één vergelijkblok met ">", en moest je het teken zelf
+       omzetten: in stap 9 zochten kinderen een "−"-blok dat er niet stond, in
+       stap 10 een "<"-blok. Nu pak je meteen het juiste. */
+    { kind: 'block', type: 'op_reken', fields: { OP: '+' }, inputs: { A: num(1), B: num(1) } },
+    { kind: 'block', type: 'op_reken', fields: { OP: '-' }, inputs: { A: num(0), B: num(1) } },
+    { kind: 'block', type: 'op_reken', fields: { OP: '*' }, inputs: { A: num(1), B: num(1) } },
+    { kind: 'block', type: 'op_reken', fields: { OP: '/' }, inputs: { A: num(1), B: num(1) } },
+    { kind: 'block', type: 'op_vergelijk', fields: { OP: '<' }, inputs: { A: num(10), B: num(50) } },
+    { kind: 'block', type: 'op_vergelijk', fields: { OP: '>' }, inputs: { A: num(10), B: num(50) } },
+    { kind: 'block', type: 'op_vergelijk', fields: { OP: '=' }, inputs: { A: num(10), B: num(50) } },
     { kind: 'block', type: 'op_en' },
     { kind: 'block', type: 'op_of' },
     // op_niet idem: nodig bij les 2 ("niet in mijn basis"), tot dan verborgen
@@ -547,40 +556,139 @@ new ResizeObserver(() => {
 /*
  * Ruimte maken op het werkblad. Naarmate de les vordert staan er vijf, zes
  * losse stapeltjes op een vrij smal veld. "Opruimen" zet ze netjes onder
- * elkaar; "Inklappen" maakt elk afgewerkt stapeltje één klein balkje, zodat
- * het stapeltje waar je nu aan werkt gewoon in beeld past. Beide zijn
- * omkeerbaar — er gaat nooit een blok verloren.
+ * elkaar; "Inklappen" maakt elk afgewerkt deel één regel (zie hieronder), zodat
+ * het deel waar je nu aan werkt gewoon in beeld past. Beide zijn omkeerbaar —
+ * er gaat nooit een blok verloren.
  */
 document.getElementById('knop-opruimen').addEventListener('click', () => {
   werkruimte.cleanUp();
 });
 
+/*
+ * INKLAPPEN: de afgewerkte delen worden één regel. Vroeger klapte de knop de
+ * stapels zelf in — maar in Blockly klapt een blok alleen in wat érin zit,
+ * niet wat eronder hangt. Het startblok inklappen maakte dus alleen die ene
+ * bovenste regel kleiner; de herhaal met al je blokken bleef gewoon staan.
+ * Nu wordt elk als-blok (en elke herhaal … keer) één regel ("als toets ↑
+ * ingedrukt? dan …"), behalve het blok waar je nu aan werkt: dat en alles
+ * eromheen blijft open. Eén tik op een ingeklapt blok klapt alleen dát blok
+ * weer open; de knop Uitklappen opent alles.
+ */
+const INKLAPBAAR = new Set(['als_blok', 'als_anders_blok', 'herhaal_n']);
 const knopInklappen = document.getElementById('knop-inklappen');
-knopInklappen.addEventListener('click', () => {
-  const stapels = werkruimte.getTopBlocks(false).filter((b) => b.nextConnection || b.previousConnection);
-  if (!stapels.length) return;
-  const alsIngeklapt = stapels.every((b) => b.isCollapsed());
-  for (const b of stapels) b.setCollapsed(!alsIngeklapt);
-  /*
-   * Inklappen alleen leverde nauwelijks ruimte op: de balkjes bleven staan
-   * waar hun stapel stond, dus alle witruimte ertussen bleef even groot. Door
-   * daarna op te ruimen schuiven ze echt tegen elkaar aan bovenaan, en pas
-   * dán heb je een leeg werkblad om verder te bouwen. Bij uitklappen doen we
-   * hetzelfde, anders zouden de stapels over elkaar heen komen te staan.
-   */
-  /* Pas opruimen NADAT Blockly de nieuwe maten getekend heeft. Blockly tekent
-     in- en uitklappen namelijk pas bij het volgende beeldje; doe je cleanUp()
-     meteen, dan rekent hij nog met de oude hoogtes en zet hij de balkjes juist
-     verder uit elkaar — precies het omgekeerde van wat de knop belooft.
-     triggerQueuedRenders() dwingt dat tekenen nu meteen af. */
-  Blockly.renderManagement.triggerQueuedRenders();
-  werkruimte.cleanUp();
-  werkruimte.scrollCenter();
+
+function toonInklapKnop() {
+  const ietsDicht = werkruimte.getAllBlocks(false).some((b) => b.isCollapsed());
   // alleen het label wisselen: het pijltje is een SVG en die mag niet gewist
   // worden door textContent (dat was met de emoji-versie nog wél zo)
-  document.getElementById('label-inklappen').textContent = alsIngeklapt ? 'Inklappen' : 'Uitklappen';
-  knopInklappen.classList.toggle('toont-uitklappen', !alsIngeklapt);
+  document.getElementById('label-inklappen').textContent = ietsDicht ? 'Uitklappen' : 'Inklappen';
+  knopInklappen.classList.toggle('toont-uitklappen', ietsDicht);
+}
+
+/* Na het in- of uitklappen: netjes onder elkaar zetten. Pas NADAT Blockly de
+   nieuwe maten getekend heeft — Blockly tekent in- en uitklappen pas bij het
+   volgende beeldje; doe je cleanUp() meteen, dan rekent hij nog met de oude
+   hoogtes en zet hij de stapels juist verder uit elkaar. triggerQueuedRenders()
+   dwingt dat tekenen nu meteen af. */
+function ruimOpNaKlappen(inBeeld) {
+  Blockly.renderManagement.triggerQueuedRenders();
+  werkruimte.cleanUp();
+  if (inBeeld) { try { werkruimte.centerOnBlock(inBeeld.id); } catch { werkruimte.scrollCenter(); } }
+  else werkruimte.scrollCenter();
+  toonInklapKnop();
+}
+
+knopInklappen.addEventListener('click', () => {
+  const dicht = werkruimte.getAllBlocks(false).filter((b) => b.isCollapsed());
+  Blockly.Events.setGroup(true);
+  try {
+    if (dicht.length) {
+      for (const b of dicht) b.setCollapsed(false);
+    } else {
+      // wat open blijft: het aangetikte blok en alles waar het ín zit (getSurroundParent:
+      // getParent zou ook het blok erboven geven, en dat mag gewoon dicht)
+      const open = new Set();
+      const gekozen = (Blockly.getSelected || Blockly.common.getSelected)();
+      for (let b = gekozen && gekozen.workspace === werkruimte ? gekozen : null; b; b = b.getSurroundParent()) open.add(b.id);
+      for (const b of werkruimte.getAllBlocks(false)) {
+        if (!INKLAPBAAR.has(b.type) || open.has(b.id) || b.isShadow()) continue;
+        // alleen de buitenste: een als-blok ín een ingeklapt als-blok zie je toch niet
+        let binnen = false;
+        for (let p = b.getSurroundParent(); p; p = p.getSurroundParent()) {
+          if (INKLAPBAAR.has(p.type) && !open.has(p.id)) { binnen = true; break; }
+        }
+        if (!binnen) b.setCollapsed(true);
+      }
+    }
+  } finally {
+    Blockly.Events.setGroup(false);
+  }
+  ruimOpNaKlappen(null);
 });
+
+/* Eén tik op een ingeklapt blok: alleen dát blok gaat weer open, en het blijft
+   in beeld. */
+werkruimte.addChangeListener((e) => {
+  if (e.type === Blockly.Events.CLICK && e.targetType === 'block' && e.blockId) {
+    const b = werkruimte.getBlockById(e.blockId);
+    if (b && b.isCollapsed()) {
+      b.setCollapsed(false);
+      ruimOpNaKlappen(b);
+    }
+  } else if (e.type === Blockly.Events.BLOCK_CHANGE && e.element === 'collapsed') {
+    toonInklapKnop();
+  }
+});
+
+/*
+ * ⧉ Kopie: het aangetikte blok kopiëren, met alles wat erin zit, en de kopie
+ * meteen ónder het origineel vastklikken. "Rechtermuisklik → Dupliceren"
+ * kenden de kinderen niet (op een iPad: je vinger een tel op het blok
+ * houden), en de kopie lag dan los naast het origineel: ze precies ónder het
+ * eerste als-blok in de herhaal slepen liep in stap 4 vaak mis. De knop staat
+ * er vanaf stap 4, waar je hem voor het eerst nodig hebt (en altijd in Expert).
+ */
+const knopKopie = document.getElementById('knop-kopie');
+function toonKopieKnop() {
+  document.body.classList.toggle('kopie-aan', expertModus || lesStap >= 4);
+}
+/* Welk blok zou ⧉ Kopie nu kopiëren? Het aangetikte blok; is dat een vraag-
+   of getalblokje (zoals "toets ↑ ingedrukt?"), dan het blok waar het in zit. */
+window.kopieDoel = function () {
+  const gekozen = (Blockly.getSelected || Blockly.common.getSelected)();
+  let blok = gekozen && gekozen.workspace === werkruimte ? gekozen : null;
+  while (blok && blok.getParent() && (blok.isShadow() || blok.outputConnection)) blok = blok.getParent();
+  return blok && !blok.isShadow() ? blok : null;
+};
+window.maakKopie = function () {
+  const blok = window.kopieDoel();
+  if (!blok) {
+    if (window.toast) window.toast('👆 Tik eerst op het blok dat je wil kopiëren, en dan op ⧉ Kopie.');
+    return null;
+  }
+  let kopie = null;
+  Blockly.Events.setGroup(true);   // één keer "ongedaan maken" haalt de hele kopie weg
+  try {
+    const staat = Blockly.serialization.blocks.save(blok, { addCoordinates: false, addNextBlocks: false, saveIds: false });
+    kopie = Blockly.serialization.blocks.append(staat, werkruimte);
+    if (blok.nextConnection && kopie.previousConnection) {
+      // eronder vastklikken; wat er al onder hing, schuift mee naar onder de kopie
+      blok.nextConnection.connect(kopie.previousConnection);
+    } else {
+      const p = blok.getRelativeToSurfaceXY();
+      kopie.moveBy(p.x + 40, p.y + 40);
+    }
+  } finally {
+    Blockly.Events.setGroup(false);
+  }
+  Blockly.renderManagement.triggerQueuedRenders();
+  // de kopie is nu het aangetikte blok (alleen .select() kleurt hem maar in)
+  if (Blockly.common && Blockly.common.setSelected) Blockly.common.setSelected(kopie);
+  else kopie.select();
+  try { werkruimte.scrollBoundsIntoView(kopie.getBoundingRectangle()); } catch { /* oudere Blockly */ }
+  return kopie;
+};
+if (knopKopie) knopKopie.addEventListener('click', () => window.maakKopie());
 
 /* Starter/Expert-schakelaar: Expert toont de extra blokken. */
 const knopStarter = document.getElementById('modus-starter');
@@ -590,6 +698,7 @@ function zetModus(expert) {
   knopStarter.classList.toggle('actief', !expert);
   knopExpert.classList.toggle('actief', expert);
   vernieuwToolbox();
+  toonKopieKnop();
 }
 knopStarter.addEventListener('click', () => zetModus(false));
 knopExpert.addEventListener('click', () => zetModus(true));
@@ -625,6 +734,7 @@ window.zetLesStap = function (nr, reset) {
   if (nieuw === lesStap && !reset) return;
   lesStap = nieuw;
   if (!expertModus) vernieuwToolbox();
+  toonKopieKnop();
 };
 
 Blockly.serialization.workspaces.load(SJABLOON, werkruimte);
@@ -646,14 +756,14 @@ Blockly.serialization.workspaces.load = function (staat, ws, ...rest) {
 /* Uitleg per blok: klik op een blok en lees wat het doet.             */
 /* ------------------------------------------------------------------ */
 const UITLEG = {
-  hat_start: '🚩 Startblok: alles wat hieronder hangt, begint als je op de groene vlag boven het speelveld klikt.',
-  hat_toets: '🚩 Gebeurtenis: start dit stapeltje zodra je de toets indrukt. Wil je in een herhaal-lus kíjken of een toets ingedrukt is? Gebruik dan het blauwe "toets … ingedrukt?" uit Waarnemen.',
-  hat_geraakt: '🚩 Gebeurtenis: gebeurt telkens als een kogel (of rammer) jouw tank raakt.',
-  hat_levelup: '🚩 Gebeurtenis: gebeurt als je genoeg punten hebt voor een nieuw level. Handig om de upgrade-keuze te tonen!',
-  hat_dood: '🚩 Gebeurtenis: gebeurt als je tank kapot gaat. Je komt daarna zwakker terug.',
+  hat_start: 'Startblok: alles wat hieronder hangt, begint als je op de groene vlag boven het speelveld klikt.',
+  hat_toets: 'Gebeurtenis: start dit stapeltje zodra je de toets indrukt. Wil je in een herhaal-lus kíjken of een toets ingedrukt is? Gebruik dan het blauwe "toets … ingedrukt?" uit Waarnemen.',
+  hat_geraakt: 'Gebeurtenis: gebeurt telkens als een kogel (of rammer) jouw tank raakt.',
+  hat_levelup: 'Gebeurtenis: gebeurt als je genoeg punten hebt voor een nieuw level. Handig om de upgrade-keuze te tonen!',
+  hat_dood: 'Gebeurtenis: gebeurt als je tank kapot gaat. Je komt daarna zwakker terug.',
   beweeg_richting: 'Beweegt je tank één stapje in die richting. Zet dit in "herhaal continu" om te blijven rijden zolang een toets ingedrukt is.',
   richt_muis: 'Draait je geschut altijd naar de muiscursor — zoals in diep.io. De muis is INVOER, het draaien is UITVOER.',
-  richt_graden: '🧭 Draait het geschut naar een vaste hoek, met dezelfde graden als in Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.',
+  richt_graden: '🧭 Draait het geschut naar een vaste hoek, met graden als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, 270 = links.',
   schiet_blok: 'Vuurt een kogel af (als je geschut herladen is). Hoe hoger je herlaadsnelheid, hoe sneller je opnieuw kan schieten.',
   toon_upgrade: 'Opent het keuzevenster voor statpunten of een nieuwe tankklasse — als je iets te kiezen hebt.',
   zeg_blok: 'Laat je tank iets zeggen in een tekstballon. Iedereen in de arena ziet het!',
@@ -669,10 +779,10 @@ const UITLEG = {
   muis_ingedrukt: 'Kijkt of de muisknop NU ingedrukt is (waar of niet waar).',
   waarde_blok: '🔢 Een VARIABELE van het spel: je levens, score, level of positie. Dit getal verandert vanzelf terwijl je speelt — jij kan het lezen, het spel houdt het bij.',
   waarneem_blok: 'Wat je tank nu waarneemt: hoe ver de dichtstbijzijnde vijand is, of waar de muis staat.',
-  hat_versla: '🚩 Gebeurtenis: gaat af telkens als jij een robot of speler verslaat. Tel je kills met een variabele!',
-  hat_signaal: '🚩 Gebeurtenis: dit stapeltje wacht tot ergens anders in je programma "zend signaal" met dezelfde naam wordt uitgevoerd. Zo laat je twee stapeltjes met elkaar praten.',
+  hat_versla: 'Gebeurtenis: gaat af telkens als jij een robot of speler verslaat. Tel je kills met een variabele!',
+  hat_signaal: 'Gebeurtenis: dit stapeltje wacht tot ergens anders in je programma "zend signaal" met dezelfde naam wordt uitgevoerd. Zo laat je twee stapeltjes met elkaar praten.',
   zend_signaal: '📡 Roept alle stapeltjes op die met "wanneer ik signaal … ontvang" beginnen. Let op: de naam moet exact hetzelfde zijn, anders komt je signaal nergens aan.',
-  hat_statpunt: '🚩 Gebeurtenis: bij elk nieuw level krijg je een statpunt — programmeer hier je eigen upgrade-plan met als-dan!',
+  hat_statpunt: 'Gebeurtenis: bij elk nieuw level krijg je een statpunt — programmeer hier je eigen upgrade-plan met als-dan!',
   stat_geef: '⚡ Besteedt één statpunt aan deze eigenschap. Werkt alleen als je punten over hebt en de stat nog geen 7/7 is — de server bewaakt dat.',
   stat_waarde: '⚡ Leest hoeveel punten een eigenschap nu heeft (0-7). Handig in als-dan: "als kogelschade < 5 dan..."',
   stat_punten: '⚡ Hoeveel statpunten je nog kan uitgeven.',
@@ -683,7 +793,7 @@ const UITLEG = {
   beweeg_stappen: 'Rijdt vooruit of achteruit in de richting waar je geschut wijst. 10 stappen = volle snelheid, 5 = half zo snel.',
   draai_geschut: 'Draait je geschut een stukje verder vanaf waar het NU staat. Zet dit in "herhaal continu" en je tank draait rond!',
   richt_naar: 'Draait je geschut meteen naar een doel. Kies "dichtstbijzijnde vijand" en je tank mikt helemaal zelf — een echte auto-aim!',
-  richt_rij: '🧭 Kiest de kant waar je tank naartoe rijdt — net als "richt naar … graden" in Scratch. 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links. Je geschut blijft gewoon mikken waar jij wil.',
+  richt_rij: '🧭 Kiest de kant waar je tank naartoe rijdt — net als "richt naar … graden" in Scratch. Graden als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, 270 = links. Je geschut blijft gewoon mikken waar jij wil.',
   neem_stappen: '👣 Rijdt de kant op die je met "richt naar … graden" gekozen hebt. 10 stappen = volle snelheid, 5 = half zo snel.',
   raak_ik: '❓ Waar of niet waar: raakt je tank nu bijna een muur, vorm, vijand of de rand? Perfect voor als-dan.',
   beste_score: '🏆 De hoogste score van alle spelers op dit moment. Robots tellen niet mee — het gaat om jullie.',
@@ -693,7 +803,7 @@ const UITLEG = {
   in_basis: '🏠 Waar of niet waar: sta je nu in je veilige zone (de gestreepte hoek)? Daar raken vijandelijke kogels je niet en genees je snel. Let op: dit blok kíjkt alleen — naar huis rijden moet je zelf doen!',
   var_toon: '🔢 Laat het tellertje van deze variabele op het speelveld zien.',
   var_verberg: '🔢 Verbergt het tellertje (de variabele telt gewoon door).',
-  stopwatch: '⏱ Hoeveel seconden er voorbij zijn sinds je op 🚩 drukte.',
+  stopwatch: '⏱ Hoeveel seconden er voorbij zijn sinds je op de groene vlag drukte.',
   op_reken: 'Rekent met twee getallen: optellen, aftrekken, keer of delen. Dit is VERWERKING.',
   op_vergelijk: 'Vergelijkt twee getallen (groter, kleiner, gelijk). Het antwoord is waar of niet waar — past in als-blokken.',
   op_en: 'Alleen waar als ALLEBEI de stukken waar zijn.',

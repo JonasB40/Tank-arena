@@ -5,14 +5,37 @@
 const os = require('os');
 const crypto = require('crypto');
 
-function lanIps() {
-  const ips = [];
-  for (const list of Object.values(os.networkInterfaces())) {
+/* Alle netwerkkaarten van deze laptop met een IPv4-adres: { naam, adres }. */
+function netwerkkaarten() {
+  const kaarten = [];
+  for (const [naam, list] of Object.entries(os.networkInterfaces())) {
     for (const nic of list || []) {
-      if (nic.family === 'IPv4' && !nic.internal) ips.push(nic.address);
+      if (nic.family === 'IPv4' && !nic.internal) kaarten.push({ naam, adres: nic.address });
     }
   }
-  return ips;
+  return kaarten;
+}
+
+/*
+ * Op welk adres kunnen de leerlingen de server bereiken? Een laptop heeft vaak
+ * ook virtuele netwerkkaarten — WSL, Hyper-V, VirtualBox, Docker, een VPN —
+ * en die adressen bestaan alleen binnen de laptop zelf. Ze stonden mee in de
+ * lijst: in het servervenster zag je dan twee adressen, en de QR-code op de
+ * beamer (die het eerste neemt) kon naar een adres wijzen waar geen enkele
+ * iPad bij kan. Nu blijven alleen de echte kaarten over, wifi en ethernet
+ * vooraan. Blijft er niets over, dan toch alles: beter een adres te veel dan
+ * geen.
+ */
+const VIRTUEEL = /vethernet|wsl|hyper-v|virtualbox|vbox|vmware|vmnet|docker|virbr|bridge|br-|veth|loopback|tailscale|zerotier|hamachi|tap-|tun|bluetooth|npcap/i;
+const VOORKEUR = /wi-?fi|wlan|wireless|draadloos|ethernet|^en\d|^eth\d|^wl/i;
+function lanIps() {
+  const alle = netwerkkaarten();
+  // 169.254.x.x krijgt een kaart die geen netwerk vond: daar kan niemand naartoe
+  const echt = alle.filter((k) => !VIRTUEEL.test(k.naam) && !k.adres.startsWith('169.254.'));
+  const lijst = echt.length ? echt : alle;
+  return lijst
+    .sort((a, b) => (VOORKEUR.test(a.naam) ? 0 : 1) - (VOORKEUR.test(b.naam) ? 0 : 1))
+    .map((k) => k.adres);
 }
 
 /*
@@ -33,7 +56,8 @@ function opDezeLaptop(socket) {
   // via een proxy (zoals bij Render) komt elk verzoek van "dichtbij": nooit vertrouwen
   if (h.headers && h.headers['x-forwarded-for']) return false;
   const adres = String(h.address || '').replace(/^::ffff:/, '');
-  return adres === '127.0.0.1' || adres === '::1' || lanIps().includes(adres);
+  // ook de virtuele kaarten: die zijn net zo goed van deze laptop
+  return adres === '127.0.0.1' || adres === '::1' || netwerkkaarten().some((k) => k.adres === adres);
 }
 
 function magLesgeven(socket, sleutel) {

@@ -72,24 +72,30 @@
 
     /* Een genummerd lijstje ("1. Sleep… 2. Zet…") plakt anders aan elkaar
        tot "onder.Zet daarin": elk stapje wordt een eigen zin. */
-    const tekstVan = (id) => {
-      const el = document.getElementById(id);
-      if (!el) return '';
+    const tekstVan = (idOfEl) => {
+      const echt = typeof idOfEl === 'string' ? document.getElementById(idOfEl) : idOfEl;
+      if (!echt) return '';
+      // een plaatje (de groene vlag) leest de stem voor met zijn naam
+      const el = echt.cloneNode(true);
+      for (const img of el.querySelectorAll('img[alt]')) img.replaceWith(` ${img.alt} `);
       const stapjes = [...el.querySelectorAll('li')];
       return stapjes.length ? stapjes.map((li) => li.textContent.trim().replace(/[.!?]?$/, '.')).join(' ') : el.textContent;
     };
     document.getElementById('stap-voorlees').addEventListener('click', (e) => {
       // de stap, de opdracht, en wanneer je klaar bent (de twee vinkjes)
       const checks = [tekstVan('check-structuur'), tekstVan('check-gedrag')].map(schoon).filter(Boolean);
-      leesVoor(`${tekstVan('stap-nr')}. ${tekstVan('stap-titel')}. ${tekstVan('stap-doel')}`
+      // staat de opdracht in stapjes, dan alleen het stapje van nu (niet de knoppen)
+      const stapje = document.querySelector('#stap-doel .stapje-tekst');
+      const kop = document.querySelector('#stap-doel .stapje-kop');
+      const doel = stapje ? `${tekstVan(kop).trim()}: ${tekstVan(stapje)}` : tekstVan('stap-doel');
+      leesVoor(`${tekstVan('stap-nr')}. ${tekstVan('stap-titel')}. ${doel}`
         + (checks.length ? ` Je bent klaar als: ${checks.join(', en ')}.` : ''), e.currentTarget);
     });
     document.getElementById('uitleg-voorlees').addEventListener('click', (e) => {
       leesVoor(`${tekstVan('uitleg-titel')}. ${tekstVan('stap-probleem')} ${tekstVan('stap-ontdekking')}`, e.currentTarget);
     });
     document.getElementById('lb-voorlees').addEventListener('click', (e) => {
-      const vak = document.getElementById('lesgever-bericht');
-      leesVoor(vak.querySelector('.lb-tekst').textContent, e.currentTarget);
+      leesVoor(tekstVan(document.querySelector('#lesgever-bericht .lb-tekst')), e.currentTarget);
     });
     // de uitleg of het bericht dichtklikken: dan ook stoppen met lezen
     for (const id of ['uitleg-sluit', 'lb-sluit', 'lb-terug']) {

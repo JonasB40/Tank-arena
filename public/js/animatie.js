@@ -21,6 +21,7 @@
     besturen: '#FFAB19',
     waarnemen: '#5CB1D6',
     variabelen: '#FF8C1A',
+    operators: '#59C059',
   };
   const RAND = (kleur) => donkerder(kleur, 0.78);
 
@@ -199,8 +200,41 @@
     c.fillStyle = '#fff';
     c.font = '600 9.5px Segoe UI, sans-serif';
     c.textBaseline = 'middle';
-    c.fillText(tekst, x + 8, y + h / 2 + 3);
+    tekstMetVlag(c, tekst, x + 8, y + h / 2 + 3);
     c.restore();
+  }
+
+  /* Tekst met een 🚩 erin: op die plek tekenen we de GROENE vlag, zoals op het
+     echte startblok. Het emoji zelf is rood, en "druk op de rode vlag" bestaat
+     niet — dat verwarde de kinderen. */
+  function tekstMetVlag(c, tekst, x, y) {
+    const stukken = String(tekst).split('🚩');
+    let px = x;
+    stukken.forEach((stuk, i) => {
+      if (i > 0) {
+        c.save();
+        c.translate(px + 1, y - 6);
+        c.scale(0.6, 0.6);
+        c.strokeStyle = '#2e7d32';
+        c.lineWidth = 2;
+        c.lineCap = 'round';
+        c.beginPath(); c.moveTo(4, 2); c.lineTo(4, 18); c.stroke();
+        c.beginPath();
+        c.moveTo(5.2, 3.1);
+        c.bezierCurveTo(8.4, 1.3, 11.6, 4.9, 14.8, 3.1);
+        c.lineTo(14.8, 10.1);
+        c.bezierCurveTo(11.6, 11.9, 8.4, 8.3, 5.2, 10.1);
+        c.closePath();
+        c.fillStyle = '#4CBF56';
+        c.fill();
+        c.lineWidth = 1;
+        c.stroke();
+        c.restore();
+        px += 11;
+      }
+      c.fillText(stuk, px, y);
+      px += c.measureText(stuk).width;
+    });
   }
 
   /* Een uitklaplijstje: zo laat je zien dat er meer keuzes onder het pijltje
@@ -447,7 +481,7 @@
 
         bijschrift(c,
           t < 0.8 ? 'je werkblad is nog leeg'
-            : t < 3 ? 'sleep het 🚩-blok op je werkblad'
+            : t < 3 ? 'sleep het startblok op je werkblad'
               : t < 5.6 ? 'hang "neem 10 stappen" eronder'
                 : t < 7.4 ? 'klik op de groene vlag om te TESTEN!'
                   : 'kijk: je tank zet één stapje', B, H);
@@ -511,7 +545,7 @@
 
         bijschrift(c,
           t < 2.6 ? 'haal je stappen-blok er even uit'
-            : t < 4.8 ? 'hang een herhaal-blok onder de 🚩'
+            : t < 4.8 ? 'hang een herhaal-blok onder het startblok'
               : t < 7 ? 'leg je stappen-blok BINNENIN de herhaal'
                 : 'nu blijft je tank doorrijden', B, H);
       },
@@ -577,61 +611,107 @@
     },
 
     /*
-     * STAP 4 — het getal van de graden veranderen.
-     * Kinderen vergeten bij het dupliceren het gétal aan te passen, waardoor
-     * twee toetsen dezelfde kant op rijden. Het kompas laat zien welk getal
-     * bij welke richting hoort.
+     * STAP 4 — kopiëren met ⧉ Kopie, en in de kopie twee dingen veranderen.
+     * Tik op je als-blok, tik op ⧉ Kopie (de kopie komt er meteen onder), kies
+     * een andere pijl en zet het getal juist. Daarna de klok: welk getal hoort
+     * bij welke kant? Kinderen vergaten vooral het gétal aan te passen,
+     * waardoor twee toetsen dezelfde kant op reden.
      */
     4: {
-      duur: 7.5,
+      duur: 11,
       teken(c, t, B, H) {
-        const graden = [0, 90, 180, -90];
-        const pijl = ['↑', '→', '↓', '←'];
-        const stap = Math.min(3, Math.floor(t / 1.7));
-        const binnenIn = (t % 1.7) / 1.7;
+        const bx = 8, b = 150;
+        const kopieKnop = { x: 166, y: 6, b: 48, h: 16 };
 
-        // het blok met het invulvakje, bovenaan
-        const bx = (B - 156) / 2;
-        stapelBlok(c, bx, 14, 156, 20, KLEUR.beweging, 'richt naar', { grootte: 11 });
-        const klikt = binnenIn > 0.25 && binnenIn < 0.5;
-        getalVak(c, bx + 72, 18, 34, 13, String(graden[stap]), klikt ? 1 : 0);
-        c.fillStyle = '#fff';
-        c.font = '600 11px Segoe UI, sans-serif';
-        c.textBaseline = 'middle';
-        c.fillText('graden', bx + 111, 24);
+        // een als-blok: "als toets … dan" met "richt naar … graden" erin
+        const tekenAls = (y, toets, getal, opties = {}) => {
+          c.save();
+          c.globalAlpha = opties.alpha === undefined ? 1 : opties.alpha;
+          const a = alsBlok(c, bx, y, b, KLEUR.besturen, { kop: 20, binnen: 18, staart: 8 });
+          hexBlok(c, a.gatX - 4, y + 3, 78, 14, KLEUR.waarnemen, `toets ${toets} ingedrukt?`);
+          stapelBlok(c, a.mondX + 1, a.mondY + 1, 106, 15, KLEUR.beweging, 'richt naar', { grootte: 9.5 });
+          getalVak(c, a.mondX + 56, a.mondY + 3.5, 26, 10, getal, opties.gloed || 0);
+          if (opties.gekozen) {
+            // aangetikt: een gele rand, zoals het blok op je werkblad
+            c.strokeStyle = '#ffd500';
+            c.lineWidth = 2.5;
+            c.strokeRect(bx - 2, y - 2, b + 4, 50);
+          }
+          c.restore();
+        };
 
-        // het handje tikt op het vakje
-        if (binnenIn < 0.55) hand(c, bx + 84 + Math.sin(binnenIn * 9) * 1.5, 36, klikt);
-
-        // een kompas eronder dat meedraait: welk getal is welke kant?
-        const cx = B / 2, cy = 66, r = 18;
+        // de knop ⧉ Kopie rechtsboven, zoals op het werkblad
+        const knopIn = t > 2.2 && t < 2.8;
         c.save();
-        c.strokeStyle = '#c9b8ea';
-        c.lineWidth = 2;
         c.beginPath();
-        c.arc(cx, cy, r, 0, Math.PI * 2);
-        c.stroke();
-        c.fillStyle = '#7a5c9e';
-        c.font = '600 9px Segoe UI, sans-serif';
-        c.textAlign = 'center';
-        c.textBaseline = 'middle';
-        c.fillText('0', cx, cy - r - 6);
-        c.fillText('90', cx + r + 9, cy);
-        c.fillText('180', cx, cy + r + 7);
-        c.fillText('-90', cx - r - 11, cy);
-        // de tank wijst de kant op die bij het getal hoort
-        const hoek = (graden[stap] - 90) * Math.PI / 180;
-        c.translate(cx, cy);
-        c.rotate(hoek);
-        c.fillStyle = '#3498db';
-        c.beginPath();
-        c.arc(0, 0, 8, 0, Math.PI * 2);
+        c.roundRect(kopieKnop.x, kopieKnop.y, kopieKnop.b, kopieKnop.h, 8);
+        c.fillStyle = knopIn ? '#e3d7f5' : '#fff';
         c.fill();
-        c.fillStyle = '#8b96a8';
-        c.fillRect(6, -3.5, 12, 7);
+        c.strokeStyle = t > 1.4 && t < 2.8 ? '#ff8c1a' : '#d6c9ef';
+        c.lineWidth = t > 1.4 && t < 2.8 ? 2.5 : 1.5;
+        c.stroke();
+        c.fillStyle = '#3d2d63';
+        c.font = '700 9px Segoe UI, sans-serif';
+        c.textBaseline = 'middle';
+        c.fillText('⧉ Kopie', kopieKnop.x + 8, kopieKnop.y + kopieKnop.h / 2 + 0.5);
         c.restore();
 
-        bijschrift(c, `pijltje ${pijl[stap]} hoort bij ${graden[stap]} graden`, B, H);
+        // het origineel: ↑ en 0
+        tekenAls(8, '↑', '0', { gekozen: t > 0.6 && t < 3 });
+
+        // de kopie verschijnt onder het origineel en verandert daarna
+        if (t > 2.6) {
+          const toets = t > 4.4 ? '→' : '↑';
+          const getal = t > 6.6 ? '90' : '0';
+          tekenAls(56, toets, getal, { alpha: deel(t, 2.6, 3.1), gloed: t > 6 && t < 6.9 ? 1 : 0 });
+        }
+
+        // het handje: eerst op het als-blok, dan op Kopie, dan op de toets, dan op het getal
+        let hx = null, hy = null, knijpt = false;
+        if (t < 1.4) { hx = 60; hy = 30; knijpt = t > 0.5 && t < 0.8; }
+        else if (t < 3) { const v = deel(t, 1.4, 2.1); hx = 60 + (kopieKnop.x + 22 - 60) * v; hy = 30 + (kopieKnop.y + 16 - 30) * v; knijpt = knopIn; }
+        else if (t < 5) { const v = deel(t, 3, 3.7); hx = kopieKnop.x + 22 + (bx + 64 - kopieKnop.x - 22) * v; hy = kopieKnop.y + 16 + (74 - kopieKnop.y - 16) * v; knijpt = t > 4.1 && t < 4.5; }
+        else if (t < 7.2) { const v = deel(t, 5, 5.7); hx = bx + 64 + 16 * v; hy = 74 + 20 * v; knijpt = t > 6.2 && t < 6.6; }
+        if (hx !== null) hand(c, hx, hy, knijpt);
+
+        // de klok: welk getal hoort bij welke kant?
+        if (t > 7.4) {
+          const cx = 190, cy = 76, r = 15;
+          const welke = Math.min(3, Math.floor((t - 7.4) / 0.9));
+          const graden = [0, 90, 180, 270][welke];
+          c.save();
+          c.globalAlpha = deel(t, 7.4, 7.8);
+          c.strokeStyle = '#c9b8ea';
+          c.lineWidth = 2;
+          c.beginPath();
+          c.arc(cx, cy, r, 0, Math.PI * 2);
+          c.stroke();
+          c.fillStyle = '#7a5c9e';
+          c.font = '700 8.5px Segoe UI, sans-serif';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.fillText('0', cx, cy - r - 6);
+          c.fillText('90', cx + r + 8, cy);
+          c.fillText('180', cx, cy + r + 7);
+          c.fillText('270', cx - r - 10, cy);
+          // de tank wijst de kant op die bij het getal hoort
+          c.translate(cx, cy);
+          c.rotate((graden - 90) * Math.PI / 180);
+          c.fillStyle = '#3498db';
+          c.beginPath();
+          c.arc(0, 0, 7, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#8b96a8';
+          c.fillRect(5, -3, 10, 6);
+          c.restore();
+        }
+
+        bijschrift(c,
+          t < 1.4 ? 'tik op je als-blok'
+            : t < 3 ? 'tik op ⧉ Kopie: de kopie komt eronder'
+              : t < 5 ? 'kies in de kopie de toets →'
+                : t < 7.4 ? 'en zet het getal op 90'
+                  : '↑ 0 · → 90 · ↓ 180 · ← 270', B, H);
       },
     },
 
@@ -640,6 +720,96 @@
      * De valkuil: "Maak een variabele" is een KNOP, geen blok. Wie dat niet
      * doorheeft, zoekt zich blind naar een blokje dat er niet is.
      */
+    /*
+     * STAP 9 — een waarde uit het spel in je verander-blok.
+     * Het groene "0 − 1" gaat op de −10, en "kracht kogel" op de 1. Daarna
+     * zie je waarom: je teller zakt nu net zoveel als de levensbalk.
+     */
+    9: {
+      duur: 10.5,
+      teken(c, t, B, H) {
+        const vx = 6, vy = 14, vb = 208, vh = 24;
+        stapelBlok(c, vx, vy, vb, vh, KLEUR.variabelen, 'verander Levens met', { grootte: 10.5 });
+        const slotX = vx + 116, slotY = vy + 4;
+
+        // 1. het groene 0 − 1 op de −10
+        const v1 = deel(t, 0.5, 2.2);
+        const gx = 150 + (slotX - 150) * v1, gy = 78 + (slotY - 78) * v1;
+        const op = t >= 2.2;
+        if (!op) getalVak(c, slotX + 2, slotY + 3, 30, 11, '-10', t > 1.8 ? 1 : 0);
+        // het groene blok wordt breder als kracht kogel erin zit
+        const krachtErin = t >= 5.2;
+        const gb = krachtErin ? 86 : 54;
+        rondBlok(c, gx, gy, gb, 16, KLEUR.operators, '', 1);
+        getalVak(c, gx + 4, gy + 2.5, 15, 11, '0', 0);
+        c.save();
+        c.fillStyle = '#fff';
+        c.font = '800 11px Segoe UI, sans-serif';
+        c.textBaseline = 'middle';
+        c.fillText('−', gx + 22, gy + 8.5);
+        c.restore();
+        if (!krachtErin) getalVak(c, gx + 32, gy + 2.5, 16, 11, '1', t > 4.6 && t < 5.2 ? 1 : 0);
+
+        // 2. kracht kogel op de 1
+        if (t > 2.6) {
+          const v2 = deel(t, 3.2, 5.0);
+          const kx = krachtErin ? gx + 31 : 120 + (gx + 31 - 120) * v2;
+          const ky = krachtErin ? gy + 1.5 : 86 + (gy + 1.5 - 86) * v2;
+          rondBlok(c, kx, ky, 52, 13, KLEUR.waarnemen, 'kracht kogel', 1);
+        }
+
+        // het handje sleept wat er nu verplaatst wordt
+        if (t < 2.4) hand(c, gx + 20, gy + 16, t > 0.5 && t < 2.2);
+        else if (t > 3 && t < 5.4) {
+          const v2 = deel(t, 3.2, 5.0);
+          hand(c, 140 + (gx + 50 - 140) * v2, 98 + (gy + 14 - 98) * v2, t > 3.2 && t < 5.0);
+        }
+
+        // 3. waarom: de teller zakt net zoveel als de levensbalk
+        if (t > 6.2) {
+          const v3 = deel(t, 6.8, 8.2);
+          const levens = Math.round(100 - 15 * v3);
+          c.save();
+          c.globalAlpha = deel(t, 6.2, 6.6);
+          // de levensbalk van de tank
+          c.fillStyle = '#d9d9e3';
+          c.fillRect(20, 60, 90, 8);
+          c.fillStyle = '#2ecc71';
+          c.fillRect(20, 60, 90 * (levens / 100), 8);
+          c.strokeStyle = '#7a8299';
+          c.lineWidth = 1;
+          c.strokeRect(20, 60, 90, 8);
+          c.fillStyle = '#5b4400';
+          c.font = '600 9px Segoe UI, sans-serif';
+          c.textBaseline = 'middle';
+          c.fillText('levensbalk', 20, 76);
+          // jouw teller
+          c.fillStyle = '#ff8c1a';
+          c.beginPath();
+          c.roundRect(130, 56, 70, 18, 5);
+          c.fill();
+          c.fillStyle = '#fff';
+          c.font = '700 10px Segoe UI, sans-serif';
+          c.fillText(`Levens ${levens}`, 137, 65.5);
+          c.fillStyle = '#5b4400';
+          c.font = '600 9px Segoe UI, sans-serif';
+          c.fillText('jouw teller', 135, 82);
+          if (v3 > 0 && v3 < 1) {
+            c.fillStyle = '#c0392b';
+            c.font = '800 10px Segoe UI, sans-serif';
+            c.fillText('−15', 112, 92);
+          }
+          c.restore();
+        }
+
+        bijschrift(c,
+          t < 2.4 ? 'sleep het groene 0 − 1 op de -10'
+            : t < 5.6 ? 'sleep kracht kogel op de 1'
+              : t < 6.2 ? 'klaar: 0 − kracht kogel'
+                : 'nu zakt je teller net zoveel als de levensbalk', B, H);
+      },
+    },
+
     7: {
       duur: 13,
       teken(c, t, B, H) {

@@ -108,7 +108,11 @@ De tank rijdt eindeloos de muur in. Je kan niet sturen. → `als <toets ↑ inge
 
 **Bouw alleen ↑ samen voor.** Eén werkende als-dan is het hele doel van deze stap.
 
-> 💡 De graden zijn dezelfde als in Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.
+> 💡 De graden lopen als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, **270 = links**. (In Scratch zelf heet links −90; 270 doet daar precies hetzelfde. De draaiknop op het blok toont 0 tot 359.)
+
+> 🧭 **De opdracht staat er stapje per stapje.** Een kind ziet telkens één stapje ("Stapje 2 van 7"), met ◀ om terug te kijken. De computer ziet zelf wanneer een stapje gedaan is: dan verschijnt een vinkje en daarna het volgende stapje. Alleen wat hij niet kan zien (een vrijblijvende keuze in les 2) vinkt het kind zelf af met **✓ gedaan**. Bij stap 4, 9 en 10 wijst bovendien een felroze ring aan waar je moet tikken, en zegt de tip in één zin wat er nog misloopt.
+
+> 📏 **Inklappen** (bij Opruimen/Zoom) maakt van elk als-blok in je programma één regel, behalve het blok waar je net aan werkt — zo past een lang programma weer op het scherm. Tik op een ingeklapt blok en alleen dát blok gaat weer open; **Uitklappen** opent alles. Daarna zet de knop alles netjes onder elkaar.
 
 Laat ze het pijltje ingedrukt houden en naar hun blokken kijken: de blokken ín het als-blok lichten alleen op zolang de toets ingedrukt is. Zo zie je de computer kiezen.
 
@@ -117,7 +121,7 @@ Laat ze het pijltje ingedrukt houden en naar hun blokken kijken: de blokken ín 
 ### 0:40–0:50 · Stap 4: de andere drie richtingen
 Nu bouwen ze **zelf** verder: hetzelfde patroon, drie keer, met een andere toets en een ander aantal graden. Hier ontstaat het eerste tempoverschil in de klas — gebruik je dashboard om te zien wie klaar is.
 
-> 💡 Wijs op rechtsklikken → *Dupliceren* (op een iPad: de vinger even op het blok houden). Vergeet in de kopie niet **allebei** de dingen te veranderen: de toets én de graden.
+> 💡 Vanaf stap 4 staat er bij Opruimen/Zoom een knop **⧉ Kopie**: tik op je als-blok, tik op Kopie, en de kopie hangt meteen ónder het origineel in de herhaal (rechtsklikken en precies slepen waren hier de grootste struikelblokken; op elk toestel werkt het nu hetzelfde). Een felroze ring wijst telkens aan wat nu moet: het als-blok, Kopie, de toets in de kopie, het getal. Het vinkje toont per pijl of hij klopt: *↑ 0 ✓ · → 90 ✓ · ↓ 180 ○ · ← 270 ○*, en de tip zegt in één zin wat er nog misloopt ("Bij → hoort 90"). Het filmpje doet het voor.
 
 **🔬 Stukmaken:** geef twee als-blokken dezelfde toets maar een andere richting. Welke kant gaat hij op? Waarom die?
 
@@ -133,14 +137,14 @@ Drie kleine stappen die samen één ding opbouwen. Ze volgen elkaar snel op — 
 
 - **Stap 7:** een variabele = een doosje met een naam waar een getal in zit. Ze maken `Levens` en vullen hem bij de start met `max levens`. Het tellertje verschijnt meteen live op hun speelveld.
 - **Stap 8:** de teller staat stil. → `als <raak ik een vijandelijke kogel?> dan verander Levens met -10`. Een vást getal, bewust nog geen som.
-- **Stap 9:** leg de teller naast de echte levensbalk — het klopt niet. Een tegenstander die zijn kogelschade upgradde doet méér pijn. De -10 wordt `0 − kracht kogel`.
+- **Stap 9:** leg de teller naast de echte levensbalk — het klopt niet. Een tegenstander die zijn kogelschade upgradde doet méér pijn. De -10 wordt `0 − kracht kogel`. In de lade staat het groene min-blok kant-en-klaar als **0 − 1** (net als in Scratch is er een apart blok voor +, −, × en ÷, en voor <, > en =): eerst dat blok op de -10, dan `kracht kogel` op de 1. Een filmpje doet het voor, de ring wijst het vakje aan.
 
 **🔬 Stukmaken (stap 7, de klassieke bug):** zet het `maak Levens`-blok ín de herhaal-lus. De teller staat nu constant op max en beweegt nooit. *Dit is een fout die echte programmeurs óók maken.*
 
 > ⚠ De teller is hún eigen getal, náást de echte levensbalk van het spel. Het spel blijft de boekhouder — zo kan niemand zijn levens op 999 zetten. Mooi klasgesprek.
 
 ### 1:20–1:30 · Stap 10: je tank roept om hulp
-Alles samen: `herhaal → als <mijn levens < 30> dan zeg [help!]`, in een eigen stapeltje. Dit is de zwaarste bouwopdracht van deel 1. Wie hem af heeft vóór de pauze mag al vrij spelen — dat is de beloning.
+Alles samen: `als <mijn levens < 30> dan zeg [help!]`, gewoon in de herhaal waar ook hun pijltjes in staan (een eigen startblok met een eigen herhaal was twee stapjes extra zonder dat ze er iets bij leerden). Vijf korte stapjes; de ring wijst telkens het volgende vakje aan. Wie hem af heeft vóór de pauze mag al vrij spelen — dat is de beloning.
 
 **🔬 Stukmaken:** verander de 30 in 200. Roept hij nu constant? Waarom?
 

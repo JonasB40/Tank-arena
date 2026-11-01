@@ -30,10 +30,10 @@ De voorbeeldoplossing bestaat uit **10 losse stapeltjes** (net als in Scratch mo
          richt naar (180) graden
          neem (10) stappen
       als <toets [pijltje links] ingedrukt?> dan
-         richt naar (-90) graden
+         richt naar (270) graden
          neem (10) stappen
 ```
-*Graden zoals in Scratch: 0 = omhoog, 90 = rechts, 180 = omlaag, -90 = links.*
+*Graden als een klok: 0 = omhoog, 90 = rechts, 180 = omlaag, 270 = links (−90 werkt ook).*
 
 ### 2 · Schieten met de muis, als salvo *(stap 6 en 15)*
 ```
@@ -48,7 +48,7 @@ De voorbeeldoplossing bestaat uit **10 losse stapeltjes** (net als in Scratch mo
 
 ### 3 · Schieten met de spatiebalk *(breek-oefening van stap 6)*
 ```
-🚩 wanneer toets [spatiebalk] wordt ingedrukt   ← GEBEURTENIS
+wanneer toets [spatiebalk] wordt ingedrukt   ← GEBEURTENIS
    schiet
 ```
 
@@ -75,19 +75,19 @@ De voorbeeldoplossing bestaat uit **10 losse stapeltjes** (net als in Scratch mo
 
 ### 6 · Reacties op gebeurtenissen *(stap 12)*
 ```
-🚩 wanneer ik iemand versla 🏆
+wanneer ik iemand versla 🏆
    verander [kills] met (1)                      ← tellen met een VARIABELE
    speel geluid [tada]
    zeg [hebbes!]
 
-🚩 wanneer ik kapot ga
+wanneer ik kapot ga
    zeg [ik kom sterker terug!]
 ```
 *In de les bouwen de kinderen hier hun eigen versie: bijvoorbeeld `zeg [gepakt!]` en `flits rood`. Elk gebeurtenisblok is de start van een eigen stapeltje.*
 
 ### 7 · Bij een nieuw level de keuze tonen *(stap 12, extra)*
 ```
-🚩 wanneer ik een level omhoog ga
+wanneer ik een level omhoog ga
    speel geluid [tada]
    toon upgrade-keuze                            ← opent het klassevenster (statpunten
                                                    verdeel je met de balken linksonder)
@@ -104,7 +104,7 @@ De voorbeeldoplossing bestaat uit **10 losse stapeltjes** (net als in Scratch mo
 
 ### 9 · Het upgrade-plan *(stap 14)*
 ```
-🚩 wanneer ik een statpunt krijg ⚡
+wanneer ik een statpunt krijg ⚡
    als <(waarde van stat [kogelschade]) < (5)> dan
       geef 1 statpunt aan [kogelschade]          ← eigen build programmeren!
    anders
@@ -131,10 +131,10 @@ De voorbeeldoplossing bestaat uit **10 losse stapeltjes** (net als in Scratch mo
 Signalen (Scratch' *"zend bericht"* / *"wanneer ik bericht ontvang"*) zitten bewust niet in deze voorbeeldoplossing: ze zijn verhuisd naar [les 2](LESPLAN_LES2.md), stap 2. Daar ziet het er zo uit:
 
 ```
-🚩 wanneer ik iemand versla 🏆
+wanneer ik iemand versla 🏆
    zend signaal [bonus] 📡                       ← SIGNAAL VERSTUREN
 
-🚩 wanneer ik signaal [bonus] ontvang 📡        ← EN ONTVANGEN
+wanneer ik signaal [bonus] ontvang 📡        ← EN ONTVANGEN
    verander [teampunten] met (50)
    speel geluid [tada]
    flits [geel]
