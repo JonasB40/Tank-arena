@@ -12,6 +12,7 @@
   "dependencies": {
     "blockly": "11.2.2",
     "express": "^4.21.2",
+    "qrcode-generator": "2.0.4",
     "socket.io": "^4.8.1"
   }
 }

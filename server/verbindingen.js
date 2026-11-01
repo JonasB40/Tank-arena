@@ -3,7 +3,7 @@
  * Meedoen, rijden en schieten, upgraden, de beamer, en projecten bewaren.
  * Wat met de les te maken heeft, regelt klaslokaal.js.
  */
-const { staat, rooms, beamers } = require('./staat');
+const { staat, rooms, beamers, beamerZicht } = require('./staat');
 const { KLASSEN, ARENA, MAX_SPELERS, STAT_LIJST, KLEUREN, VORM_INFO, klem, maxHpVan, statMaxVan, saneNaam, klasseAanbod, klemF } = require('./regels');
 const { magLesgeven } = require('./toegang');
 const { codeStempel, codeGewijzigdNaStart } = require('./versie');
@@ -207,9 +207,20 @@ function startVerbindingen() {
       cb(p ? { ok: true, naam: p.naam, werkruimte: p.werkruimte } : { ok: false });
     });
 
+    /* Welk stuk van de arena toont de beamer? (Hij zoomt in op de actie.) */
+    socket.on('beamerKijk', (d) => {
+      if (!socket.data.isBeamer || !d) return;
+      const getal = (v, min, max) => Math.max(min, Math.min(max, Number(v) || 0));
+      beamerZicht.set(socket.id, {
+        x: getal(d.x, -5000, 100000), y: getal(d.y, -5000, 100000),
+        w: getal(d.w, 500, 100000), h: getal(d.h, 300, 100000),
+      });
+    });
+
     socket.on('verlaat', () => verlaatRoom(socket));
     socket.on('disconnect', () => {
       beamers.delete(socket.id);
+      beamerZicht.delete(socket.id);
       verlaatRoom(socket);
     });
   });

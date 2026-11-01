@@ -16,12 +16,16 @@
  */
 
 /* ---------- blokverwijzingen in de kleur van hun categorie ---------- */
+/* Witte letters staan op een iets donkerdere tint van de blokkleur (dezelfde
+   als de rand van het blok): op het felle blauw van "neem 10 stappen" was de
+   tekst voor kinderen moeilijk te lezen. Het blijft herkenbaar "het blauwe
+   blok". */
 const BLOK_KLEUR = {
   geb: ['#FFBF00', '#4a3600'], // Gebeurtenissen
-  bew: ['#4C97FF', '#ffffff'], // Beweging
-  gev: ['#DB6E9C', '#ffffff'], // Gevecht
+  bew: ['#3373CC', '#ffffff'], // Beweging
+  gev: ['#B94A78', '#ffffff'], // Gevecht
   upg: ['#0FBD8C', '#04372a'], // Upgrades
-  uit: ['#9966FF', '#ffffff'], // Uiterlijken
+  uit: ['#774DCB', '#ffffff'], // Uiterlijken
   bes: ['#FFAB19', '#4a2f00'], // Besturen
   waa: ['#5CB1D6', '#06283d'], // Waarnemen
   ope: ['#59C059', '#0d3d0d'], // Operators
@@ -31,7 +35,7 @@ const BLOK_KLEUR = {
 /** Zet {{cat|tekst}} om in een gekleurd blok-chipje. */
 function blokHtml(tekst) {
   return String(tekst || '').replace(/\{\{(\w+)\|([^}]+)\}\}/g, (_, cat, t) => {
-    const [bg, fg] = BLOK_KLEUR[cat] || ['#8a94ad', '#fff'];
+    const [bg, fg] = BLOK_KLEUR[cat] || ['#5f6880', '#fff'];
     return `<span class="blok" style="background:${bg};color:${fg}">${t}</span>`;
   });
 }

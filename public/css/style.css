@@ -58,7 +58,7 @@ body.speelmodus #podium-balk { padding: 3px 10px; }
    (speelmodus) mogen ze op ware grootte, zoals in diep.io. */
 .sb-balk {
   position: relative;
-  width: 132px;
+  width: calc(132px * var(--tekst, 1));   /* breder bij grotere letters (A+) */
   height: 17px;
   border-radius: 10px;
   background: rgba(28, 32, 44, .88);
@@ -81,7 +81,7 @@ body.speelmodus #podium-balk { padding: 3px 10px; }
   justify-content: center;
   gap: 5px;
   height: 100%;
-  font-size: .6rem;
+  font-size: calc(.6rem * var(--tekst, 1));
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0,0,0,.75);
@@ -111,14 +111,14 @@ body.speelmodus #podium-balk { padding: 3px 10px; }
 .stat-balk-rij.vol .sb-balk { border-color: rgba(255,255,255,.35); }
 /* het "toon upgradescherm"-blok wijst de balken even aan */
 #stat-balken.let-op .stat-balk-rij.kan .sb-plus { animation: pulse 1.1s infinite; }
-body.speelmodus .sb-balk { width: 168px; height: 20px; }
+body.speelmodus .sb-balk { width: calc(168px * var(--tekst, 1)); height: 20px; }
 /* Op het kleine speelveld (▫) compacter: daar moeten ze naast het scorebord
    (en op een tablet boven de joysticks) passen. Ook met een vinger blijft het
    plusje groot genoeg om op te tikken. */
-body.podium-klein .sb-balk { width: 104px; height: 15px !important; }
-body.podium-klein .sb-tekst { font-size: .52rem; }
+body.podium-klein .sb-balk { width: calc(104px * var(--tekst, 1)); height: 15px !important; }
+body.podium-klein .sb-tekst { font-size: calc(.52rem * var(--tekst, 1)); }
 body.podium-klein #stat-balken { gap: 2px; }
-body.speelmodus .sb-tekst { font-size: .68rem; }
+body.speelmodus .sb-tekst { font-size: calc(.68rem * var(--tekst, 1)); }
 body.speelmodus .sb-plus { width: 24px; font-size: 1rem; }
 
 /* eigen variabelen als Scratch-tellertjes (rechtsboven op het speelveld) */
@@ -330,7 +330,7 @@ body.les-nog-niet-gestart #werk-knoppen { display: none; }
   padding: 8px 10px 10px;
   flex: 0 0 auto;
 }
-.sp-kop { font-size: .74rem; color: #8a94ad; text-transform: uppercase; letter-spacing: .4px; }
+.sp-kop { font-size: .74rem; color: #5f6880; text-transform: uppercase; letter-spacing: .4px; }
 .sprite-kaart {
   margin-top: 6px;
   width: 84px;
@@ -362,11 +362,13 @@ body.les-nog-niet-gestart #werk-knoppen { display: none; }
   border: 2px solid rgba(255, 255, 255, .35);
   margin-left: auto;
 }
+/* de knop die niet gekozen is: wit op een donkerder paars (lila op lichtpaars
+   was te flauw om te lezen) */
 .modus {
   padding: 5px 10px;
   border: none;
-  background: rgba(255, 255, 255, .12);
-  color: #e9e0fb;
+  background: rgba(0, 0, 0, .18);
+  color: #fff;
   font-size: .82rem;
   cursor: pointer;
 }
@@ -535,7 +537,9 @@ body.heeft-filmpje #stap-paneel { max-height: 41vh; }
 }
 
 #stap-checks { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; }
-.check { font-size: .85rem; color: #8a94ad; }
+/* Wat er nog moet gebeuren, staat in donkergrijs: lichtgrijs op crème las een
+   kind van acht nauwelijks, en dit is net de opdracht. */
+.check { font-size: .85rem; color: #5f6880; }
 .check.gelukt { color: #2e7d32; font-weight: 600; }
 
 /* De knoppen staan onder het scrollende tekstvak, niet erin. Zo dekken ze
@@ -557,8 +561,9 @@ body.heeft-filmpje #stap-paneel { max-height: 41vh; }
   background: #ede7f6;
   color: #4527a0;
 }
-#stap-volgende { background: #2ecc71 !important; color: #fff !important; font-weight: 700; margin-left: auto; }
-#stap-volgende:disabled { background: #cfd6e4 !important; color: #8a94ad !important; cursor: default; }
+/* donkere letters op het felle groen: wit was daar amper te lezen */
+#stap-volgende { background: #2ecc71 !important; color: #06321a !important; font-weight: 700; margin-left: auto; }
+#stap-volgende:disabled { background: #dde3ee !important; color: #5f6880 !important; cursor: default; }
 body.stap-ingeklapt #stap-body, body.stap-ingeklapt #stap-knoppen { display: none; }
 /* vóór de start: geen doel/checks/knoppen tonen — eerst naam + modus kiezen */
 body.les-nog-niet-gestart #stap-doel,
@@ -931,7 +936,7 @@ body.joystick-aan .sb-toets { display: none; }
 #uitleg-kaart #stap-probleem { font-size: 1rem; line-height: 1.45; color: #7a4a00; margin-bottom: 10px; }
 #uitleg-kaart #stap-ontdekking { font-size: .95rem; line-height: 1.5; color: #2d3436; margin-bottom: 14px; }
 #uitleg-sluit {
-  background: #4CBF56; color: #fff; border: none; border-radius: 9px;
+  background: #4CBF56; color: #0b3d12; border: none; border-radius: 9px;
   padding: 9px 22px; font-size: 1rem; font-weight: 700; cursor: pointer;
 }
 #uitleg-sluit:hover { background: #43a94c; }
@@ -940,6 +945,75 @@ body.joystick-aan .sb-toets { display: none; }
   padding: 2px 8px; font-weight: 700; cursor: pointer; font-size: .9rem;
 }
 #stap-uitleg:hover { background: #d3c2ee; }
+/* voorlezen en grotere letters (leeshulp.js), naast de ℹ */
+#stap-voorlees, #tekst-groter {
+  background: #e3d7f5; color: #3d2d63; border: none; border-radius: 6px;
+  padding: 2px 8px; font-weight: 800; cursor: pointer; font-size: .9rem;
+}
+#stap-voorlees:hover, #tekst-groter:hover { background: #d3c2ee; }
+#tekst-groter.aan { background: #855cd6; color: #fff; }
+/* wat nu voorgelezen wordt: de knop pulseert (nog eens tikken = stoppen) */
+.spreekt { animation: spreekt 1s ease-in-out infinite; background: #ffd54f !important; color: #4a3200 !important; }
+@keyframes spreekt { 50% { box-shadow: 0 0 0 5px rgba(255, 213, 79, .45); } }
+#uitleg-voorlees {
+  background: #e3d7f5; color: #3d2d63; border: none; border-radius: 9px;
+  padding: 9px 16px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-right: 6px;
+}
+
+/*
+ * Grotere letters (A+). --tekst is 1, 1.15 of 1.3 (leeshulp.js). De les zelf
+ * zoomt mee als geheel; elders vergroten we alleen de letters, zodat niets van
+ * plaats verschuift.
+ */
+#stap-paneel { zoom: var(--tekst, 1); }
+#uitleg-kaart #stap-probleem { font-size: calc(1rem * var(--tekst, 1)); }
+#uitleg-kaart #stap-ontdekking { font-size: calc(.95rem * var(--tekst, 1)); }
+#lesgever-bericht .lb-tekst { font-size: calc(1.05rem * var(--tekst, 1)) !important; }
+.blocklyTreeLabel { font-size: calc(.6rem * var(--tekst, 1)) !important; }
+/* grotere categorienamen hebben een bredere kolom nodig */
+body.tekst-groot .blocklyToolboxDiv { width: 76px !important; }
+body.tekst-xl .blocklyToolboxDiv { width: 84px !important; }
+
+/* ---------- hand opsteken: waarom? (spel-les.js) ---------- */
+#hulp-menu {
+  position: fixed; z-index: 90;
+  background: #fff; border-radius: 12px; padding: 8px;
+  box-shadow: 0 10px 30px rgba(40, 20, 80, .35); border: 2px solid #855cd6;
+  display: flex; flex-direction: column; gap: 5px; width: min(330px, calc(100vw - 16px));
+}
+#hulp-menu .hm-kop { font-weight: 800; color: #3d2d63; padding: 4px 6px 6px; font-size: calc(.95rem * var(--tekst, 1)); }
+#hulp-menu button {
+  text-align: left; border: none; border-radius: 9px; cursor: pointer;
+  background: #f4effc; color: #3d2d63; font-weight: 700;
+  font-size: calc(.98rem * var(--tekst, 1)); padding: 10px 12px; min-height: 44px;
+}
+#hulp-menu button:hover { background: #e3d7f5; }
+
+/* ---------- toesteltest (toesteltest.js) ---------- */
+#toesteltest {
+  position: fixed; inset: 0; z-index: 200; background: rgba(24, 20, 40, .6);
+  display: flex; align-items: center; justify-content: center; padding: 12px;
+}
+#tt-vak {
+  background: #fff; color: #2d3436; border-radius: 14px; border: 3px solid #855cd6;
+  padding: 16px 18px; width: min(560px, 100%); max-height: 100%; overflow: auto;
+}
+#tt-vak h2 { color: #3d2d63; margin-bottom: 4px; }
+#tt-vak .tt-uitleg { color: #5f6880; font-size: .9rem; margin-bottom: 10px; }
+#tt-lijst { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: .92rem; line-height: 1.35; }
+.tt-knop { border: none; border-radius: 6px; background: #e3d7f5; color: #3d2d63; font-weight: 700; padding: 2px 9px; cursor: pointer; margin-left: 4px; }
+#tt-proef { background: #f4effc; border-radius: 10px; padding: 10px 12px; font-size: .9rem; }
+#tt-proef p { margin: 4px 0; }
+/* even klein als een getal in een blok: daar zoomde Safari op in */
+#tt-getal { font-size: 11px; width: 70px; padding: 3px 6px; border: 2px solid #4C97FF; border-radius: 12px; margin-bottom: 8px; }
+#tt-knijp {
+  height: 90px; border: 2px dashed #855cd6; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; color: #855cd6; font-weight: 700;
+}
+#tt-besluit { margin: 12px 0 10px; font-weight: 800; }
+#tt-besluit.goed { color: #2e7d32; }
+#tt-besluit.fout { color: #c0392b; }
+#tt-sluit { background: #855cd6; color: #fff; border: none; border-radius: 9px; padding: 9px 22px; font-weight: 700; cursor: pointer; }
 
 /* Stap 7: de knop "Maak een variabele" knippert tot ze erop geklikt hebben.
    Zonder dat wijzertje zoeken kinderen zich blind naar een knop die er anders
@@ -1178,7 +1252,8 @@ body.joystick-aan #toast {
 body.joystick-aan.podium-klein #toast {
   left: 14px;
   right: 14px;
-  bottom: calc(14px + var(--js-maat) + 60px);
+  /* op een heel laag speelveld (iPad rechtop) niet boven de rand uit */
+  bottom: min(calc(14px + var(--js-maat) + 60px), calc(100% - 60px));
 }
 
 /*
@@ -1201,7 +1276,7 @@ body.joystick-aan.podium-klein #toast {
   /* de opdracht scrollt zelf; zo blijft er een werkblad over waarop je kan bouwen */
   #stap-paneel, body.heeft-filmpje #stap-paneel { max-height: 27vh; }
   #podium { flex: 0 0 34%; min-width: 0; min-height: 0; border-left: none; border-top: 3px solid #d9c7f5; }
-  body.podium-klein #podium { flex-basis: 24%; }
+  body.podium-klein #podium { flex-basis: 26%; }
   body.speelmodus #podium { flex: 1 1 auto; border-top: none; }
   /* "Je programmeert: jouw tank" kost hier een strook speelveld */
   #sprite-paneel { display: none; }
@@ -1215,6 +1290,9 @@ body.joystick-aan.podium-klein #toast {
   #werkveld-houder { height: 60vh; flex: none; }
   #podium { flex: none; height: 70vh; }
   #grootte-knoppen { display: none; }
+  /* de bovenbalk over twee regels: Hulp en Menu vielen anders rechts buiten beeld */
+  #topbar { flex-wrap: wrap; row-gap: 6px; gap: 8px; padding: 6px 10px; }
+  #topbar > .logo, #topbar > #serverversie { display: none; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1234,6 +1312,7 @@ body.joystick-aan.podium-klein #toast {
   .modus { min-height: 40px; padding: 6px 14px; font-size: .85rem; }
   #topbar button { min-height: 40px; min-width: 40px; font-size: 1rem; }
   #stap-inklap { min-height: 40px; min-width: 44px; font-size: 1.05rem; }
+  #stap-uitleg, #stap-voorlees, #tekst-groter { min-height: 40px; min-width: 40px; font-size: 1.05rem; }
   #vlag, #stop { min-height: 46px; min-width: 46px; }
   .gr-knop { min-height: 42px; min-width: 42px; font-size: 1.05rem; }
   #joystick-schakel { min-height: 42px; min-width: 42px; }
@@ -1269,10 +1348,19 @@ body.joystick-aan.podium-klein #toast {
  * we het paneel minder ruimte en maken we de tekst iets compacter.
  */
 @media (max-height: 820px) {
+  /* klein speelveld op een laag scherm: elke pixel gaat naar het spel, niet
+     naar het kaartje "je programmeert: jouw tank" (dat staat er al groot) */
+  body.podium-klein #sprite-paneel { display: none; }
   #stap-paneel { max-height: 30vh; font-size: .84rem; }
   #stap-body { padding: 8px 12px; }
   #stap-kop { padding: 6px 12px; }
   #stap-body p { margin-bottom: 5px; }
+}
+/* Na de browserbalk blijft er dan zo'n 660 px over, en was het speelveld maar
+   386 px hoog. Je level staat ook bovenaan het speelveld; het kaartje "je
+   programmeert" mag dan weg, ook bij een gewoon speelveld. */
+@media (max-height: 700px) {
+  #sprite-paneel { display: none; }
 }
 
 /* Kopjes in "meer opties": de keuzes stonden als één lange lijst onder elkaar,
@@ -1407,7 +1495,8 @@ html, body { touch-action: pan-x pan-y; }
   box-shadow: 0 4px 16px rgba(0,0,0,.35);
 }
 /* de inhaalbonus in de HUD */
-#hud-inhaal { color: #ffd54f; font-weight: 700; }
+/* als geel bolletje: geel op de lichte balk was zo goed als onzichtbaar */
+#hud-inhaal { background: #ffd54f; color: #4a3200; font-weight: 800; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
 /* het werkblad staat ver in- of uitgezoomd: de Zoom-knop vraagt om aandacht */
 #knop-zoom.opvallend { background: #ffd54f; color: #3d2d00; animation: zoom-puls 1.2s ease-in-out infinite; }
 @keyframes zoom-puls { 50% { box-shadow: 0 0 0 5px rgba(255, 213, 79, .45); } }

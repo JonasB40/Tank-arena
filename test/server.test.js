@@ -429,4 +429,85 @@ describe('het lesgeversdashboard', () => {
     bram.s.emit('lesCommando', { type: 'bericht', id: null, tekst: 'haha' });
     assert.equal(await niets, true);
   });
+
+  /* Wie 15 seconden niets meldt, valt uit het overzicht (zie stuurKlasoverzicht):
+     de leerlingen van deze tests laten dus eerst even van zich horen. */
+  const meldStatus = (wie, naam) => wie.s.emit('lesStatus', { naam, les: 1, stap: 3, status: 'bezig', blokken: 5, stilMs: 0 });
+
+  it('een hand met een reden: de lesgever ziet waarom (en een oude true/false werkt nog)', async () => {
+    meldStatus(aaron, 'Aaron');
+    await overzichtMet((x) => !!kaartVan(x, 'Aaron'));
+    aaron.s.emit('hulpVraag', { aan: true, reden: 'blok-zoeken' });
+    let d = await overzichtMet((x) => kaartVan(x, 'Aaron') && kaartVan(x, 'Aaron').hulpReden === 'blok-zoeken');
+    assert.equal(kaartVan(d, 'Aaron').hulp, true);
+    commando({ type: 'hulpKlaar', id: aaronId });
+    d = await overzichtMet((x) => kaartVan(x, 'Aaron') && !kaartVan(x, 'Aaron').hulp);
+    assert.equal(kaartVan(d, 'Aaron').hulpReden, null, 'na "geholpen" is ook de reden weg');
+    // onzin als reden: de hand gaat wel omhoog, zonder reden
+    aaron.s.emit('hulpVraag', { aan: true, reden: '<script>' });
+    d = await overzichtMet((x) => kaartVan(x, 'Aaron') && kaartVan(x, 'Aaron').hulp);
+    assert.equal(kaartVan(d, 'Aaron').hulpReden, null);
+    aaron.s.emit('hulpVraag', false);
+    await overzichtMet((x) => kaartVan(x, 'Aaron') && !kaartVan(x, 'Aaron').hulp);
+    aaron.s.emit('hulpVraag', true);   // een browser van vóór de redenen
+    await overzichtMet((x) => kaartVan(x, 'Aaron') && kaartVan(x, 'Aaron').hulp);
+    aaron.s.emit('hulpVraag', false);
+  });
+
+  it('een leerling op de beamer: zijn naam, zijn blokken en wat hij ziet, en weer terug', async () => {
+    meldStatus(aaron, 'Aaron');
+    meldStatus(bram, 'Bram');
+    await overzichtMet((x) => !!kaartVan(x, 'Aaron') && !!kaartVan(x, 'Bram'));
+    const beamer = await verbind(server.poort);
+    open.push(beamer);
+    beamer.emit('beamer', {});
+    await wachtOp(beamer, 'state');
+    const naam = wachtOp(beamer, 'spotlight', (x) => x && x.id === aaronId);
+    const codeGevraagd = wachtOp(aaron.s, 'lesStuur', (x) => x.type === 'stuurCode');
+    commando({ type: 'beamer', id: aaronId });
+    const info = await naam;
+    assert.equal(info.naam, 'Aaron');
+    assert.equal(typeof info.stap, 'number');
+    await codeGevraagd;
+    // zijn blokken komen ook op de beamer
+    const blokken = wachtOp(beamer, 'spotlightCode', (x) => x.id === aaronId);
+    aaron.s.emit('mijnCode', { naam: 'Aaron', tekst: 'wanneer op groene vlag wordt geklikt', werkruimte: WERKBLAD });
+    assert.deepEqual((await blokken).werkruimte, WERKBLAD);
+    // en wat hij ziet, met zijn tanknummer erbij (ook al speelt hij solo)
+    const zicht = await wachtOp(beamer, 'spotState');
+    assert.equal(zicht.spotNr, aaron.id);
+    assert.ok(zicht.tanks.some((t) => t.id === aaron.id));
+    let d = await overzichtMet((x) => x.spotlight === aaronId);
+    assert.equal(d.spotlight, aaronId);
+    // terug naar de arena
+    const terug = wachtOp(beamer, 'spotlight', (x) => x === null);
+    commando({ type: 'beamer', id: null });
+    await terug;
+    d = await overzichtMet((x) => x.spotlight === null);
+    assert.equal(await komtNiet(beamer, 'spotState', () => true, 600), true);
+    // een id die niet in de klas zit, zet niemand op de beamer
+    commando({ type: 'beamer', id: 'bestaat-niet' });
+    d = await overzichtMet((x) => x.spotlight === null);
+    // een leerling kan het niet
+    bram.s.emit('lesCommando', { type: 'beamer', id: kaartVan(d, 'Bram').id });
+    assert.equal(await komtNiet(beamer, 'spotlight', (x) => x !== null, 2500), true);
+  });
+
+  it('zoomt de beamer in, dan krijgt hij de vormen van dát stuk arena', async () => {
+    const beamer = await verbind(server.poort);
+    open.push(beamer);
+    beamer.emit('beamer', {});
+    const eerst = await wachtOp(beamer, 'state', (x) => Array.isArray(x.vormen) && x.vormen.length > 0);
+    const zicht = { x: 1000, y: 1000, w: 3000, h: 1800 };
+    beamer.emit('beamerKijk', zicht);
+    await wacht(300);
+    const st = await wachtOp(beamer, 'state', (x) => Array.isArray(x.vormen) && x.vormen.length > 0);
+    const rand = 300;
+    for (const v of st.vormen) {
+      assert.ok(v.x >= zicht.x - rand && v.x <= zicht.x + zicht.w + rand
+        && v.y >= zicht.y - rand && v.y <= zicht.y + zicht.h + rand, `vorm ${v.id} ligt buiten het beeld van de beamer`);
+    }
+    // overal in de arena verspreid lag de eerste greep wél
+    assert.ok(eerst.vormen.some((v) => v.x > zicht.x + zicht.w + rand || v.y > zicht.y + zicht.h + rand));
+  });
 });

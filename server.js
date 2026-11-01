@@ -63,6 +63,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
 }));
 app.use('/blockly', express.static(path.join(__dirname, 'node_modules', 'blockly'), { maxAge: '7d' }));
+// de QR-code op de beamer: scannen gaat op een iPad sneller dan een IP-adres typen
+app.use('/qrcode', express.static(path.join(__dirname, 'node_modules', 'qrcode-generator', 'dist'), { maxAge: '7d' }));
 app.get('/beamer', (req, res) => res.sendFile(path.join(__dirname, 'public', 'beamer.html')));
 app.get('/lesgever', (req, res) => res.sendFile(path.join(__dirname, 'public', 'lesgever.html')));
 app.get('/info', (req, res) => res.json({ ips: lanIps(), port: PORT }));

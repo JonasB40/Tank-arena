@@ -9,7 +9,7 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
 - [ ] **Proefdraai op je eigen netwerk:** start de server, open op een tweede toestel (gsm werkt ook) het adres uit de console (bv. `http://192.168.x.x:3000`). Typ een naam, open **meer opties → 👩‍🏫 Voorbeeldoplossing**, klik ▶ Start de les en druk op 🚩. Rij rond met de pijltjes en schiet een vorm kapot. *(Het werkblad van een leerling begint leeg — zonder blokken doet de vlag niets, dat is de bedoeling van stap 1.)*
 - [ ] **Dashboard testen:** open `http://localhost:3000/lesgever` op je laptop. Zie je je testleerling? Klik bij hem op **blokken**, sleep er een blok bij en klik **📤 stuur terug** — verschijnt de melding op het testtoestel?
 - [ ] **Iets aangepast aan de code?** Typ `npm test` in een opdrachtvenster in de map. Na ±35 seconden moet er `fail 0` staan.
-- [ ] **Beamerpagina testen:** open `http://localhost:3000/beamer` — zie je de arena, het scorebord en de teamknoppen (uit/2/4)?
+- [ ] **Beamerpagina testen:** open `http://localhost:3000/beamer` — zie je de arena, het scorebord, de teamknoppen (uit/2/4) en rechtsboven een **QR-code**? Scan die één keer met een iPad of gsm: kom je op het spel uit? (Klik op de QR-code om hem groot te tonen.)
 - [ ] **Teams testen met 2 toestellen:** kies op beide **meer opties → 🏆 Les 2 — samen spelen**, en klik op de beamer "Teams: 2" → krijgen beide tanks een teamkleur en een zone?
 
 ## Op de locatie (vooraf te checken, niet op de dag zelf ontdekken!)
@@ -18,6 +18,8 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
   - *Plan B als het netwerk blokkeert:* maak een hotspot met jouw gsm of een reisrouter en laat laptop + Chromebooks daarop aansluiten. Er is géén internet nodig — alles draait lokaal.
 - [ ] **Wifi-belastingstest:** sluit 5+ toestellen tegelijk aan en laat ze samen spelen (Les 2 — samen spelen). Elke leerling krijgt twintig keer per seconde een gecomprimeerd pakketje van een paar KB; een volle klas van 25 in de arena komt samen op zo'n 10–15 Mbit/s. Dat kan elk degelijk accesspoint aan, maar een oud of overvol exemplaar kan haperen — dan zie je tanks verspringen.
 - [ ] **Chromebooks:** browser opent gewoon het IP-adres, niets te installeren. Check wel of een schoolfilter lokale IP-adressen niet blokkeert.
+- [ ] **🔧 Test één iPad vooraf:** startmenu → *meer opties* → **🔧 Test dit toestel**. Die kijkt de schermmaat, het aanraakscherm, de verbinding, volledig scherm, voorlezen en geluid na, en laat je twee proefjes doen (een getal typen, knijpen met twee vingers) — precies de dingen die op iPads misliepen. Alles groen? Dan zijn alle iPads van hetzelfde type klaar.
+- [ ] **Voorlezen en grotere letters:** naast de opdracht staan **🔊** (leest de opdracht voor, met de stem van het toestel) en **A+** (grotere letters, nog eens tikken = nog groter). Handig voor jonge lezers; met 🔊 zijn **koptelefoons** aan te raden.
 - [ ] **iPads:** open het adres in Safari. Liggend werkt het best (blokken links, speelveld rechts). Zonder toetsenbord verschijnen er vanzelf **twee joysticks** op het speelveld: links rijden (met een knop **spatie** erboven), rechts mikken en schieten. Test één iPad vooraf: laad de voorbeeldoplossing, druk op 🚩 — rijdt de tank met de linker joystick, en mikt en schiet hij met de rechter? Heeft de iPad toch een toetsenbord en muis, dan zet je de joysticks uit met de 🕹️-knop boven het speelveld. **Ingezoomd en vast?** Rechtsboven in het werkblad staat de knop **🔍 Zoom**: die zet het werkblad (en de pagina) terug op de juiste grootte. Hij knippert vanzelf als het werkblad ver in- of uitgezoomd staat. Maar het zou nog maar zelden nodig mogen zijn:
   - Safari zoomt niet meer vanzelf in als een kind een getal in een blok aantikt (dat was de grootste oorzaak van "het scherm zit vast"), en knijpen met twee vingers zoomt alleen nog het werkblad, nooit de pagina.
   - Het werkblad zoomt niet verder in dan zinvol, en de blokkenlade groeit niet meer mee tot ze het werkblad bedekt (dan kon je nergens meer een blok neerleggen).
@@ -30,7 +32,7 @@ Omdat we ons eigen platform gebruiken (geen scratch.mit.edu), vervalt het gerege
 
 - [ ] Laptop aan het stroomnet + wifi, `start.bat` dubbelklikken.
 - [ ] Adres uit de console groot op het bord schrijven.
-- [ ] Beamer op `/beamer` (die toont het speeladres ook groot in beeld).
+- [ ] Beamer op `/beamer` (die toont het speeladres groot in beeld, met een QR-code: op een iPad scannen de kinderen hem met de camera in plaats van het adres te typen).
 - [ ] Dashboard op `/lesgever`. Wil je het op een tablet of tweede toestel open hebben? Dan vraagt het de **lesgeverscode** uit het zwarte venster.
 - [ ] Zelf 1 minuut proefspelen vanaf een Chromebook van de klas.
 - [ ] Teams op **uit** laten staan voor les 1.

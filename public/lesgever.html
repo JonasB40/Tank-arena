@@ -13,7 +13,7 @@
 
     /* ---------- bovenbalk ---------- */
     /* één regel: liep de kopbalk over twee regels, dan ging dat van het werkblad af */
-    header { display: flex; align-items: center; gap: 10px; padding: 9px 16px; background: #855cd6; flex-wrap: nowrap; white-space: nowrap; }
+    header { display: flex; align-items: center; gap: 10px; padding: 9px 16px; background: #855cd6; color: #fff; flex-wrap: nowrap; white-space: nowrap; }
     header > * { flex: none; }
     header #joinurl, header #verouderd { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     header h1 { font-size: 1.1rem; }
@@ -42,12 +42,18 @@
     }
     /* de klok van de ronde valt op zodra hij loopt */
     #ronde-stand.loopt { color: #ffd54f; font-weight: 700; font-size: .9rem; text-transform: none; }
+    /* een lange staptitel mag de balk niet naar twee regels duwen */
+    #klasstap { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* arena en rondes: op een eigen regel, en alleen als je ze openklapt */
+    #arena-groep { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-basis: 100%; }
+    #stuurbalk:not(.arena-open) #arena-groep { display: none; }
+    #arena-open.aan { background: #4fc3f7; color: #06283d; }
 
     /* spreidingsbalkje: waar zit de klas? */
     #spreiding { display: flex; gap: 2px; align-items: flex-end; height: 30px; margin-left: 6px; }
     #spreiding .staaf { width: 13px; background: #3d4560; border-radius: 3px 3px 0 0; position: relative; }
     #spreiding .staaf.hier { background: #4fc3f7; }
-    #spreiding .staaf span { position: absolute; top: -13px; left: 0; right: 0; text-align: center; font-size: .62rem; color: #9aa3bd; }
+    #spreiding .staaf span { position: absolute; top: -14px; left: -2px; right: -2px; text-align: center; font-size: .7rem; color: #b8c0d8; }
 
     /* ---------- hulpwachtrij ---------- */
     /* De hulpbalk staat er altijd en is altijd één regel hoog. Dook hij pas op
@@ -76,7 +82,7 @@
     #filters button b { margin-left: 3px; color: #eef0f6; }
     #filters button.aan { background: #4fc3f7; color: #06283d; }
     #filters button.aan b { color: #06283d; }
-    #filters .uitleg { font-size: .74rem; color: #6b7490; align-self: center; margin-left: 4px; }
+    #filters .uitleg { font-size: .74rem; color: #8b93ad; align-self: center; margin-left: 4px; }
 
     /* het hele kaartje is een knop: tik erop en je ziet zijn blokken (live) */
     .kaart { background: #232736; border-radius: 11px; padding: 10px 11px; border-left: 5px solid #3d4560; cursor: pointer; }
@@ -93,20 +99,20 @@
     .kaart .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .kaart .naam { font-weight: 700; font-size: 1rem; }
     .kaart .stap { background: #343a52; border-radius: 6px; padding: 1px 8px; font-size: .78rem; margin-left: auto; }
-    .kaart .code { font-size: .72rem; color: #7d87a4; font-family: monospace; }
+    .kaart .code { font-size: .72rem; color: #98a1bb; font-family: monospace; }
 
     /* de twee vinkjes van de stap: hier zie je waar het misloopt */
     .vinkjes { display: flex; gap: 6px; margin-bottom: 6px; }
-    .vink { font-size: .74rem; padding: 2px 7px; border-radius: 6px; background: #2c3247; color: #8b93ad; }
+    .vink { font-size: .74rem; padding: 2px 7px; border-radius: 6px; background: #2c3247; color: #a9b1c8; }
     .vink.ok { background: #1d4230; color: #7ee2a8; }
 
     /* Zijn programma: loopt het, en valt er iets op? Altijd één regel hoog,
        ook als er niets te melden is: anders verspringen de kaartjes. */
-    .prog { font-size: .76rem; display: flex; gap: 9px; height: 18px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; color: #8b93ad; }
+    .prog { font-size: .76rem; display: flex; gap: 9px; height: 18px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; color: #a9b1c8; }
     .prog .loopt { color: #7ee2a8; }
     .prog .let { color: #ffb74d; font-weight: 700; }
     .vink.keer { background: #4a2b18; color: #ffb74d; }
-    .regel { font-size: .78rem; color: #9aa3bb; display: flex; gap: 10px; margin-bottom: 7px; }
+    .regel { font-size: .78rem; color: #aab2c8; display: flex; gap: 10px; margin-bottom: 7px; }
     .regel .alarm { color: #ffb74d; font-weight: 700; }
     .knoppen { display: flex; gap: 5px; flex-wrap: wrap; }
     .knoppen button { font-size: .76rem; padding: 4px 9px; background: #47506b; color: #eef0f6; }
@@ -134,7 +140,7 @@
     #od-checks .nee { color: #b0b8cf; }
     #od-hint { color: #ffd54f; margin-top: 2px; }
     #od-stappen { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
-    .od-stap { min-width: 20px; text-align: center; border-radius: 5px; padding: 0 4px; background: #343a52; color: #9aa3bd; font-size: .72rem; }
+    .od-stap { min-width: 20px; text-align: center; border-radius: 5px; padding: 0 4px; background: #343a52; color: #b8c0d8; font-size: .72rem; }
     .od-stap.gehaald { background: #1d4230; color: #7ee2a8; }
     .od-stap.nu { outline: 2px solid #4fc3f7; color: #eef0f6; }
     /* het geluid van de klas staat uit */
@@ -192,6 +198,13 @@
     /* "volgende": de volgende hand (of wie aandacht vraagt) meteen openen */
     #volgende-hulp { background: #ffd54f; color: #4a3200; }
     #kop-geholpen { background: #2ecc71; color: #06321a; }
+    /* waarom steekt hij zijn hand op? */
+    .reden { font-weight: 600; }
+    .hulp-chip .reden { background: rgba(74, 50, 0, .14); border-radius: 10px; padding: 1px 7px; font-size: .82rem; }
+    /* een leerling op de beamer */
+    #op-beamer.aan { background: #e67e22; color: #fff; }
+    #beamer-chip { background: #e67e22; color: #fff; padding: 4px 10px; border-radius: 7px; font-size: .85rem; font-weight: 700; cursor: pointer; }
+    .kaart .op-beamer { background: #e67e22; color: #fff; border-radius: 6px; padding: 0 6px; font-size: .72rem; font-weight: 700; }
     /* snelle tips: één tik en hij is weg, zonder typen */
     #snel-houder { position: relative; }
     #snel-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 90; background: #2c3247; border: 1px solid #47506b; border-radius: 10px; padding: 6px; width: 330px; box-shadow: 0 8px 24px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 4px; }
@@ -227,6 +240,20 @@
       #code-kop button, #tipknoppen button { min-height: 40px; }
       #tiptekst { font-size: 16px; }
       .kaart, header, #stuurbalk, #hulpbalk, #filters { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    }
+    /* Een laptop van 1366x768 houdt na de browserbalk zo'n 660 px over. Alle
+       balken iets smaller en de opdracht wat korter (ze scrollt zelf): het
+       blokkenvenster is waar je werkt, en dat was daar maar 155 px hoog. */
+    @media (max-height: 760px) {
+      header, #stuurbalk { padding-top: 6px; padding-bottom: 6px; }
+      #hulpbalk { min-height: 40px; padding-top: 3px; padding-bottom: 3px; }
+      #klas { padding-top: 8px; }
+      #code-kop { padding-top: 6px; padding-bottom: 6px; }
+      #od-body { max-height: 62px; }
+      #tipvak { padding-top: 6px; padding-bottom: 6px; }
+      #tipvak .kop { margin-bottom: 3px; }
+      #tiptekst { height: 36px; }
+      #samenvatting { padding-top: 5px; padding-bottom: 5px; }
     }
 
     /* ---------- rapport ---------- */
@@ -286,6 +313,8 @@
     <span id="mijn-code" title="Lesgeverscode: typ deze als je het dashboard of de beamer op een ander toestel opent"></span>
     <span id="verouderd" style="display:none"></span>
     <span class="rek"></span>
+    <!-- staat er een leerling groot op de beamer? Tik om terug te gaan naar de arena -->
+    <span id="beamer-chip" class="verborgen" title="Tik om de beamer terug op de arena te zetten"></span>
     <button id="rapport-knop" class="knop-licht">📋 Rapport</button>
     <button id="klasgeluid" class="knop-licht" title="Zet het geluid op alle leerlingenschermen uit (of weer aan)">🔊 Geluid klas</button>
     <button id="bevries" class="knop-bevries">⏸ Ogen op mij</button>
@@ -298,33 +327,38 @@
     <button id="volgende" class="knop-stap">▶</button>
     <div id="spreiding" title="Hoeveel leerlingen zitten op welke stap?"></div>
     <span class="scheiding"></span>
-    <span class="kop">Arena</span>
-    <button class="team-knop" data-teams="0">geen teams</button>
-    <button class="team-knop" data-teams="2">2 teams</button>
-    <button class="team-knop" data-teams="4">4 teams</button>
-    <button id="naar-arena" class="knop-stap">🎮 iedereen naar de arena</button>
-    <span class="scheiding"></span>
-    <span class="kop">Ronde</span>
-    <select id="ronde-minuten" title="Hoe lang duurt de ronde?">
-      <option value="5">5 min</option>
-      <option value="10" selected>10 min</option>
-      <option value="15">15 min</option>
-    </select>
-    <!-- wat moeten de teams doen: zoveel mogelijk punten, of de heuvel houden? -->
-    <select id="ronde-soort" title="Punten: wie verdient het meest. Heuvel: wie houdt de cirkel in het midden (alleen jouw team erop = punten)">
-      <option value="punten">🏆 punten</option>
-      <option value="heuvel">🏔 heuvel veroveren</option>
-    </select>
-    <select id="ronde-doel" title="Stopt de ronde ook als een team dit haalt?">
-      <option value="0">geen doel</option>
-      <option value="1000">1000 ptn</option>
-      <option value="2500">2500 ptn</option>
-      <option value="5000">5000 ptn</option>
-    </select>
-    <button id="ronde-start" class="knop-groen">▶ Start ronde</button>
-    <button id="ronde-stop" class="knop-hint">⏹ Stop</button>
+    <button id="arena-open" class="knop-hint" title="De knoppen voor de arena, teams en rondes (les 2) tonen of verbergen">🎮 Arena &amp; ronde ▾</button>
     <span id="ronde-stand" class="kop"></span>
     <span id="arena-info" class="kop"></span>
+    <!-- Arena, teams en rondes: pas nodig in les 2 (of bij het toernooi). Ingeklapt
+         is de stuurbalk één regel, en houdt het blokkenvenster meer plaats. -->
+    <div id="arena-groep">
+      <span class="kop">Arena</span>
+      <button class="team-knop" data-teams="0">geen teams</button>
+      <button class="team-knop" data-teams="2">2 teams</button>
+      <button class="team-knop" data-teams="4">4 teams</button>
+      <button id="naar-arena" class="knop-stap">🎮 iedereen naar de arena</button>
+      <span class="scheiding"></span>
+      <span class="kop">Ronde</span>
+      <select id="ronde-minuten" title="Hoe lang duurt de ronde?">
+        <option value="5">5 min</option>
+        <option value="10" selected>10 min</option>
+        <option value="15">15 min</option>
+      </select>
+      <!-- wat moeten de teams doen: zoveel mogelijk punten, of de heuvel houden? -->
+      <select id="ronde-soort" title="Punten: wie verdient het meest. Heuvel: wie houdt de cirkel in het midden (alleen jouw team erop = punten)">
+        <option value="punten">🏆 punten</option>
+        <option value="heuvel">🏔 heuvel veroveren</option>
+      </select>
+      <select id="ronde-doel" title="Stopt de ronde ook als een team dit haalt?">
+        <option value="0">geen doel</option>
+        <option value="1000">1000 ptn</option>
+        <option value="2500">2500 ptn</option>
+        <option value="5000">5000 ptn</option>
+      </select>
+      <button id="ronde-start" class="knop-groen">▶ Start ronde</button>
+      <button id="ronde-stop" class="knop-hint">⏹ Stop</button>
+    </div>
   </div>
 
   <div id="hulpbalk">
@@ -344,6 +378,7 @@
         <span id="code-titel">🔍 Blokken van een leerling</span>
         <span class="rek" style="margin-left:auto"></span>
         <button id="kop-geholpen" class="verborgen" title="Je bent langs geweest: zijn hand gaat omlaag">✓ geholpen</button>
+        <button id="op-beamer" class="knop-hint" disabled title="Zet deze leerling groot op de beamer: zijn tank en zijn blokken, zodat de klas samen kijkt hoe hij het oploste">📽</button>
         <button id="volgende-hulp" title="Open de volgende leerling die je nodig heeft: eerst de handen (wie het langst wacht), dan wie vastzit of al lang stilstaat">⏭ volgende</button>
         <button id="stuur-blokken" class="knop-primair" disabled title="Jouw versie naar deze leerling sturen">📤 stuur terug</button>
         <button id="groot-klein" class="knop-hint" title="Groot scherm: veel meer ruimte om te slepen">⤢</button>
@@ -568,6 +603,26 @@
     }
     toonKlasStap();
 
+    /* Arena, teams en rondes heb je pas in les 2 nodig (of bij het toernooi
+       op het eind van de workshop). Ingeklapt is de stuurbalk één regel. Zelf
+       open- of dichtgeklapt? Dan onthoudt dit toestel dat; anders gaan ze
+       vanzelf open zodra de klas in les 2 zit. */
+    let arenaOpen = null;
+    try { const v = localStorage.getItem('lgArenaOpen'); if (v !== null) arenaOpen = v === '1'; } catch { /* geen opslag */ }
+    function toonArenaGroep() {
+      const open = arenaOpen === null ? klasLes === 2 : arenaOpen;
+      document.getElementById('stuurbalk').classList.toggle('arena-open', open);
+      const k = document.getElementById('arena-open');
+      k.classList.toggle('aan', open);
+      k.textContent = open ? '🎮 Arena & ronde ▴' : '🎮 Arena & ronde ▾';
+    }
+    document.getElementById('arena-open').addEventListener('click', () => {
+      arenaOpen = !document.getElementById('stuurbalk').classList.contains('arena-open');
+      try { localStorage.setItem('lgArenaOpen', arenaOpen ? '1' : '0'); } catch { /* geen opslag */ }
+      toonArenaGroep();
+    });
+    toonArenaGroep();
+
     function stuurStap(n) {
       klasStap = Math.max(1, Math.min(maxStapVan(klasLes), n));
       toonKlasStap();
@@ -680,7 +735,10 @@
       { tekst: '👀 Kijk naar je twee vinkjes bovenaan: welke is nog niet groen? Daar zit het.', past: (l) => !(l.checkS && l.checkG) && l.status !== 'klaar' },
       { tekst: '🎮 Je blokken kloppen! Probeer het nu uit in het spel.', past: (l) => l.checkS && !l.checkG },
       { tekst: '💡 Klik eens op "Ik zit vast" en lees de hint.', past: (l) => !l.hint && l.status !== 'klaar' },
-      { tekst: '▶ Gelukt! Klik op "volgende" voor de volgende stap.', past: (l) => l.status === 'klaar' },
+      { tekst: '🔊 Tik op het luidsprekertje bij je opdracht: dan wordt ze voorgelezen.', past: (l) => l.hulpReden === 'snap-niet' },
+      { tekst: '🔎 Het blok heeft dezelfde kleur als in je opdracht. Tik links op het bolletje met die kleur: daar staat het.', past: (l) => l.hulpReden === 'blok-zoeken' },
+      { tekst: '▶ Gelukt! Klik op "volgende" voor de volgende stap.', past: (l) => l.status === 'klaar' || l.hulpReden === 'klaar' },
+      { tekst: '🔬 Knap! Probeer nu de proef onder je opdracht ("Probeer eens"): wat gebeurt er dan?', past: (l) => l.hulpReden === 'klaar' },
       { tekst: '👍 Goed bezig, ga zo door!', past: () => false },
       { tekst: '✋ Ik kom zo bij je!', past: (l) => l.hulp },
     ];
@@ -713,7 +771,8 @@
     });
     // ernaast tikken sluit het menu
     document.addEventListener('pointerdown', (e) => {
-      if (!snelMenu.classList.contains('verborgen') && !e.target.closest('#snel-houder')) snelMenu.classList.add('verborgen');
+      const doel = e.target instanceof Element ? e.target : null;
+      if (!snelMenu.classList.contains('verborgen') && !(doel && doel.closest('#snel-houder'))) snelMenu.classList.add('verborgen');
     });
     document.getElementById('tip-stuur').addEventListener('click', stuurTip);
     document.getElementById('tiptekst').addEventListener('keydown', (e) => {
@@ -744,6 +803,12 @@
        Dat laatste niet tijdens een ronde: dan spelen ze, en bouwen ze terecht
        even niets — anders kleurde de hele klas "aandacht". */
     let rondeLoopt = false;
+    /* Waarom de hand omhoog gaat (de leerling kiest het zelf bij de knop). */
+    const REDENEN = {
+      'werkt-niet': '🤷 tank doet het niet', 'snap-niet': '❓ snapt de opdracht niet',
+      'blok-zoeken': '🔎 vindt een blok niet', klaar: '🏁 klaar — wat nu?', 'iets-anders': '💬 iets anders',
+    };
+    const REDEN_ICOON = { 'werkt-niet': '🤷', 'snap-niet': '❓', 'blok-zoeken': '🔎', klaar: '🏁', 'iets-anders': '💬' };
     const vraagtAandacht = (l) => l.hulp || l.status === 'vast'
       || (!rondeLoopt && l.stilMs >= 120000 && l.status !== 'klaar');
     const FILTERS = [
@@ -846,6 +911,7 @@
         klasLes = nieuweLes;
         klasStap = Math.min(klasStap, maxStapVan(klasLes));
         toonKlasStap();
+        toonArenaGroep();
       }
 
       if (!leerlingen.length) {
@@ -869,12 +935,20 @@
       vorigeHulp = nuHulp;
       document.getElementById('hulpbalk').classList.toggle('aan', hulp.length > 0);
       zetHtml(hulplijst, hulp.map(l =>
-        `<span class="hulp-chip">${esc(l.naam)} · ${lesLabel(l.les)}stap ${l.stap}${l.hulpMin ? ' · wacht ' + l.hulpMin + ' min' : ''}
+        `<span class="hulp-chip">${esc(l.naam)} · ${lesLabel(l.les)}stap ${l.stap}${REDENEN[l.hulpReden] ? ` <span class="reden">${REDENEN[l.hulpReden]}</span>` : ''}${l.hulpMin ? ' · wacht ' + l.hulpMin + ' min' : ''}
            <button data-bekijk="${l.id}" data-naam="${esc(l.naam)}" title="Zijn blokken en opdracht openen (live)">👁 bekijk</button>
            <button data-klaar="${l.id}">geholpen ✓</button></span>`).join(''));
       // de leerling die je nu bekijkt, steekt zijn hand op: dan kan je hem ook daar afvinken
       const getoond = getoondeLeerling && perId.get(getoondeLeerling.id);
       document.getElementById('kop-geholpen').classList.toggle('verborgen', !(getoond && getoond.hulp));
+
+      // ---- staat er iemand op de beamer? ----
+      spotlightId = d.spotlight || null;
+      const opBeamer = spotlightId && perId.get(spotlightId);
+      const chip = document.getElementById('beamer-chip');
+      chip.classList.toggle('verborgen', !opBeamer);
+      if (opBeamer) chip.textContent = `📽 ${opBeamer.naam} op de beamer ✕`;
+      toonBeamerKnop();
 
       // ---- filters: wie wil je zien? ----
       zetHtml(filtersVak, FILTERS.map((f) =>
@@ -907,7 +981,8 @@
         const naam = esc(l.naam);
         return `<div class="kaart ${l.hulp ? 'hulp' : l.status}${bezigMet ? ' gekozen' : ''}" data-kaart="${l.id}" data-naam="${naam}">
           <div class="top">
-            <span class="naam">${l.hulp ? '✋ ' : ''}${naam}</span>
+            <span class="naam" ${l.hulp && REDENEN[l.hulpReden] ? `title="${esc(REDENEN[l.hulpReden])}"` : ''}>${l.hulp ? `✋${REDEN_ICOON[l.hulpReden] || ''} ` : ''}${naam}</span>
+            ${l.id === spotlightId ? '<span class="op-beamer" title="Staat nu groot op de beamer">📽</span>' : ''}
             ${l.hulpKeer >= 2 ? `<span class="vink keer" title="Zo vaak stak ${naam} deze les al zijn hand op">✋×${l.hulpKeer}</span>` : ''}
             ${l.hulp
               // de hand afvinken kan op het kaartje zelf; de knop staat waar anders de code staat,
@@ -1112,6 +1187,34 @@
       if (l) { l.hulp = false; l.hulpMin = 0; }
       vernieuwKaartjes();
     }
+    /*
+     * Een leerling op de beamer: zijn tank (precies wat hij ziet) en zijn
+     * blokken groot voor de klas. "Kijk hoe Emma het oploste" — kinderen leren
+     * veel van elkaars oplossing. Nog eens tikken (of op het oranje
+     * "📽 … op de beamer" bovenaan) zet de beamer terug op de arena.
+     */
+    let spotlightId = null;
+    function toonBeamerKnop() {
+      const k = document.getElementById('op-beamer');
+      const hier = getoondeLeerling && spotlightId === getoondeLeerling.id;
+      k.disabled = !getoondeLeerling;
+      k.classList.toggle('aan', !!hier);
+      k.textContent = hier ? '📽 stop' : '📽';
+      k.title = hier ? 'De beamer terug op de arena zetten'
+        : 'Zet deze leerling groot op de beamer: zijn tank en zijn blokken, zodat de klas samen kijkt hoe hij het oploste';
+    }
+    function zetOpBeamer(id) {
+      socket.emit('lesCommando', { type: 'beamer', id: id || null });
+      spotlightId = id || null;
+      toonBeamerKnop();
+      vernieuwKaartjes();
+    }
+    document.getElementById('op-beamer').addEventListener('click', () => {
+      if (!getoondeLeerling) return;
+      zetOpBeamer(spotlightId === getoondeLeerling.id ? null : getoondeLeerling.id);
+    });
+    document.getElementById('beamer-chip').addEventListener('click', () => zetOpBeamer(null));
+
     document.getElementById('kop-geholpen').addEventListener('click', () => {
       if (getoondeLeerling) hulpKlaar(getoondeLeerling.id);
       document.getElementById('kop-geholpen').classList.add('verborgen');

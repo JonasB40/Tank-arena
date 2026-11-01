@@ -4,7 +4,21 @@
  * krijgt elke anderhalve seconde het overzicht, en kan tips sturen, een
  * leerling verder zetten, blokken bekijken en aanpassen, of de klas bevriezen.
  */
-const { staat, rooms } = require('./staat');
+const { staat, rooms, beamers } = require('./staat');
+
+/* Waarom steekt een leerling zijn hand op? Hij kiest het zelf bij de knop. */
+const HULP_REDENEN = ['werkt-niet', 'snap-niet', 'blok-zoeken', 'klaar', 'iets-anders'];
+
+/* Iets naar elke beamer sturen. */
+function naarBeamers(soort, d) {
+  for (const id of beamers) staat.io.to(id).emit(soort, d);
+}
+/* Wie staat er op de beamer, en hoe ver is hij? (null = niemand) */
+function spotlightInfo() {
+  const s = staat.spotlight;
+  const l = s && klas.get(s.id);
+  return s ? { id: s.id, naam: l ? l.naam : s.naam, les: l ? l.les : 1, stap: l ? l.stap : 1 } : null;
+}
 const { klem, saneNaam } = require('./regels');
 const { LESGEVER_SLEUTEL, magLesgeven } = require('./toegang');
 const { codeGewijzigdNaStart } = require('./versie');
@@ -21,6 +35,11 @@ function vraagGevolgdeBlokkenOp() {
   for (const [lesgever, id] of gevolgd) {
     if (klas.has(id)) leerlingen.add(id);
     else gevolgd.delete(lesgever);   // weg uit de les: niet blijven vragen
+  }
+  // de leerling op de beamer: zijn blokken staan daar ook live
+  if (staat.spotlight) {
+    leerlingen.add(staat.spotlight.id);
+    naarBeamers('spotlight', spotlightInfo());   // zijn stap kan intussen veranderd zijn
   }
   for (const id of leerlingen) staat.io.to(id).emit('lesStuur', { type: 'stuurCode' });
 }
@@ -85,6 +104,7 @@ function stuurKlasoverzicht() {
       lvl: l.lvl || 0, punten: l.punten || 0, hp: l.hp || 0, klasse: l.klasse, speelt: !!l.speelt,
       hulp: !!l.hulp, hulpMin: l.hulp && l.hulpSinds ? Math.floor((nu - l.hulpSinds) / 60000) : 0,
       hulpKeer: l.hulpKeer || 0,   // hoe vaak stak hij al zijn hand op?
+      hulpReden: l.hulp ? l.hulpReden || null : null,   // en waarom nu?
     }))
     .sort((a, b) => a.naam.localeCompare(b.naam));
   const arena = rooms.get('arena');
@@ -92,6 +112,7 @@ function stuurKlasoverzicht() {
     leerlingen: lijst,
     bevroren: staat.bevroren,
     klasStil: staat.klasStil,   // heeft de lesgever het geluid van de klas uitgezet?
+    spotlight: staat.spotlight ? staat.spotlight.id : null,   // wie staat er op de beamer?
     teamModus: arena ? arena.teamModus : 0,
     inArena: arena ? [...arena.tanks.values()].filter((t) => !t.ai).length : 0,
     // loopt er een ronde? dan de klok en de tussenstand mee
@@ -159,6 +180,7 @@ function koppelKlaslokaal(socket) {
       hulp: !!oud.hulp,
       hulpSinds: oud.hulpSinds || 0,
       hulpKeer: oud.hulpKeer || 0,
+      hulpReden: oud.hulpReden || null,
       sinds: oud.stap === stap && oud.les === les ? oud.sinds || Date.now() : Date.now(),
       bijgewerkt: Date.now(),
     });
@@ -167,9 +189,13 @@ function koppelKlaslokaal(socket) {
   });
 
   /* De leerling steekt zijn hand op (of doet hem weer omlaag). */
-  socket.on('hulpVraag', (aan) => {
+  socket.on('hulpVraag', (d) => {
     const l = klas.get(socket.id);
     if (!l) return;
+    /* Vroeger alleen aan/uit; nu ook waarom ({ aan, reden }). Een oude
+       browser die nog true/false stuurt, werkt gewoon verder. */
+    const aan = d && typeof d === 'object' ? !!d.aan : !!d;
+    l.hulpReden = aan && d && HULP_REDENEN.includes(d.reden) ? d.reden : null;
     if (aan && !l.hulp) {
       /* Tellen hoe vaak: wie om het kwartier zijn hand opsteekt, heeft meer
          nodig dan een tip — dat zie je op zijn kaartje en in het rapport. */
@@ -240,8 +266,16 @@ function koppelKlaslokaal(socket) {
       staat.io.to(d.id).emit('lesStuur', { type: 'opruimen' });
     } else if (d.type === 'hulpKlaar' && d.id) {
       const l = klas.get(d.id);
-      if (l) { l.hulp = false; l.hulpSinds = 0; }
+      if (l) { l.hulp = false; l.hulpSinds = 0; l.hulpReden = null; }
       staat.io.to(d.id).emit('lesStuur', { type: 'hulpKlaar' });
+    } else if (d.type === 'beamer') {
+      /* Een leerling groot op de beamer: zijn tank (wat hij ziet) en zijn
+         blokken, zodat de klas samen kijkt hoe hij het oploste. id = null zet
+         de beamer terug op de arena. */
+      const id = typeof d.id === 'string' && klas.has(d.id) ? d.id : null;
+      staat.spotlight = id ? { id, naam: klas.get(id).naam } : null;
+      naarBeamers('spotlight', spotlightInfo());
+      if (id) staat.io.to(id).emit('lesStuur', { type: 'stuurCode' });
     } else if (d.type === 'teams' && [0, 2, 4].includes(Number(d.n))) {
       lesgeverZetTeams(Number(d.n));
     } else if (d.type === 'naarArena') {
@@ -264,16 +298,27 @@ function koppelKlaslokaal(socket) {
 
   /* Leerling stuurt zijn blokken door zodat de lesgever ze kan projecteren. */
   socket.on('mijnCode', (d) => {
-    staat.io.to('lesgevers').emit('leerlingCode', {
+    const code = {
       id: socket.id,
       naam: saneNaam(d && d.naam),
       tekst: String((d && d.tekst) || '').slice(0, 4000),
       // het hele werkblad, zodat de lesgever dezelfde blokken ziet als de leerling
       werkruimte: d && d.werkruimte && JSON.stringify(d.werkruimte).length < 200000 ? d.werkruimte : null,
-    });
+    };
+    staat.io.to('lesgevers').emit('leerlingCode', code);
+    // staat hij op de beamer? dan daar ook
+    if (staat.spotlight && staat.spotlight.id === socket.id) naarBeamers('spotlightCode', code);
   });
 
-  socket.on('disconnect', () => { klas.delete(socket.id); gevolgd.delete(socket.id); });
+  socket.on('disconnect', () => {
+    klas.delete(socket.id);
+    gevolgd.delete(socket.id);
+    // wie op de beamer stond en weggaat: de beamer gaat terug naar de arena
+    if (staat.spotlight && staat.spotlight.id === socket.id) {
+      staat.spotlight = null;
+      naarBeamers('spotlight', null);
+    }
+  });
 }
 
 /* Klaar om te starten: live meekijken en het klasoverzicht beginnen te lopen. */

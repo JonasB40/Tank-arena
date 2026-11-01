@@ -30,9 +30,12 @@ describe('de pagina\'s', () => {
     it(`${pagina}: elk script bestaat`, () => {
       for (const { src } of scripts.filter((s) => s.src)) {
         if (src === '/socket.io/socket.io.js') continue;   // die maakt de server zelf
+        // dezelfde mappen als in server.js
         const bestand = src.startsWith('/blockly/')
           ? path.join(MAP, 'node_modules', 'blockly', src.slice('/blockly/'.length))
-          : path.join(PUBLIC, src);
+          : src.startsWith('/qrcode/')
+            ? path.join(MAP, 'node_modules', 'qrcode-generator', 'dist', src.slice('/qrcode/'.length))
+            : path.join(PUBLIC, src);
         assert.ok(fs.existsSync(bestand), `${src} bestaat niet`);
       }
     });

@@ -7,11 +7,22 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #10131c; color: #eef0f6; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; overflow: hidden; }
     #links { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    header { padding: 10px 20px; display: flex; align-items: baseline; gap: 20px; background: #232736; }
-    header h1 { font-size: 1.4rem; }
+    /* Eén regel, ook op een oude projector (1024 breed): het speeladres moet
+       er altijd helemaal staan; het logo mag inkorten. */
+    header { padding: 10px 20px; display: flex; align-items: center; gap: 20px; background: #232736; white-space: nowrap; }
+    header > * { flex: none; }
+    header h1 { font-size: 1.4rem; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 1200px) {
+      header { gap: 12px; padding: 8px 14px; }
+      header h1 { font-size: 1.1rem; }
+      #joinurl { font-size: 1.1rem !important; }
+    }
     header h1 strong { color: #4fc3f7; }
     #joinurl { font-size: 1.3rem; font-weight: 800; color: #2ecc71; margin-left: auto; }
-    #canvasWrap { flex: 1; position: relative; }
+    .kopknop { border: 1px solid #4fc3f7; border-radius: 6px; padding: 4px 10px; background: none; color: #4fc3f7; font-weight: 700; font-size: .9rem; cursor: pointer; text-decoration: none; font-family: inherit; }
+    .kopknop:hover { background: #4fc3f7; color: #10131c; }
+    #midden { flex: 1; display: flex; min-height: 0; }
+    #canvasWrap { flex: 1; position: relative; min-width: 0; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
     aside { width: 280px; background: #232736; border-left: 2px solid #343a52; padding: 16px; overflow-y: auto; }
     aside h2 { color: #f1c40f; margin-bottom: 10px; font-size: 1.2rem; }
@@ -27,12 +38,34 @@
     .klok { font-size: 2rem; font-weight: 800; color: #ffd54f; margin-bottom: 10px; display: flex; align-items: baseline; gap: 10px; }
     .klok.bijna { color: #ff7b6b; }
     .klok small { font-size: .85rem; font-weight: 600; color: #9aa3bb; }
+
+    /* ---------- QR-code: scannen in plaats van een IP-adres typen ---------- */
+    #qr-blok { margin-bottom: 14px; cursor: zoom-in; }
+    #qr-blok .qr-titel { font-weight: 800; color: #2ecc71; margin-bottom: 6px; font-size: 1.05rem; }
+    .qr-wit { background: #fff; border-radius: 10px; padding: 8px; line-height: 0; }
+    .qr-wit svg { width: 100%; height: auto; }
+    #qr-groot { position: fixed; inset: 0; z-index: 50; background: rgba(10, 12, 18, .92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; cursor: zoom-out; }
+    #qr-groot .qr-wit { width: min(70vh, 80vw); padding: 16px; }
+    #qr-groot .qr-adres { font-size: 2rem; font-weight: 800; color: #2ecc71; }
+    #qr-groot .qr-uitleg { font-size: 1.3rem; color: #eef0f6; }
+
+    /* ---------- een leerling op de beamer ---------- */
+    #spot-titel { font-size: 1.5rem; font-weight: 800; color: #ffb74d; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+    #spot-blokken { flex: 0 0 56%; position: relative; background: #fff; border-right: 3px solid #e67e22; }
+    #spot-blockly { position: absolute; inset: 0; }
+    #spot-leeg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #8a94ad; font-size: 1.3rem; }
+    body.spotlight aside, body.spotlight header h1, body.spotlight #teamknoppen, body.spotlight #camera-knop { display: none !important; }
+    body:not(.spotlight) #spot-blokken, body:not(.spotlight) #spot-titel { display: none; }
+    .verborgen { display: none !important; }
+    /* de blokken van de leerling: groot en zonder knoppen, alleen om te kijken */
+    #spot-blockly .blocklyScrollbarVertical, #spot-blockly .blocklyScrollbarHorizontal, #spot-blockly .blocklyZoom { display: none; }
   </style>
 </head>
 <body>
   <div id="links">
     <header>
       <h1>🛡️ <strong>STEMazing</strong> Tank Arena</h1>
+      <span id="spot-titel"></span>
       <div id="teamknoppen" style="display:flex;gap:6px;align-items:center;">
         <span style="font-size:.9rem;opacity:.8;">Teams:</span>
         <button class="teamknop actief" data-n="0">uit</button>
@@ -40,26 +73,45 @@
         <button class="teamknop" data-n="4">4</button>
       </div>
       <div id="joinurl">Speel mee: ...</div>
+      <!-- de camera volgt de actie, of toont de hele arena -->
+      <button id="camera-knop" class="kopknop" title="Wisselen tussen de actie volgen en de hele arena tonen">🎥 actie</button>
       <!-- Zo vind je je eigen dashboard altijd terug, ook als je alleen de
            beamer openhebt staan. -->
-      <a id="naar-lesgever" href="/lesgever" target="_blank" rel="noopener">👩‍🏫 dashboard</a>
+      <a id="naar-lesgever" class="kopknop" href="/lesgever" target="_blank" rel="noopener">👩‍🏫 dashboard</a>
     </header>
     <style>
       .teamknop { border:none; border-radius:6px; padding:5px 12px; cursor:pointer; background:#343a52; color:#eef0f6; font-weight:700; }
       .teamknop.actief { background:#4fc3f7; color:#10131c; }
-      #naar-lesgever { color:#4fc3f7; text-decoration:none; font-weight:700; font-size:.9rem; border:1px solid #4fc3f7; border-radius:6px; padding:4px 10px; }
-      #naar-lesgever:hover { background:#4fc3f7; color:#10131c; }
     </style>
-    <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+    <div id="midden">
+      <!-- de blokken van de leerling die op de beamer staat -->
+      <div id="spot-blokken"><div id="spot-blockly"></div><div id="spot-leeg">De blokken komen eraan…</div></div>
+      <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+    </div>
   </div>
   <aside>
+    <div id="qr-blok" class="verborgen" title="Klik om de code groot te tonen">
+      <div class="qr-titel">📱 Scan en speel mee</div>
+      <div class="qr-wit" id="qr"></div>
+    </div>
     <h2>🏆 Scorebord</h2>
     <div id="scores"></div>
   </aside>
+  <div id="qr-groot" class="verborgen" title="Klik om te sluiten">
+    <div class="qr-uitleg">📱 Richt de camera van je iPad op deze code</div>
+    <div class="qr-wit" id="qr-groot-code"></div>
+    <div class="qr-adres" id="qr-groot-adres"></div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/qrcode/qrcode.js"></script>
   <script src="js/klassen.js"></script>
   <script src="js/tekenen.js"></script>
+  <script src="js/stappen.js"></script>
+  <script src="/blockly/blockly_compressed.js"></script>
+  <script src="/blockly/blocks_compressed.js"></script>
+  <script src="/blockly/msg/nl.js"></script>
+  <script src="js/blokken.js"></script>
   <script>
     const socket = io();
     /* De lesgeverscode: nodig voor de teamknoppen als de beamer níet op de
@@ -76,7 +128,7 @@
     // herverbinding (herstart van de server, wifi-hikje, laptop uit slaap)
     // stilletjes zijn plek in de arena én zijn lesgeversrechten kwijt:
     // het scherm blijft dan leeg en de teamknoppen doen niets meer.
-    socket.on('connect', () => socket.emit('beamer', { sleutel: leesSleutel() }));
+    socket.on('connect', () => { socket.emit('beamer', { sleutel: leesSleutel() }); gemeldZicht = null; });
     /* Zonder lesgeversrechten verbergen we de teamknoppen: knoppen die niets
        doen zijn erger dan geen knoppen. */
     socket.on('beamerRechten', (d) => {
@@ -96,23 +148,38 @@
     let arena = { w: 1600, h: 1000 };
 
     /*
-     * Het speeladres dat groot op de beamer komt. Open je de beamer op de
-     * laptop zelf (localhost), dan hebben leerlingen daar niets aan en halen
-     * we het adres van het lokale netwerk op bij de server. In alle andere
-     * gevallen — een LAN-adres of een echte website — staat het juiste adres
-     * gewoon in de adresbalk. Online toonde hij anders het interne adres van
-     * de hostingprovider, en daar komt geen enkele leerling binnen.
+     * Het speeladres dat groot op de beamer komt, met een QR-code erbij: een
+     * kind van acht dat "http://172.16.201.42:3000" op een iPad typt, maakt
+     * bijna altijd een tikfout; scannen met de camera gaat in twee seconden.
+     * Open je de beamer op de laptop zelf (localhost), dan hebben leerlingen
+     * daar niets aan en halen we het adres van het lokale netwerk op bij de
+     * server. In alle andere gevallen staat het juiste adres gewoon in de
+     * adresbalk.
      */
     const opDezeLaptop = /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname);
-    const toonAdres = (tekst) => { document.getElementById('joinurl').textContent = tekst; };
+    let speelAdres = '';
+    function zetSpeelAdres(adres) {
+      speelAdres = adres;
+      document.getElementById('joinurl').textContent = adres ? `Speel mee: ${adres}` : '';
+      document.getElementById('qr-groot-adres').textContent = adres;
+      if (!adres || typeof qrcode !== 'function') return;
+      const q = qrcode(0, 'M');
+      q.addData(adres);
+      q.make();
+      const svg = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+      document.getElementById('qr').innerHTML = svg;
+      document.getElementById('qr-groot-code').innerHTML = svg;
+    }
     if (opDezeLaptop) {
       fetch('/info').then(r => r.json()).then(d => {
         const ip = d.ips[0];
-        toonAdres(ip ? `Speel mee: http://${ip}:${d.port}` : '');
-      }).catch(() => toonAdres(''));
+        zetSpeelAdres(ip ? `http://${ip}:${d.port}` : '');
+      }).catch(() => zetSpeelAdres(''));
     } else {
-      toonAdres(`Speel mee: ${location.origin}`);
+      zetSpeelAdres(location.origin);
     }
+    document.getElementById('qr-blok').addEventListener('click', () => document.getElementById('qr-groot').classList.remove('verborgen'));
+    document.getElementById('qr-groot').addEventListener('click', () => document.getElementById('qr-groot').classList.add('verborgen'));
 
     /* De vormen komen maar een paar keer per seconde mee (het zijn er
        duizenden en ze staan bijna stil). We onthouden ze zodra ze binnenkomen
@@ -135,28 +202,69 @@
       document.querySelectorAll('.teamknop').forEach(x => x.classList.toggle('actief', Number(x.dataset.n) === n));
     }
 
-    function teken() {
-      requestAnimationFrame(teken);
-      const wrap = document.getElementById('canvasWrap');
-      canvas.width = wrap.clientWidth;
-      canvas.height = wrap.clientHeight;
-      ctx.fillStyle = ARENA_BUITEN;   // zelfde grijs als in het spel
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (!staat) return;
+    /* ---------------- de camera ----------------
+     * Vroeger stond altijd de hele arena op het scherm, en dan wordt een tank
+     * een stipje: je zag niet wat er gebeurde. Nu zoomt de beamer in op de
+     * actie: tijdens een heuvelronde op de heuvel, anders op de plek waar de
+     * meeste leerlingen samen zijn. Een minikaartje linksonder toont waar dat
+     * in de arena is. Met de knop bovenaan wissel je naar de hele arena.
+     */
+    let cameraModus = 'actie';
+    try { if (localStorage.getItem('beamerCamera') === 'overzicht') cameraModus = 'overzicht'; } catch { }
+    const cameraKnop = document.getElementById('camera-knop');
+    function toonCameraKnop() {
+      cameraKnop.textContent = cameraModus === 'actie' ? '🎥 volgt de actie' : '🗺 hele arena';
+    }
+    cameraKnop.addEventListener('click', () => {
+      cameraModus = cameraModus === 'actie' ? 'overzicht' : 'actie';
+      try { localStorage.setItem('beamerCamera', cameraModus); } catch { }
+      toonCameraKnop();
+    });
+    toonCameraKnop();
 
-      // hele arena passend schalen
-      const s = Math.min(canvas.width / arena.w, canvas.height / arena.h) * 0.97;
-      const ox = (canvas.width - arena.w * s) / 2;
-      const oy = (canvas.height - arena.h * s) / 2;
-      ctx.save();
-      ctx.translate(ox, oy);
-      ctx.scale(s, s);
+    const cam = { x: 0, y: 0, w: 0, klaar: false };
+    let camDoel = null, camDoelTijd = 0;
+    function berekenCameraDoel() {
+      const heel = { x: arena.w / 2, y: arena.h / 2, w: Infinity };
+      if (cameraModus === 'overzicht' || !staat) return heel;
+      // heuvelronde: daar gebeurt het
+      if (staat.heuvel) return { x: staat.heuvel.x, y: staat.heuvel.y, w: staat.heuvel.r * 7 };
+      const levend = staat.tanks.filter((t) => !t.dood);
+      const spelers = levend.filter((t) => !t.ai);
+      const wie = spelers.length ? spelers : levend;
+      if (!wie.length) return heel;
+      // de drukste plek: de tank met de meeste anderen in de buurt
+      const BUURT = 1800;
+      let beste = wie[0], besteN = -1;
+      for (const a of wie) {
+        let n = 0;
+        for (const b of wie) if (Math.hypot(a.x - b.x, a.y - b.y) < BUURT) n++;
+        if (n > besteN || (n === besteN && (a.score || 0) > (beste.score || 0))) { besteN = n; beste = a; }
+      }
+      const groep = wie.filter((b) => Math.hypot(beste.x - b.x, beste.y - b.y) < BUURT);
+      const mx = groep.reduce((s, t) => s + t.x, 0) / groep.length;
+      const my = groep.reduce((s, t) => s + t.y, 0) / groep.length;
+      const spreiding = Math.max(...groep.map((t) => Math.hypot(t.x - mx, t.y - my)));
+      return { x: mx, y: my, w: Math.max(3400, spreiding * 2.8) };
+    }
 
-      drawArena(ctx, arena, 1 / s);
-      drawZones(ctx, staat.zones);
-      drawHeuvel(ctx, staat.heuvel, Date.now());   // alleen tijdens een heuvelronde
+    /* Welk stuk van de arena tonen we nu? De server stuurt ons dan de vormen
+       van dát stuk (anders stond er ingezoomd maar één op de tien). */
+    let gemeldZicht = null, gemeldOp = 0;
+    function meldZicht(zicht, nu) {
+      if (nu - gemeldOp < 800) return;
+      const g = gemeldZicht;
+      if (g && Math.abs(g.x - zicht.x) < zicht.w * 0.08 && Math.abs(g.y - zicht.y) < zicht.h * 0.08
+        && Math.abs(g.w - zicht.w) < zicht.w * 0.1) return;
+      gemeldZicht = zicht; gemeldOp = nu;
+      socket.emit('beamerKijk', zicht);
+    }
 
-      for (const v of vormenCache) {
+    /* De vormen, kogels en tanks van een pakketje tekenen (in wereldcoördinaten). */
+    function tekenWereld(st, vormen) {
+      drawZones(ctx, st.zones);
+      drawHeuvel(ctx, st.heuvel, Date.now());   // alleen tijdens een heuvelronde
+      for (const v of vormen) {
         const info = vormSoorten[v.type];
         if (info) {
           v.r = info.r; v.kleur = info.kleur; v.maxHp = info.maxHp; v.jaagt = info.jaagt;
@@ -164,30 +272,159 @@
         }
         drawVormObj(ctx, v);
       }
-
       // zelfde tekening als in het spel: kogels rond, drones driehoekig,
       // traps als driepuntige ster
-      for (const b of staat.bullets) drawMunitie(ctx, b, 1);
-      for (const t of staat.tanks) {
-        if (t.dood) continue;
+      for (const b of st.bullets) drawMunitie(ctx, b, 1);
+      for (const t of st.tanks) {
+        if (t.dood || !t.klasse) continue;   // verre tanks (zonder klasse) staan toch buiten beeld
         ctx.save();
         ctx.translate(t.x, t.y);
         drawTank(ctx, t, false);
         ctx.restore();
       }
-      ctx.restore();
+    }
 
-      /*
-       * Alleen echte spelers in de stand: de robots stonden er ook tussen,
-       * en tijdens een toernooi wil je zien hoe de KLAS ervoor staat.
-       * Spelen ze in teams, dan komt de teamstand er groot boven — dat is
-       * waar het dan om draait; de losse spelers blijven eronder staan.
-       */
+    /* Elke tank krijgt een bolletje in zijn kleur dat nooit kleiner wordt dan
+       een paar millimeter (anders: een stipje van twee pixels), en de
+       leerlingen hun naam erboven (de robots niet: het gaat om de klas). */
+    function tekenNamen(tanks, naarScherm, s) {
+      const minR = Math.max(6, Math.round(canvas.height / 110));
+      const letter = Math.max(13, Math.round(canvas.height / 55));
+      ctx.font = `700 ${letter}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineJoin = 'round';
+      for (const t of tanks) {
+        if (t.dood) continue;
+        const [x, y] = naarScherm(t.x, t.y);
+        if (x < -40 || y < -40 || x > canvas.width + 40 || y > canvas.height + 40) continue;
+        const echt = (t.r || 22) * s;
+        const r = Math.max(t.ai ? minR * 0.7 : minR, echt);
+        if (r > echt) {
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = t.kleur || '#888';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(16, 19, 28, .6)';
+          ctx.stroke();
+        }
+        /* De tank schrijft zelf al zijn naam (13 px, mee geschaald). Is dat
+           groot genoeg om te lezen, dan niet nog eens erbovenop. */
+        if (!t.ai && t.naam && 13 * s < letter * 0.8) {
+          const naam = (t.kroon ? '👑 ' : '') + t.naam;
+          // aan de rand van het beeld niet half erbuiten
+          const half = ctx.measureText(naam).width / 2 + 4;
+          const nx = Math.min(canvas.width - half, Math.max(half, x));
+          const ny = Math.max(letter + 2, y - r - 5);
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = 'rgba(16, 19, 28, .85)';
+          ctx.strokeText(naam, nx, ny);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(naam, nx, ny);
+        }
+      }
+    }
+
+    /* Het minikaartje linksonder: de hele arena, de leerlingen, en het kader
+       van wat de beamer nu toont. */
+    function tekenMinikaart(zicht) {
+      const B = Math.min(240, canvas.width * 0.22);
+      const H = B * arena.h / arena.w;
+      const x0 = 14, y0 = canvas.height - H - 14;
+      const k = B / arena.w;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#e4e6ea';
+      ctx.fillRect(x0, y0, B, H);
+      for (const z of staat.zones || []) {
+        ctx.fillStyle = TEAM_ZONE_KLEUREN[z.team] || '#ffffff';
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(x0 + z.x * k, y0 + z.y * k, z.w * k, z.h * k);
+      }
+      ctx.globalAlpha = 1;
+      if (staat.heuvel) {
+        ctx.beginPath();
+        ctx.arc(x0 + staat.heuvel.x * k, y0 + staat.heuvel.y * k, Math.max(3, staat.heuvel.r * k), 0, Math.PI * 2);
+        ctx.strokeStyle = '#e67e22';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      for (const t of staat.tanks) {
+        if (t.dood) continue;
+        ctx.fillStyle = t.ai ? 'rgba(80, 80, 90, .6)' : (t.kleur || '#333');
+        ctx.beginPath();
+        ctx.arc(x0 + t.x * k, y0 + t.y * k, t.ai ? 1.8 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = '#10131c';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x0 + zicht.x * k, y0 + zicht.y * k, zicht.w * k, zicht.h * k);
+      ctx.strokeStyle = 'rgba(16, 19, 28, .5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0, y0, B, H);
+      ctx.restore();
+    }
+
+    let laatsteBeeld = performance.now();
+    function teken() {
+      requestAnimationFrame(teken);
+      const nu = performance.now();
+      const dt = Math.min(0.1, (nu - laatsteBeeld) / 1000);
+      laatsteBeeld = nu;
+      const wrap = document.getElementById('canvasWrap');
+      canvas.width = wrap.clientWidth;
+      canvas.height = wrap.clientHeight;
+      ctx.fillStyle = ARENA_BUITEN;   // zelfde grijs als in het spel
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (spot) { tekenSpot(); return; }
+      if (!staat) return;
+
+      // ---- de camera bijwerken ----
+      const pastHeel = Math.min(canvas.width / arena.w, canvas.height / arena.h) * 0.97;
+      if (!camDoel || nu - camDoelTijd > 1500) { camDoel = berekenCameraDoel(); camDoelTijd = nu; }
+      // nooit verder uit dan de hele arena
+      const doelW = Math.min(camDoel.w, canvas.width / pastHeel);
+      if (!cam.klaar) { cam.x = camDoel.x; cam.y = camDoel.y; cam.w = doelW; cam.klaar = true; }
+      const k = 1 - Math.exp(-dt * 1.6);
+      cam.x += (camDoel.x - cam.x) * k;
+      cam.y += (camDoel.y - cam.y) * k;
+      cam.w += (doelW - cam.w) * k;
+      const s = canvas.width / cam.w;
+      const zichtH = canvas.height / s;
+      // binnen de arena blijven (behalve als die toch helemaal in beeld past)
+      const cx = cam.w >= arena.w ? arena.w / 2 : Math.min(arena.w - cam.w / 2, Math.max(cam.w / 2, cam.x));
+      const cy = zichtH >= arena.h ? arena.h / 2 : Math.min(arena.h - zichtH / 2, Math.max(zichtH / 2, cam.y));
+      const zicht = { x: cx - cam.w / 2, y: cy - zichtH / 2, w: cam.w, h: zichtH };
+      const ingezoomd = cam.w < arena.w * 0.6;
+      meldZicht(ingezoomd ? zicht : { x: 0, y: 0, w: arena.w, h: arena.h }, nu);
+
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(s, s);
+      ctx.translate(-cx, -cy);
+      drawArena(ctx, arena, 1 / s, zicht);
+      tekenWereld(staat, vormenCache);
+      ctx.restore();
+      tekenNamen(staat.tanks, (x, y) => [(x - cx) * s + canvas.width / 2, (y - cy) * s + canvas.height / 2], s);
+      if (ingezoomd) tekenMinikaart(zicht);
+
+      toonScorebord();
+    }
+
+    /*
+     * Alleen echte spelers in de stand: de robots stonden er ook tussen,
+     * en tijdens een toernooi wil je zien hoe de KLAS ervoor staat.
+     * Spelen ze in teams, dan komt de teamstand er groot boven — dat is
+     * waar het dan om draait; de losse spelers blijven eronder staan.
+     */
+    function toonScorebord() {
       toonTeamknoppen(staat.teamModus || 0);
       /* Loopt er een ronde? Dan tellen de punten van DEZE ronde, net als op
          het scorebord in het spel zelf. Anders zag de klas op de beamer een
          andere stand dan op zijn eigen scherm. */
       const ronde = staat.ronde;
+      // de QR-code staat er zolang er geen ronde loopt (dan is de klok belangrijker)
+      document.getElementById('qr-blok').classList.toggle('verborgen', !!ronde || !speelAdres);
       const punt = (t) => (ronde ? (t.rondePunten || 0) : t.score);
       const spelers = staat.tanks.filter((t) => !t.ai);
       const top = [...spelers].sort((a, b) => punt(b) - punt(a));
@@ -233,10 +470,108 @@
         document.getElementById('scores').innerHTML = html;
       }
     }
+
+    /* ---------------- een leerling op de beamer ----------------
+     * De lesgever zet een leerling groot in beeld (📽 op het dashboard):
+     * links zijn blokken, rechts precies wat hij in het spel ziet — ook als
+     * hij in zijn eigen oefenarena speelt. Zo bespreekt de klas samen hoe hij
+     * het oploste. Alleen om te kijken: aan de blokken kan je hier niets doen.
+     */
+    let spot = null;          // { id, naam, les, stap }
+    let spotStaat = null;     // wat de leerling nu ziet
+    let spotWerkblad = '';
+    let blokWs = null;
+    socket.on('spotlight', (d) => {
+      const anders = !spot || !d || spot.id !== d.id;
+      spot = d || null;
+      document.body.classList.toggle('spotlight', !!spot);
+      if (!spot) { spotStaat = null; spotWerkblad = ''; return; }
+      const lijst = spot.les === 2 ? (window.LES2_STAPPEN || []) : (window.STAPPEN || []);
+      const s = lijst.find((x) => x.nr === spot.stap);
+      document.getElementById('spot-titel').textContent =
+        `📽 ${spot.naam} · ${spot.les === 2 ? 'les 2 · ' : ''}stap ${spot.stap}${s ? ' — ' + s.titel : ''}`;
+      if (anders) {
+        spotStaat = null;
+        spotWerkblad = '';
+        document.getElementById('spot-leeg').classList.remove('verborgen');
+        if (blokWs) blokWs.clear();
+      }
+      maakBlokkenvak();
+    });
+    socket.on('spotState', (s) => { if (spot) spotStaat = s; });
+    socket.on('spotlightCode', (d) => {
+      if (!spot || !d || d.id !== spot.id || !d.werkruimte) return;
+      const json = JSON.stringify(d.werkruimte);
+      if (json === spotWerkblad) return;    // niets veranderd: niet opnieuw tekenen
+      spotWerkblad = json;
+      maakBlokkenvak();
+      try {
+        Blockly.serialization.workspaces.load(d.werkruimte, blokWs);
+        Blockly.renderManagement.triggerQueuedRenders();
+        // alles in beeld, maar een klein programma niet reuzegroot
+        blokWs.zoomToFit();
+        if (blokWs.scale > 1.6) blokWs.setScale(1.6);
+        blokWs.scrollCenter();
+        document.getElementById('spot-leeg').classList.add('verborgen');
+      } catch { /* kapot werkblad: dan blijft "de blokken komen eraan" staan */ }
+    });
+
+    /* Blockly pas opstarten als er voor het eerst iemand op de beamer komt. */
+    function maakBlokkenvak() {
+      if (blokWs) { setTimeout(() => Blockly.svgResize(blokWs), 30); return; }
+      blokWs = Blockly.inject('spot-blockly', {
+        readOnly: true,
+        renderer: 'zelos',
+        zoom: { startScale: 1, maxScale: 1.8, minScale: 0.3 },
+        // met schuifbalken (die we verbergen): zonder kan Blockly niet centreren of passend zoomen
+        move: { scrollbars: true, drag: false, wheel: false },
+        // dezelfde kleuren als bij de leerling (editor.js)
+        theme: Blockly.Theme.defineTheme('beamer', {
+          base: Blockly.Themes.Classic,
+          startHats: true,
+          blockStyles: {
+            variable_blocks: { colourPrimary: '#FF8C1A', colourSecondary: '#DB6E00', colourTertiary: '#DB6E00' },
+            variable_dynamic_blocks: { colourPrimary: '#FF8C1A', colourSecondary: '#DB6E00', colourTertiary: '#DB6E00' },
+            math_blocks: { colourPrimary: '#59C059', colourSecondary: '#46A946', colourTertiary: '#46A946' },
+          },
+          componentStyles: { workspaceBackgroundColour: '#ffffff' },
+        }),
+      });
+      setTimeout(() => Blockly.svgResize(blokWs), 30);
+    }
+    window.addEventListener('resize', () => { if (blokWs) Blockly.svgResize(blokWs); });
+
+    /* Rechts: wat de leerling ziet, met zijn tank in het midden. */
+    function tekenSpot() {
+      if (!spotStaat) {
+        ctx.fillStyle = '#10131c';
+        ctx.font = "700 22px 'Segoe UI', sans-serif";
+        ctx.textAlign = 'center';
+        ctx.fillText(`${spot.naam} speelt nu niet`, canvas.width / 2, canvas.height / 2);
+        return;
+      }
+      const st = spotStaat;
+      const ik = st.tanks.find((t) => t.id === st.spotNr);
+      const midX = ik ? ik.x : st.arena.w / 2, midY = ik ? ik.y : st.arena.h / 2;
+      /* Ongeveer zoveel wereld als de leerling zelf ziet (dat groeit met zijn
+         level en klasse, zie zichtVan), en zijn tank op ware grootte. */
+      const zicht1 = ik && window.zichtVan ? zichtVan(ik.klasse, ik.level) : 1;
+      const s = Math.max(canvas.width, canvas.height) / (800 * zicht1);
+      const zicht = { x: midX - canvas.width / s / 2, y: midY - canvas.height / s / 2, w: canvas.width / s, h: canvas.height / s };
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(s, s);
+      ctx.translate(-midX, -midY);
+      drawArena(ctx, st.arena, 1 / s, zicht);
+      tekenWereld(st, st.vormen || []);
+      ctx.restore();
+      tekenNamen(st.tanks.filter((t) => t.klasse), (x, y) => [(x - midX) * s + canvas.width / 2, (y - midY) * s + canvas.height / 2], s);
+    }
+
     let vorigeScores = '';
     const TEAM_KLEUREN = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6'];
     const TEAM_NAAM = ['Blauw', 'Rood', 'Groen', 'Paars'];
-    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
     requestAnimationFrame(teken);
   </script>
 </body>

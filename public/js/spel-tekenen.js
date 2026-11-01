@@ -53,11 +53,17 @@ function toast(tekst, ms) {
 function maatAanpassen() {
   canvas.width = podium.clientWidth;
   canvas.height = podium.clientHeight;
+  /* De joysticks passen zich aan de hoogte van het speelveld aan. Op een iPad
+     rechtop is dat soms maar 160-200 px hoog: met de gewone maat (104 of 128
+     px) en de spatieknop erboven stak die knop boven het speelveld uit, over
+     de vlag en de stopknop. Joystick + spatieknop passen er nu altijd in. */
+  const gewoon = document.body.classList.contains('podium-klein') ? 104 : 128;
+  const stokMaat = Math.max(64, Math.min(gewoon, canvas.height - (14 + 10 + 40 + 8)));
+  document.getElementById('podium').style.setProperty('--js-maat', stokMaat + 'px');
   /* Met de joysticks aan staan de statbalken linksboven en de spatieknop
      linksonder. Op een liggende iPad (Safari neemt bovenaan ook ruimte in)
      kwamen ze over elkaar te liggen. De balkjes worden dus zo hoog als er
      plaats is: 26 px als het kan, kleiner als het moet. */
-  const stokMaat = document.body.classList.contains('podium-klein') ? 104 : 128;
   const vrij = canvas.height - (14 + stokMaat + 10 + 40) - 10 - 8;   // onder de spatieknop af, boven een randje
   const rij = Math.max(14, Math.min(26, Math.floor(vrij / 8) - 3));
   document.getElementById('stat-balken').style.setProperty('--sb-hoogte', rij + 'px');

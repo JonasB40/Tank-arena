@@ -22,7 +22,7 @@ Iedereen opent zijn spel en haalt zijn blokken van les 1 terug. Op hetzelfde toe
 
 - Leg uit: tot nu speelde iedereen in zijn **eigen** arena. Nu gaan we naar **één gedeelde wereld**: jouw computer stuurt continu kleine berichtjes ("ik sta hier, ik kijk daarheen, ik schiet") naar de server, en krijgt de posities van iedereen terug. *Invoer en uitvoer, maar dan over het netwerk!*
 - Iedereen kiest in het startmenu onder *meer opties* → **🏆 Les 2 — samen spelen** (of meteen **2 teams** / **4 teams**). Rijden en schieten werkt daar zonder blokken.
-- Beamer op `/beamer`: alle tanks samen zichtbaar. **Wauw-moment.** 5 minuten vrij vechten.
+- Beamer op `/beamer`: de camera **volgt de actie** — tijdens een heuvelronde de heuvel, anders de plek waar de meeste leerlingen samen zijn — met een minikaartje linksonder. Met **🎥 volgt de actie / 🗺 hele arena** bovenaan wissel je. Elke leerling staat er met zijn naam bij. **Wauw-moment.** 5 minuten vrij vechten.
 
 ### 0:30–0:50 · Je programma aanpassen voor multiplayer
 
@@ -77,7 +77,7 @@ De laatste vier stappen in de app bereiden het toernooi voor. Ze introduceren el
 ### 1:50–2:10 · 🏆 Het grote teamtoernooi
 
 - Ronde 1 (10 min, **🏆 punten**): teams vechten, de beamer toont bovenaan de **teamstand** in teamkleur (alle tanks van het team, ook de robots die aanvullen) en daaronder de spelers. Tussen de rondes: **2 min bouwtijd** om blokken bij te stellen (iteratie!).
-- Ronde 2 (10 min, **🏔 heuvel veroveren**): kies op het dashboard naast *Ronde* de soort **heuvel veroveren**. Midden in de arena verschijnt een cirkel. Staan er alleen tanks van jouw team op, dan verdient elke tank van jouw team daar 20 rondepunten per seconde; staan er twee teams op, dan is hij **betwist** en verdient niemand iets. Los punten jagen helpt dus niet: het team moet samen de heuvel innemen én verdedigen. De robots doen mee, en de roze crashers laten de heuvel met rust. Wie houdt hem? Dat zie je op de beamer, op het dashboard, in het scorebord van elke leerling en op de minikaart.
+- Ronde 2 (10 min, **🏔 heuvel veroveren**): kies op het dashboard naast *Ronde* de soort **heuvel veroveren** (die knoppen zitten onder **🎮 Arena & ronde**; zodra de klas in les 2 zit, staat dat vanzelf open). Midden in de arena verschijnt een cirkel. Staan er alleen tanks van jouw team op, dan verdient elke tank van jouw team daar 20 rondepunten per seconde; staan er twee teams op, dan is hij **betwist** en verdient niemand iets. Los punten jagen helpt dus niet: het team moet samen de heuvel innemen én verdedigen. De robots doen mee, en de roze crashers laten de heuvel met rust. Wie houdt hem? Dat zie je op de beamer, op het dashboard, in het scorebord van elke leerling en op de minikaart.
 - Ronde 3 (10 min): finale, met de soort die de klas het leukst vond. Eventueel wissel je van 2 naar 4 teams voor chaos-plezier.
 
 > **Eerlijk voor iedereen.** In de gedeelde arena leveren vormen **anderhalve keer zoveel punten** op voor wie nog onder level 15 zit, of tien levels onder het gemiddelde van de klas (🚀 ×1,5 in beeld). De leerling met de meeste punten draagt een **👑**: wie hem verslaat, krijgt **dubbele punten**. Zo kan een nieuwkomer bijbenen en blijft één sterke speler niet de hele les de baas. De arena groeit vanzelf mee als er meer dan twaalf leerlingen meedoen.

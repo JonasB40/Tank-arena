@@ -13,6 +13,34 @@
   <!-- Verschijnt alleen als de pagina ingezoomd is (iPad): zie zoom.js -->
   <button id="zoom-zweef" class="verborgen">🔍 Zoom herstellen</button>
 
+  <!-- Hand opsteken: eerst kies je waarom. Zo weet de lesgever wie hij eerst
+       helpt, en wat hij moet meenemen. -->
+  <div id="hulp-menu" class="verborgen" role="menu">
+    <div class="hm-kop">Waarmee heb je hulp nodig?</div>
+    <button data-reden="werkt-niet">🤷 Mijn tank doet niet wat ik wil</button>
+    <button data-reden="snap-niet">❓ Ik snap de opdracht niet</button>
+    <button data-reden="blok-zoeken">🔎 Ik vind een blok niet</button>
+    <button data-reden="klaar">🏁 Ik ben klaar — wat nu?</button>
+    <button data-reden="iets-anders">💬 Iets anders</button>
+  </div>
+
+  <!-- Toesteltest: vóór de les nagaan of dit toestel (een iPad!) klaar is. Zie toesteltest.js. -->
+  <div id="toesteltest" class="verborgen">
+    <div id="tt-vak">
+      <h2>🔧 Toesteltest</h2>
+      <p class="tt-uitleg">Zo weet je vóór de les of dit toestel klaar is. Doe de twee proefjes onderaan.</p>
+      <ul id="tt-lijst"></ul>
+      <div id="tt-proef">
+        <p><b>Proef 1.</b> Tik in het vakje en typ een getal — zoals in een blok:</p>
+        <input id="tt-getal" type="text" inputmode="numeric" value="10" autocomplete="off">
+        <p><b>Proef 2.</b> Knijp met twee vingers in dit vak, alsof je wil inzoomen:</p>
+        <div id="tt-knijp">✌️ knijp hier</div>
+      </div>
+      <p id="tt-besluit"></p>
+      <button id="tt-sluit">Sluiten</button>
+    </div>
+  </div>
+
   <!-- Bovenbalk (Scratch-paars) -->
   <header id="topbar">
     <div class="logo">🛡️ <strong>STEMazing</strong> Tank Arena</div>
@@ -39,6 +67,9 @@
           <span id="stap-nr">Stap 1/15</span>
           <strong id="stap-titel"></strong>
           <span id="stap-concept"></span>
+          <!-- voorlezen en grotere letters: voor wie nog niet vlot leest -->
+          <button id="stap-voorlees" class="verborgen" title="Lees de opdracht voor">🔊</button>
+          <button id="tekst-groter" title="Grotere letters (nog eens klikken: nog groter, en dan weer gewoon)">A+</button>
           <button id="stap-uitleg" title="Lees de uitleg van deze stap opnieuw">ℹ</button>
           <button id="stap-inklap" title="Paneel kleiner/groter maken">▾</button>
         </div>
@@ -82,6 +113,7 @@
           <div id="uitleg-kop"><span id="uitleg-stap"></span><strong id="uitleg-titel"></strong></div>
           <p id="stap-probleem"></p>
           <p id="stap-ontdekking"></p>
+          <button id="uitleg-voorlees" class="verborgen">🔊 Lees voor</button>
           <button id="uitleg-sluit">Begrepen 👍</button>
         </div>
       </div>
@@ -211,6 +243,7 @@
 
             <p class="opt-kop">Voor de lesgever</p>
             <button id="voorbeeld-knop" title="Laadt de volledige blokkencode — het einddoel dat je met de kinderen opbouwt">👩‍🏫 Voorbeeldoplossing</button>
+            <button id="toesteltest-knop" title="Kijk na of dit toestel (bv. een iPad) klaar is voor de les">🔧 Test dit toestel</button>
           </div>
         </div>
 
@@ -225,6 +258,7 @@
         <div id="lesgever-bericht" class="verborgen">
           <div class="lb-kop">👩‍🏫 Bericht</div>
           <div class="lb-tekst"></div>
+          <button id="lb-voorlees" class="verborgen" title="Lees het bericht voor">🔊</button>
           <button id="lb-sluit">Begrepen 👍</button>
           <button id="lb-terug" class="verborgen">↩ zet mijn eigen blokken terug</button>
         </div>
@@ -298,8 +332,10 @@
   <script src="js/spel-upgrades.js"></script>
   <script src="js/spel-tekenen.js"></script>
   <script src="js/spel-les.js"></script>
+  <script src="js/leeshulp.js"></script>
   <script src="js/joystick.js"></script>
   <script src="js/zoom.js"></script>
+  <script src="js/toesteltest.js"></script>
   <script src="js/spel-start.js"></script>
 </body>
 </html>

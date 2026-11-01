@@ -159,6 +159,8 @@ function stappen() { return welkeLes === 2 ? LES2_STAPPEN : STAPPEN; }
 function toonStap() {
   lesGestart = true;
   lesKlaar = false;
+  // werd de vorige stap nog voorgelezen? (leeshulp.js)
+  if (window.stopVoorlezen) window.stopVoorlezen();
   document.body.classList.remove('stap-ingeklapt');
   document.body.classList.remove('les-nog-niet-gestart');
   const s = stappen()[stapIndex];
@@ -397,7 +399,7 @@ function vingerafdrukVanWerkblad() {
  * hoeft niemand te roepen of stil af te wachten tot er iemand langskomt.
  */
 let hulpGevraagd = false;
-function zetHulpVraag(aan) {
+function zetHulpVraag(aan, reden) {
   hulpGevraagd = !!aan;
   const k = document.getElementById('hulp-knop');
   if (k) {
@@ -405,11 +407,39 @@ function zetHulpVraag(aan) {
     k.textContent = hulpGevraagd ? '✋ hulp gevraagd' : '✋ Hulp';
     k.title = hulpGevraagd ? 'Klik nog eens als je toch verder kan' : 'Roep de lesgever erbij';
   }
-  socket.emit('hulpVraag', hulpGevraagd);
+  socket.emit('hulpVraag', { aan: hulpGevraagd, reden: hulpGevraagd ? reden || 'iets-anders' : null });
 }
+/* Eerst kiezen waarom: "mijn tank doet niets", "ik snap de opdracht niet"…
+   Zo weet de lesgever wie hij eerst helpt en wat hij moet meenemen. Een kind
+   dat klaar is, hoeft niet te wachten tussen wie echt vastzit. */
+const hulpMenu = document.getElementById('hulp-menu');
+function sluitHulpMenu() { hulpMenu.classList.add('verborgen'); }
 document.getElementById('hulp-knop').addEventListener('click', () => {
-  zetHulpVraag(!hulpGevraagd);
-  toast(hulpGevraagd ? '✋ De lesgever ziet je vraag staan — werk gerust verder!' : 'Hulpvraag ingetrokken.');
+  if (hulpGevraagd) {
+    zetHulpVraag(false);
+    toast('Hulpvraag ingetrokken.');
+    return;
+  }
+  if (!hulpMenu.classList.contains('verborgen')) { sluitHulpMenu(); return; }
+  // onder de knop, rechts uitgelijnd en altijd binnen het scherm
+  const r = document.getElementById('hulp-knop').getBoundingClientRect();
+  hulpMenu.style.top = `${Math.round(r.bottom + 6)}px`;
+  hulpMenu.style.right = `${Math.max(8, Math.round(window.innerWidth - r.right))}px`;
+  hulpMenu.classList.remove('verborgen');
+});
+hulpMenu.addEventListener('click', (e) => {
+  const k = e.target.closest('[data-reden]');
+  if (!k) return;
+  sluitHulpMenu();
+  zetHulpVraag(true, k.dataset.reden);
+  toast(k.dataset.reden === 'klaar'
+    ? '🏁 Knap! De lesgever komt je iets nieuws geven. Probeer intussen de proef onder je opdracht.'
+    : '✋ De lesgever ziet je vraag staan — werk gerust verder!');
+});
+// ernaast tikken sluit het menu
+document.addEventListener('pointerdown', (e) => {
+  const doel = e.target instanceof Element ? e.target : null;
+  if (!hulpMenu.classList.contains('verborgen') && !(doel && doel.closest('#hulp-menu, #hulp-knop'))) sluitHulpMenu();
 });
 
 /* De lesgever paste je blokken aan — met één klik zet je het terug. */

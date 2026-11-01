@@ -1,7 +1,7 @@
 /*
  * De wereld naar de browsers sturen (twintig keer per seconde).
  */
-const { staat, rooms, beamers } = require('./staat');
+const { staat, rooms, beamers, beamerZicht } = require('./staat');
 const { straalVan, MAX_STAT, STAT_LIJST, xpVoorLevel, statMaxVan, klasseAanbod } = require('./regels');
 const { meldFout, elke } = require('./klok');
 const { basisVan, teamZones, nestVan, isVeilig, heuvelVan, inhaalFactor, gemiddeldSpelerLevel } = require('./wereld');
@@ -156,24 +156,39 @@ function stuurWereld(room, nu) {
    * een greep uit de vormen (hooguit 600), en die maar vier keer per
    * seconde. De tanks komen wél elke keer mee: die moet je vlot zien lopen.
    */
+  /* Zoomt de beamer in op de actie, dan krijgt hij de vormen in dát stuk van
+     de arena (anders stond er ingezoomd maar één op de tien). */
   let beamerPakket = null;
   for (const id of beamers) {
     if (room.id !== 'arena') break;
     if (!beamerPakket) {
-      const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
+      beamerPakket = Object.assign({}, gedeeld, {
+        tanks: [...publiek.values()],
+        vormen: null,   // null = houd wat je had
+        bullets: room.bullets.filter((b) => !b.weg).map(pakKogel),
+      });
+    }
+    let pakket = beamerPakket;
+    if (tikTeller % 5 === 0) {
+      const zicht = beamerZicht.get(id);
       const vormen = [];
-      if (tikTeller % 5 === 0) {
+      if (zicht && zicht.w < room.arena.w * 0.6) {
+        const rand = 300;
+        for (const v of room.vormen) {
+          if (v.weg || v.x < zicht.x - rand || v.x > zicht.x + zicht.w + rand
+            || v.y < zicht.y - rand || v.y > zicht.y + zicht.h + rand) continue;
+          vormen.push(pakVorm(v));
+          if (vormen.length >= 1500) break;
+        }
+      } else {
+        const stap = Math.max(1, Math.ceil(room.vormen.length / 600));
         for (let i = 0; i < room.vormen.length; i += stap) {
           if (!room.vormen[i].weg) vormen.push(pakVorm(room.vormen[i]));
         }
       }
-      beamerPakket = Object.assign({}, gedeeld, {
-        tanks: [...publiek.values()],
-        vormen: tikTeller % 5 === 0 ? vormen : null,   // null = houd wat je had
-        bullets: room.bullets.filter((b) => !b.weg).map(pakKogel),
-      });
+      pakket = Object.assign({}, beamerPakket, { vormen });
     }
-    staat.io.to(id).emit('state', beamerPakket);
+    staat.io.to(id).emit('state', pakket);
   }
 
   for (const ik of room.tanks.values()) {
@@ -190,7 +205,14 @@ function stuurWereld(room, nu) {
     for (const v of room.vormen) if (!v.weg && inBeeld(v.x, v.y)) vormen.push(pakVorm(v));
     const bullets = [];
     for (const b of room.bullets) if (!b.weg && inBeeld(b.x, b.y)) bullets.push(pakKogel(b));
-    staat.io.to(ik.id).emit('state', Object.assign({}, gedeeld, { tanks, vormen, bullets }));
+    const pakket = Object.assign({}, gedeeld, { tanks, vormen, bullets });
+    staat.io.to(ik.id).emit('state', pakket);
+    /* Staat deze leerling op de beamer? Dan krijgt de beamer precies wat hij
+       ziet — ook als hij in zijn eigen oefenarena speelt. */
+    if (staat.spotlight && staat.spotlight.id === ik.id) {
+      const spot = Object.assign({ spotNr: ik.nr }, pakket);
+      for (const b of beamers) staat.io.to(b).emit('spotState', spot);
+    }
   }
 }
 

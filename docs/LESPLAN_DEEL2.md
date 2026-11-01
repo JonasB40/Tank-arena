@@ -74,7 +74,7 @@ Twee inzichten tegelijk. Het verschil tussen de lussen: de eeuwige lus stopt noo
 ### 2:36–2:52 · 🏆 Het teamtoernooi
 
 - Iedereen kiest in het startmenu onder *meer opties* → **🧑‍🤝‍🧑 Tegen klasgenoten**. Die knop verschijnt pas als hun tank kan rijden, dus wie stap 4 haalde kan mee. Jij zet op de beamer (`/beamer`) of op je dashboard **Teams: 2** (of 4 bij een grote groep).
-- **Ronde 1** (5 min) — start op je dashboard een ronde (**▶ Start ronde**). De klok staat dan op de beamer en in elk speelveld, en het scorebord telt alleen de punten van deze ronde: wie al een uur speelt, staat niet onhaalbaar ver voor.
+- **Ronde 1** (5 min) — klap op je dashboard **🎮 Arena & ronde** open en start een ronde (**▶ Start ronde**). De klok staat dan op de beamer en in elk speelveld, en het scorebord telt alleen de punten van deze ronde: wie al een uur speelt, staat niet onhaalbaar ver voor.
 - **⏸ Ogen op mij + 2 min bouwtijd.** *"Wat ging er mis? Pas één ding aan."* Dit is het belangrijkste moment van het toernooi: itereren op je eigen ontwerp.
 - **Ronde 2** (5 min) — finale.
 
