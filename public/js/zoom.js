@@ -58,6 +58,32 @@
     document.addEventListener(soort, (e) => e.preventDefault(), { passive: false });
   }
 
+  /*
+   * En de harde rem. Uit een echte les bleek: met twee vingers tegelijk bezig
+   * (een duim op elke joystick, of een hand die op het scherm rust) zoomde
+   * Safari tóch de hele pagina in. Daarom houden we het standaardgedrag van
+   * elke beweging met twee of meer vingers tegen — overal op de pagina. Dat
+   * stopt alleen het zoomen van de browser zelf: de joysticks en het werkblad
+   * luisteren naar "pointer"-gebeurtenissen, en die komen gewoon door. Twee
+   * joysticks tegelijk en knijpen in het werkblad blijven dus werken.
+   */
+  const remOpTweeVingers = (e) => {
+    if ((e.touches && e.touches.length > 1) || (typeof e.scale === 'number' && e.scale !== 1)) e.preventDefault();
+  };
+  document.addEventListener('touchmove', remOpTweeVingers, { passive: false, capture: true });
+  document.addEventListener('touchstart', (e) => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false, capture: true });
+
+  /* Raakt de pagina tóch ingezoomd (een iPad die zich nergens aan houdt), dan
+     zetten we ze vanzelf terug zodra alle vingers los zijn. Wachten op de
+     zwevende knop hoeft dan niet meer. */
+  let vingers = 0;
+  document.addEventListener('touchstart', (e) => { vingers = e.touches.length; }, { passive: true, capture: true });
+  document.addEventListener('touchend', (e) => {
+    vingers = e.touches.length;
+    if (!vingers && window.visualViewport && window.visualViewport.scale > 1.01) setTimeout(herstelPaginaZoom, 150);
+  }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', (e) => { vingers = e.touches.length; }, { passive: true, capture: true });
+
   /* Na het typen (een getal in een blok, je naam) schuift Safari de pagina
      soms omhoog om plaats te maken voor het toetsenbord — en vergeet hij ze
      terug te zetten. De bovenbalk stond dan buiten beeld en er viel niet meer
