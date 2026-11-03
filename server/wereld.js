@@ -646,7 +646,8 @@ function isVeilig(room, t, nu) {
  */
 function respawnZwakker(room, t) {
   t.score = Math.floor(t.score / 3);
-  t.level = levelVan(t.score);
+  t.xpAftrek = Math.floor((t.xpAftrek || 0) / 3);
+  t.level = levelVan(t.score - t.xpAftrek);
   t.stats = legeStats();
   t.statPunten = Math.max(0, t.level - 1);
   const tier = klasseVan(t).tier || 1;
@@ -666,7 +667,9 @@ function geefPunten(room, t, n) {
   /* Punten van deze ronde tellen apart. Zo begint iedereen bij een nieuwe
      ronde weer op nul zonder dat we zijn level en zijn upgrades afpakken. */
   t.rondePunten = (t.rondePunten || 0) + n;
-  const nieuwLevel = levelVan(t.score);
+  // levels nog op slot (les 1, zie zetLesgrenzen)? dan tellen deze punten niet voor je level
+  if (t.levelsVast) t.xpAftrek = (t.xpAftrek || 0) + n;
+  const nieuwLevel = levelVan(t.score - (t.xpAftrek || 0));
   if (nieuwLevel > t.level) {
     const vorigLevel = t.level;
     t.level = nieuwLevel;
@@ -684,9 +687,28 @@ function geefPunten(room, t, n) {
   }
 }
 
+/*
+ * Les 1, in je eigen oefenarena: wat je nog niet geprogrammeerd hebt, gebeurt
+ * ook nog niet.
+ *  - Levens verliezen pas als stap 8 gelukt is ("als raak ik een vijandelijke
+ *    kogel? dan verander Levens met -10"). Daarvoor reed een kind in stap 1
+ *    tegen een vierkantje of werd het door een robot beschoten, en zakte de
+ *    levensbalk zonder dat het daar iets mee kon.
+ *  - Een level omhoog pas vanaf stap 12 (daar komen de gebeurtenissen, ook
+ *    "wanneer ik een level omhoog ga"). Je punten tellen wel; daarna stijg je
+ *    rustig vanaf level 1, zonder ineens tien levels te springen.
+ * Het telt de hoogste stap die de leerling bereikte. In de gedeelde arena en
+ * in les 2 geldt alles gewoon.
+ */
+function zetLesgrenzen(room, t, les, maxStap, gehaald) {
+  const oefenen = !!room.solo && les === 1;
+  t.geenSchade = oefenen && !(gehaald.includes(8) || maxStap >= 9);
+  t.levelsVast = oefenen && maxStap < 12;
+}
+
 function vindTank(socket) {
   const room = rooms.get(socket.data.roomId);
   return room ? room.tanks.get(socket.id) : null;
 }
 
-module.exports = { bepaalKoning, bewaakHeuvel, gemiddeldSpelerLevel, heuvelVan, inhaalFactor, opHeuvel, pasArenaGrootteAan, puntenVoorVorm, TEAM_KLEUREN, basisVan, bewaakRonde, bouwVormRaster, buurVormen, geefPunten, inBasis, inEigenZone, isVeilig, lesgeverZetTeams, maakRoom, nestVan, nieuweTank, respawnZwakker, rondeStand, spawnTank, startRonde, stopRonde, stuurEvent, teamZones, vakNr, vindTank, vormenRondom, vrijeRobotNaam, vulVormenAan, wijsTeamToe, zetTeamModus };
+module.exports = { bepaalKoning, bewaakHeuvel, zetLesgrenzen, gemiddeldSpelerLevel, heuvelVan, inhaalFactor, opHeuvel, pasArenaGrootteAan, puntenVoorVorm, TEAM_KLEUREN, basisVan, bewaakRonde, bouwVormRaster, buurVormen, geefPunten, inBasis, inEigenZone, isVeilig, lesgeverZetTeams, maakRoom, nestVan, nieuweTank, respawnZwakker, rondeStand, spawnTank, startRonde, stopRonde, stuurEvent, teamZones, vakNr, vindTank, vormenRondom, vrijeRobotNaam, vulVormenAan, wijsTeamToe, zetTeamModus };

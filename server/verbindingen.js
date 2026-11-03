@@ -10,7 +10,7 @@ const { codeStempel, codeGewijzigdNaStart } = require('./versie');
 const { projecten, bewaarProjectenOpSchijf, CODE_VORM, nieuweProjectCode } = require('./projecten');
 const { maakRoom, zetTeamModus, lesgeverZetTeams, wijsTeamToe, nieuweTank, spawnTank, vindTank } = require('./wereld');
 const { zorgVoorAI } = require('./robots');
-const { koppelKlaslokaal } = require('./klaslokaal');
+const { koppelKlaslokaal, pasLesgrenzenToe } = require('./klaslokaal');
 
 function startVerbindingen() {
   staat.io.on('connection', (socket) => {
@@ -39,6 +39,7 @@ function startVerbindingen() {
         t.hp = t.maxHp;
       }
       room.tanks.set(socket.id, t);
+      pasLesgrenzenToe(socket, room, t);
       if (room.teamModus) wijsTeamToe(room, t);
       spawnTank(room, t);
       socket.join(roomId);

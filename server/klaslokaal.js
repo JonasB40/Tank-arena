@@ -23,7 +23,7 @@ const { klem, saneNaam } = require('./regels');
 const { LESGEVER_SLEUTEL, magLesgeven } = require('./toegang');
 const { codeGewijzigdNaStart } = require('./versie');
 const { BEWAAR_DAGEN, aantalProjecten, wisAlleProjecten } = require('./projecten');
-const { maakRoom, startRonde, rondeStand, stopRonde, lesgeverZetTeams, vindTank } = require('./wereld');
+const { maakRoom, startRonde, rondeStand, stopRonde, lesgeverZetTeams, vindTank, zetLesgrenzen } = require('./wereld');
 
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
 const klas = new Map();
@@ -184,8 +184,14 @@ function koppelKlaslokaal(socket) {
       hulpKeer: oud.hulpKeer || 0,
       hulpReden: oud.hulpReden || null,
       sinds: oud.stap === stap && oud.les === les ? oud.sinds || Date.now() : Date.now(),
+      // de hoogste stap die hij ooit bereikte (terugbladeren telt niet)
+      maxStap: oud.les === les ? Math.max(oud.maxStap || 0, stap) : stap,
       bijgewerkt: Date.now(),
     });
+    // les 1, eigen oefenarena: nog geen schade of levels wat hij nog niet programmeerde
+    const nu = klas.get(socket.id);
+    const room = rooms.get(socket.data.roomId);
+    if (t && room) zetLesgrenzen(room, t, les, nu.maxStap, nu.gehaald);
     // voor het klasrapport achteraf: hoe ver kwam iedereen, en wanneer?
     noteerVoortgang(saneNaam(d.naam), les, stap);
   });
@@ -329,4 +335,11 @@ function startKlaslokaal() {
   setInterval(stuurKlasoverzicht, 1500);
 }
 
-module.exports = { koppelKlaslokaal, startKlaslokaal };
+/* Net (opnieuw) in een arena? Dan meteen de grenzen van zijn les, niet pas
+   bij het volgende lesStatus-berichtje (dat komt om de vier seconden). */
+function pasLesgrenzenToe(socket, room, t) {
+  const l = klas.get(socket.id);
+  if (l) zetLesgrenzen(room, t, l.les, l.maxStap, l.gehaald);
+}
+
+module.exports = { koppelKlaslokaal, pasLesgrenzenToe, startKlaslokaal };

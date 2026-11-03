@@ -745,6 +745,8 @@ function kogelsVijandig(a, c) {
 function beschadigTank(room, t, schade, dader, nu, contact) {
   // veilig in basis, eigen teamzone of tijdens spawnbescherming
   if (isVeilig(room, t, nu)) return;
+  // les 1: levens verliezen pas als je dat zelf geprogrammeerd hebt (zie zetLesgrenzen)
+  if (t.geenSchade) return;
   // teams (les 2): geen schade van teamgenoten
   if (dader && dader.team !== null && dader.team === t.team) return;
   t.hp -= schade;

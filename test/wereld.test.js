@@ -190,3 +190,43 @@ describe('heuvel veroveren', () => {
     assert.equal(h.x, room.arena.w / 2);
   });
 });
+
+describe('les 1: wat je nog niet programmeerde, gebeurt ook nog niet', () => {
+  const nu = Date.now() + 60000;   // ruim na de spawnbescherming
+  const klaar = (t) => { t.beschermTot = 0; t.x = 5000; t.y = 5000; };
+
+  it('voor stap 8 verliest je tank geen levens, daarna wel', () => {
+    const room = arenaMet(1, true);
+    const [t] = spelers(room); klaar(t);
+    wereld.zetLesgrenzen(room, t, 1, 6, [1, 2, 3, 4, 5]);
+    const hp = t.hp;
+    beschadigTank(room, t, 20, null, nu);
+    assert.equal(t.hp, hp);
+    wereld.zetLesgrenzen(room, t, 1, 8, [1, 2, 3, 4, 5, 6, 7, 8]);
+    beschadigTank(room, t, 20, null, nu);
+    assert.equal(t.hp, hp - 20);
+  });
+
+  it('voor stap 12 geen level omhoog; daarna rustig vanaf level 1', () => {
+    const room = arenaMet(1, true);
+    const [t] = spelers(room);
+    wereld.zetLesgrenzen(room, t, 1, 10, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    wereld.geefPunten(room, t, 5000);
+    assert.equal(t.level, 1);
+    assert.equal(t.score, 5000);   // de punten tellen wel
+    wereld.zetLesgrenzen(room, t, 1, 12, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    wereld.geefPunten(room, t, 30);
+    assert.equal(t.level, regels.levelVan(30));   // alsof hij net begon
+  });
+
+  it('in de gedeelde arena en in les 2 geldt alles gewoon', () => {
+    const samen = arenaMet(1);
+    const [a] = spelers(samen); klaar(a);
+    wereld.zetLesgrenzen(samen, a, 1, 2, [1]);
+    assert.ok(!a.geenSchade && !a.levelsVast);
+    const solo = arenaMet(1, true);
+    const [b] = spelers(solo);
+    wereld.zetLesgrenzen(solo, b, 2, 1, []);
+    assert.ok(!b.geenSchade && !b.levelsVast);
+  });
+});

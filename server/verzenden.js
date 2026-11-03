@@ -106,8 +106,9 @@ function stuurWereld(room, nu) {
     stats: t.stats,
     statPunten: t.statPunten,
     klasseAanbod: klasseAanbod(t),
-    xpVolgend: xpVoorLevel(t.level + 1),
-    xpDit: xpVoorLevel(t.level),
+    // punten van toen je levels nog op slot zaten tellen niet mee (zetLesgrenzen)
+    xpVolgend: xpVoorLevel(t.level + 1) + (t.xpAftrek || 0),
+    xpDit: xpVoorLevel(t.level) + (t.xpAftrek || 0),
     respawnOver: nu < t.deadUntil ? Math.ceil((t.deadUntil - nu) / 1000) : 0,
   });
 
