@@ -127,6 +127,28 @@ describe('projecten bewaren', () => {
   });
 });
 
+describe('hoe ver je kwam, blijft bij je project', () => {
+  let server;
+  const open = [];
+  before(async () => { server = await startServer(); });
+  after(async () => { for (const s of open) s.close(); await server.stop(); });
+  const nieuw = async () => { const s = await verbind(server.poort); open.push(s); return s; };
+  const opSchijf = (code) => JSON.parse(fs.readFileSync(server.projectBestand, 'utf8'))[code];
+
+  it('overleeft een nieuwe verbinding, terugbladeren en opnieuw bewaren', async () => {
+    const a = await nieuw();
+    const { code } = await vraag(a, 'bewaarProject', { naam: 'Noor', werkruimte: WERKBLAD });
+    a.emit('lesStatus', { naam: 'Noor', les: 1, stap: 12, gehaald: [8, 11], code });
+    await wacht(2100);   // bewaren mag om de twee seconden
+    await vraag(a, 'bewaarProject', { code, naam: 'Noor', werkruimte: WERKBLAD });
+    a.close();
+    const b = await nieuw();
+    b.emit('lesStatus', { naam: 'Noor', les: 1, stap: 1, gehaald: [], code });
+    await wacht(1800);   // de schijf volgt anderhalve seconde later
+    assert.deepEqual(opSchijf(code).les1, { maxStap: 12, stap8: true });
+  });
+});
+
 describe('privacy: projecten blijven niet eeuwig bewaard', () => {
   const DAG = 24 * 60 * 60 * 1000;
   const project = (naam, dagenGeleden) => ({ naam, werkruimte: WERKBLAD, bijgewerkt: Date.now() - dagenGeleden * DAG });

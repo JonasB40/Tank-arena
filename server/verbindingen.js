@@ -192,7 +192,8 @@ function startVerbindingen() {
          lusje in de console de schijf volschrijven met duizenden projecten. */
       const code = bestaand || socket.data.projectCode || nieuweProjectCode();
       socket.data.projectCode = code;
-      projecten[code] = { naam: saneNaam(d.naam), werkruimte: d.werkruimte, bijgewerkt: Date.now() };
+      // Object.assign: hoe ver hij kwam (les1, zie klaslokaal.js) blijft staan
+      projecten[code] = Object.assign({}, projecten[code], { naam: saneNaam(d.naam), werkruimte: d.werkruimte, bijgewerkt: Date.now() });
       bewaarProjectenOpSchijf();
       cb({ code });
     });

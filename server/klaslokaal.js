@@ -22,8 +22,28 @@ function spotlightInfo() {
 const { klem, saneNaam } = require('./regels');
 const { LESGEVER_SLEUTEL, magLesgeven } = require('./toegang');
 const { codeGewijzigdNaStart } = require('./versie');
-const { BEWAAR_DAGEN, aantalProjecten, wisAlleProjecten } = require('./projecten');
+const { BEWAAR_DAGEN, CODE_VORM, aantalProjecten, bewaarProjectenOpSchijf, projecten, wisAlleProjecten } = require('./projecten');
 const { maakRoom, startRonde, rondeStand, stopRonde, lesgeverZetTeams, vindTank, zetLesgrenzen } = require('./wereld');
+
+/*
+ * Hoe ver kwam deze leerling ooit? Dat bepaalt wat er in les 1 al op slot is
+ * (zie zetLesgrenzen). Een verbinding onthoudt het niet: hapert de wifi of
+ * herlaadt een iPad, dan is hij een nieuwe verbinding en kwam alles weer op
+ * slot. Daarom gaat het ook mee in zijn project: wie verdergaat met zijn
+ * code, houdt wat hij bereikte.
+ */
+function hoogsteStapVan(code, les, oud, stap, gehaald) {
+  const zelfdeLes = oud.les === les;
+  const project = les === 1 && typeof code === 'string' && CODE_VORM.test(code) ? projecten[code] : null;
+  const bewaard = (project && project.les1) || {};
+  const maxStap = Math.max(stap, ...gehaald, zelfdeLes ? oud.maxStap || 0 : 0, bewaard.maxStap || 0);
+  const stap8 = gehaald.includes(8) || !!(zelfdeLes && oud.stap8) || !!bewaard.stap8;
+  if (project && (maxStap !== bewaard.maxStap || stap8 !== !!bewaard.stap8)) {
+    project.les1 = { maxStap, stap8 };
+    bewaarProjectenOpSchijf();
+  }
+  return { maxStap, stap8 };
+}
 
 /* Wie zit waar in de les? (socket-id → {naam, stap, status}) */
 const klas = new Map();
@@ -144,6 +164,10 @@ function koppelKlaslokaal(socket) {
        les-2-leerling op het dashboard als "stap 3" van les 1. */
     const les = d.les === 2 ? 2 : 1;
     const t = vindTank(socket);
+    // de stappen die hij al haalde (getallen 1-20)
+    const gehaald = Array.isArray(d.gehaald)
+      ? [...new Set(d.gehaald.slice(0, 40).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b)
+      : [];
     klas.set(socket.id, {
       naam: saneNaam(d.naam),
       les,
@@ -157,11 +181,8 @@ function koppelKlaslokaal(socket) {
          (gedrag) — je weet wat je moet zeggen nog voor je bij de tafel bent. */
       checkS: !!d.checkS,
       checkG: !!d.checkG,
-      // de stappen die hij al haalde (getallen 1-20), en of zijn hint openstaat
-      gehaald: Array.isArray(d.gehaald)
-        ? [...new Set(d.gehaald.slice(0, 40).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b)
-        : [],
-      hint: !!d.hint,
+      gehaald,
+      hint: !!d.hint,   // staat zijn hint open?
       // bij welk stapje van de opdracht is hij? (die staat stapje per stapje op zijn scherm)
       stapje: klem(Math.round(Number(d.stapje)) || 0, 0, 20),
       /* Wat valt er op aan zijn programma? Zijn toestel kijkt het na: hoeveel
@@ -185,13 +206,13 @@ function koppelKlaslokaal(socket) {
       hulpReden: oud.hulpReden || null,
       sinds: oud.stap === stap && oud.les === les ? oud.sinds || Date.now() : Date.now(),
       // de hoogste stap die hij ooit bereikte (terugbladeren telt niet)
-      maxStap: oud.les === les ? Math.max(oud.maxStap || 0, stap) : stap,
+      ...hoogsteStapVan(d.code, les, oud, stap, gehaald),
+      expert: !!d.expert,
       bijgewerkt: Date.now(),
     });
     // les 1, eigen oefenarena: nog geen schade of levels wat hij nog niet programmeerde
-    const nu = klas.get(socket.id);
     const room = rooms.get(socket.data.roomId);
-    if (t && room) zetLesgrenzen(room, t, les, nu.maxStap, nu.gehaald);
+    if (t && room) zetLesgrenzen(room, t, klas.get(socket.id));
     // voor het klasrapport achteraf: hoe ver kwam iedereen, en wanneer?
     noteerVoortgang(saneNaam(d.naam), les, stap);
   });
@@ -339,7 +360,7 @@ function startKlaslokaal() {
    bij het volgende lesStatus-berichtje (dat komt om de vier seconden). */
 function pasLesgrenzenToe(socket, room, t) {
   const l = klas.get(socket.id);
-  if (l) zetLesgrenzen(room, t, l.les, l.maxStap, l.gehaald);
+  if (l) zetLesgrenzen(room, t, l);
 }
 
 module.exports = { koppelKlaslokaal, pasLesgrenzenToe, startKlaslokaal };

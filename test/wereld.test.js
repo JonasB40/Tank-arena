@@ -198,11 +198,11 @@ describe('les 1: wat je nog niet programmeerde, gebeurt ook nog niet', () => {
   it('voor stap 8 verliest je tank geen levens, daarna wel', () => {
     const room = arenaMet(1, true);
     const [t] = spelers(room); klaar(t);
-    wereld.zetLesgrenzen(room, t, 1, 6, [1, 2, 3, 4, 5]);
+    wereld.zetLesgrenzen(room, t, { les: 1, maxStap: 6, stap8: false });
     const hp = t.hp;
     beschadigTank(room, t, 20, null, nu);
     assert.equal(t.hp, hp);
-    wereld.zetLesgrenzen(room, t, 1, 8, [1, 2, 3, 4, 5, 6, 7, 8]);
+    wereld.zetLesgrenzen(room, t, { les: 1, maxStap: 8, stap8: true });
     beschadigTank(room, t, 20, null, nu);
     assert.equal(t.hp, hp - 20);
   });
@@ -210,23 +210,27 @@ describe('les 1: wat je nog niet programmeerde, gebeurt ook nog niet', () => {
   it('voor stap 12 geen level omhoog; daarna rustig vanaf level 1', () => {
     const room = arenaMet(1, true);
     const [t] = spelers(room);
-    wereld.zetLesgrenzen(room, t, 1, 10, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    wereld.zetLesgrenzen(room, t, { les: 1, maxStap: 10, stap8: true });
     wereld.geefPunten(room, t, 5000);
     assert.equal(t.level, 1);
     assert.equal(t.score, 5000);   // de punten tellen wel
-    wereld.zetLesgrenzen(room, t, 1, 12, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    wereld.zetLesgrenzen(room, t, { les: 1, maxStap: 12, stap8: true });
     wereld.geefPunten(room, t, 30);
     assert.equal(t.level, regels.levelVan(30));   // alsof hij net begon
   });
 
-  it('in de gedeelde arena en in les 2 geldt alles gewoon', () => {
+  it('in de gedeelde arena, in les 2 en in Expert geldt alles gewoon', () => {
     const samen = arenaMet(1);
     const [a] = spelers(samen); klaar(a);
-    wereld.zetLesgrenzen(samen, a, 1, 2, [1]);
+    wereld.zetLesgrenzen(samen, a, { les: 1, maxStap: 2, stap8: false });
     assert.ok(!a.geenSchade && !a.levelsVast);
     const solo = arenaMet(1, true);
     const [b] = spelers(solo);
-    wereld.zetLesgrenzen(solo, b, 2, 1, []);
+    wereld.zetLesgrenzen(solo, b, { les: 2, maxStap: 1, stap8: false });
     assert.ok(!b.geenSchade && !b.levelsVast);
+    wereld.zetLesgrenzen(solo, b, { les: 1, maxStap: 1, stap8: false, expert: true });
+    assert.ok(!b.geenSchade && !b.levelsVast);
+    wereld.zetLesgrenzen(solo, b, { les: 1, maxStap: 1, stap8: false });
+    assert.ok(b.geenSchade && b.levelsVast);
   });
 });

@@ -697,12 +697,13 @@ function geefPunten(room, t, n) {
  *  - Een level omhoog pas vanaf stap 12 (daar komen de gebeurtenissen, ook
  *    "wanneer ik een level omhoog ga"). Je punten tellen wel; daarna stijg je
  *    rustig vanaf level 1, zonder ineens tien levels te springen.
- * Het telt de hoogste stap die de leerling bereikte. In de gedeelde arena en
- * in les 2 geldt alles gewoon.
+ * Het telt de hoogste stap die de leerling bereikte. In de gedeelde arena, in
+ * les 2 en in Expert (vrij spelen, of de lesgever die iets voordoet) geldt
+ * alles gewoon.
  */
-function zetLesgrenzen(room, t, les, maxStap, gehaald) {
-  const oefenen = !!room.solo && les === 1;
-  t.geenSchade = oefenen && !(gehaald.includes(8) || maxStap >= 9);
+function zetLesgrenzen(room, t, { les, maxStap, stap8, expert }) {
+  const oefenen = !!room.solo && les === 1 && !expert;
+  t.geenSchade = oefenen && !(stap8 || maxStap >= 9);
   t.levelsVast = oefenen && maxStap < 12;
 }
 

@@ -428,7 +428,7 @@ const STAPPEN = [
     nr: 8,
     titel: 'Mijn teller blijft stilstaan',
     concept: 'Als-dan met een gebeurtenis uit het spel',
-    probleem: 'Je wordt geraakt, de levensbalk zakt — maar jouw teller blijft gewoon staan.',
+    probleem: 'Tot nu toe kon je tank geen levens verliezen. Zodra deze stap klaar is, zakt je levensbalk als je geraakt wordt. Maar jouw teller zou gewoon blijven staan.',
     ontdekking: 'Je programma moet zélf kijken of er een kogel binnenkomt. Zolang je dat niet vraagt, weet het van niets.',
     doel: 'Zet in je {{bes|herhaal}}: {{bes|als}} {{waa|raak ik een vijandelijke kogel?}} {{bes|dan}} {{vrb|verander Levens met}} -10.',
     hint: 'Het blok {{waa|raak ik …?}} staat in de blauwe {{waa|Waarnemen}}; kies in het menuutje "een vijandelijke kogel". Typ in het verander-blok gewoon -10 (met een minteken ervoor), dan gaat je teller omláág.',

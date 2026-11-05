@@ -707,6 +707,7 @@ function meldStatusAanLesgever(status) {
     // bij welk stapje van de opdracht is hij? (0 = de opdracht heeft geen stapjes)
     stapje: stapjes.length > 1 ? stapjeVerst + 1 : 0,
     code: projectCode || '',
+    expert: expertModus,   // in Expert is niets op slot (zie zetLesgrenzen)
   }));
 }
 setInterval(() => meldStatusAanLesgever(huidigeStatus()), 4000);
